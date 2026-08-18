@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ticket Router</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #12151B;
+    --panel: #1A1E26;
+    --panel-2: #20242E;
+    --border: #2B303B;
+    --text: #E7EAEE;
+    --muted: #8B93A1;
+    --accent: #3ED9C4;
+    --amber: #F0A857;
+    --coral: #E8604C;
+    --mono: 'IBM Plex Mono', ui-monospace, monospace;
+    --sans: 'IBM Plex Sans', system-ui, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:var(--sans); line-height:1.5;
+    min-height:100vh;
+  }
+  .wrap{ max-width:760px; margin:0 auto; padding:40px 20px 80px; }
+
+  .masthead{
+    display:flex; align-items:baseline; justify-content:space-between;
+    border-bottom:1px solid var(--border); padding-bottom:16px; margin-bottom:28px;
+  }
+  .masthead h1{
+    font-family:var(--mono); font-size:15px; font-weight:600;
+    letter-spacing:.08em; text-transform:uppercase; margin:0;
+  }
+  .masthead .sub{ font-family:var(--mono); font-size:12px; color:var(--muted); }
+  .dot{ display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--accent); margin-right:6px; box-shadow:0 0 8px var(--accent); }
+
+  .panel{
+    background:var(--panel); border:1px solid var(--border); border-radius:10px;
+    padding:20px; margin-bottom:20px;
+  }
+  label.field-label{
+    display:block; font-family:var(--mono); font-size:11px; color:var(--muted);
+    text-transform:uppercase; letter-spacing:.06em; margin-bottom:8px;
+  }
+  textarea{
+    width:100%; min-height:88px; resize:vertical;
+    background:var(--panel-2); border:1px solid var(--border); border-radius:6px;
+    color:var(--text); font-family:var(--sans); font-size:14px; padding:12px;
+  }
+  textarea:focus, input:focus, select:focus{ outline:2px solid var(--accent); outline-offset:1px; }
+
+  button{
+    font-family:var(--mono); font-size:12px; letter-spacing:.04em; text-transform:uppercase;
+    background:var(--accent); color:#0B1411; border:none; border-radius:6px;
+    padding:10px 16px; cursor:pointer; font-weight:600;
+  }
+  button:hover{ filter:brightness(1.08); }
+  button:disabled{ opacity:.5; cursor:not-allowed; }
+  button.secondary{ background:transparent; border:1px solid var(--border); color:var(--text); }
+
+  .row{ display:flex; gap:10px; align-items:center; margin-top:12px; }
+
+  .log{ display:flex; flex-direction:column; gap:14px; }
+  .card{
+    background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:18px;
+  }
+  .card .ticket-id{ font-family:var(--mono); font-size:11px; color:var(--muted); }
+  .card .ticket-text{ margin:6px 0 12px; font-size:14px; }
+
+  .badge{
+    display:inline-flex; align-items:center; gap:6px;
+    font-family:var(--mono); font-size:11px; text-transform:uppercase; letter-spacing:.05em;
+    padding:4px 9px; border-radius:20px; border:1px solid var(--border); background:var(--panel-2);
+  }
+  .badge .swatch{ width:7px; height:7px; border-radius:50%; }
+
+  .meter{ display:flex; gap:3px; margin:10px 0 4px; }
+  .meter i{ flex:1; height:6px; border-radius:2px; background:var(--panel-2); }
+  .meter i.on{ background:var(--seg-color, var(--accent)); }
+  .conf-label{ font-family:var(--mono); font-size:11px; color:var(--muted); }
+
+  .reasoning{ font-size:13px; color:var(--muted); margin-top:10px; }
+
+  .group-label{ font-family:var(--mono); font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin-bottom:4px; }
+  .routing{
+    display:flex; gap:14px; flex-wrap:wrap; margin-top:10px; padding:10px 12px;
+    background:var(--panel-2); border:1px solid var(--border); border-radius:6px;
+    font-size:12px;
+  }
+  .routing div b{ color:var(--muted); font-weight:500; font-family:var(--mono); font-size:10px; text-transform:uppercase; letter-spacing:.05em; display:block; margin-bottom:2px; }
+
+  .clarify{
+    margin-top:14px; padding-top:14px; border-top:1px dashed var(--border);
+  }
+  .clarify .q{ font-size:14px; margin-bottom:8px; }
+  .clarify input[type=text]{
+    width:100%; background:var(--panel-2); border:1px solid var(--border); border-radius:6px;
+    color:var(--text); font-family:var(--sans); font-size:14px; padding:10px 12px; margin-bottom:8px;
+  }
+
+  .correction{ margin-top:14px; padding-top:14px; border-top:1px dashed var(--border); }
+  .correction select{
+    background:var(--panel-2); border:1px solid var(--border); border-radius:6px;
+    color:var(--text); font-family:var(--sans); font-size:13px; padding:8px 10px;
+  }
+  .status-line{ font-family:var(--mono); font-size:11px; color:var(--muted); margin-top:2px; }
+  .empty{ color:var(--muted); font-size:13px; font-family:var(--mono); text-align:center; padding:30px 0; }
+  .thread{ margin:10px 0; font-size:13px; color:var(--muted); }
+  .thread .qa{ margin-bottom:4px; }
+
+  .key-panel input[type=password], .key-panel input[type=text]{
+    width:100%; background:var(--panel-2); border:1px solid var(--border); border-radius:6px;
+    color:var(--text); font-family:var(--mono); font-size:13px; padding:10px 12px;
+  }
+  .key-hint{ font-family:var(--mono); font-size:11px; color:var(--muted); margin-top:8px; }
+  .key-panel.saved{ border-color:var(--accent); }
+  .toolbar{ display:flex; justify-content:flex-end; margin-bottom:14px; }
+  a.download-link{
+    font-family:var(--mono); font-size:11px; letter-spacing:.04em; text-transform:uppercase;
+    color:var(--text); text-decoration:none; border:1px solid var(--border); border-radius:6px;
+    padding:8px 14px; background:var(--panel);
+  }
+  a.download-link:hover{ border-color:var(--accent); color:var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="masthead">
+    <h1><span class="dot"></span>Ticket Router</h1>
+    <div class="sub">classify &rarr; clarify &rarr; route &rarr; learn</div>
+  </div>
+
+  <div class="panel key-panel" id="keyPanel">
+    <label class="field-label">OpenAI API key</label>
+    <input type="password" id="apiKeyInput" placeholder="sk-..." autocomplete="off" />
+    <div class="row">
+      <button id="saveKeyBtn" onclick="saveApiKey()">Save key</button>
+      <button class="secondary" id="clearKeyBtn" onclick="clearApiKey()">Clear</button>
+      <span id="keyStatus" class="status-line"></span>
+    </div>
+    <div class="key-hint">Stored only in this browser's local storage, sent directly with each request - never written to the server.</div>
+  </div>
+
+  <div class="toolbar">
+    <a class="download-link" href="/api/taxonomy/export.csv" download="taxonomy.csv">&darr; Download taxonomy CSV</a>
+  </div>
+
+  <div class="panel">
+    <label class="field-label">New ticket</label>
+    <textarea id="ticketInput" placeholder="Paste or type ticket text, e.g. &quot;Our invoice from last month still hasn't been paid&quot;"></textarea>
+    <div class="row">
+      <button id="submitBtn" onclick="submitTicket()">Classify ticket</button>
+      <span id="submitStatus" class="status-line"></span>
+    </div>
+  </div>
+
+  <div id="log" class="log">
+    <div class="empty">No tickets classified yet in this session.</div>
+  </div>
+</div>
+
+<script>
+const API_KEY_STORAGE_KEY = 'ticketRouterOpenAIKey';
+let groups = [];
+let leafMap = {}; // subcategory id -> { name, groupId, groupName }
+const log = document.getElementById('log');
+
+function getApiKey() {
+  return localStorage.getItem(API_KEY_STORAGE_KEY) || '';
+}
+
+function authHeaders() {
+  const key = getApiKey();
+  return key ? { 'X-OpenAI-Api-Key': key } : {};
+}
+
+function refreshKeyPanel() {
+  const key = getApiKey();
+  const panel = document.getElementById('keyPanel');
+  const input = document.getElementById('apiKeyInput');
+  if (key) {
+    input.value = key;
+    panel.classList.add('saved');
+  } else {
+    panel.classList.remove('saved');
+  }
+}
+
+function saveApiKey() {
+  const input = document.getElementById('apiKeyInput');
+  const status = document.getElementById('keyStatus');
+  const key = input.value.trim();
+  if (!key) { status.innerText = 'enter a key first'; setTimeout(() => status.innerText = '', 2000); return; }
+  localStorage.setItem(API_KEY_STORAGE_KEY, key);
+  refreshKeyPanel();
+  status.innerText = 'saved';
+  setTimeout(() => status.innerText = '', 2000);
+}
+
+function clearApiKey() {
+  localStorage.removeItem(API_KEY_STORAGE_KEY);
+  document.getElementById('apiKeyInput').value = '';
+  refreshKeyPanel();
+}
+
+refreshKeyPanel();
+
+async function loadTaxonomy() {
+  const res = await fetch('/api/taxonomy');
+  const data = await res.json();
+  groups = data.categories;
+  leafMap = {};
+  groups.forEach(g => {
+    (g.subcategories || []).forEach(s => {
+      leafMap[s.id] = { name: s.name, groupId: g.id, groupName: g.name };
+    });
+  });
+}
+
+function confBand(c) {
+  if (c === null || c === undefined) return { color: 'var(--muted)', segs: 0 };
+  if (c < 0.4) return { color: 'var(--coral)', segs: Math.max(1, Math.round(c * 5)) };
+  if (c < 0.65) return { color: 'var(--amber)', segs: Math.round(c * 5) };
+  return { color: 'var(--accent)', segs: Math.round(c * 5) };
+}
+
+function categoryName(id) {
+  return leafMap[id] ? leafMap[id].name : id;
+}
+
+function renderMeter(confidence) {
+  const band = confBand(confidence);
+  let segs = '';
+  for (let i = 0; i < 5; i++) {
+    segs += `<i class="${i < band.segs ? 'on' : ''}" style="--seg-color:${band.color}"></i>`;
+  }
+  return `<div class="meter">${segs}</div><div class="conf-label">confidence ${confidence !== null && confidence !== undefined ? confidence.toFixed(2) : '—'}</div>`;
+}
+
+function statusLabel(status) {
+  return {
+    classified: 'Routed',
+    awaiting_clarification: 'Awaiting clarification',
+    needs_human_review: 'Needs human review',
+    corrected: 'Corrected',
+  }[status] || status;
+}
+
+function categoryOptionsGrouped(selectedId) {
+  return groups.map(g => {
+    const opts = (g.subcategories || []).map(s =>
+      `<option value="${s.id}" ${s.id === selectedId ? 'selected' : ''}>${esc(s.name)}</option>`
+    ).join('');
+    return `<optgroup label="${esc(g.name)}">${opts}</optgroup>`;
+  }).join('');
+}
+
+function cardHTML(state) {
+  const band = confBand(state.confidence);
+  const showClarify = state.status === 'awaiting_clarification';
+  const canCorrect = state.status === 'classified' || state.status === 'needs_human_review';
+
+  const threadHTML = (state.conversation || []).map(t =>
+    `<div class="qa">${t.role === 'system_question' ? '→ ' : '↳ '}${esc(t.content)}</div>`
+  ).join('');
+
+  return `
+    <div class="ticket-id">#${state.ticket_id} · ${statusLabel(state.status)}</div>
+    <div class="ticket-text" data-original></div>
+    ${state.category_id ? `
+      ${state.category_group_name ? `<div class="group-label">${esc(state.category_group_name)}</div>` : ''}
+      <span class="badge"><span class="swatch" style="background:${band.color}"></span>${esc(state.category_name || state.category_id)}</span>
+      ${renderMeter(state.confidence)}
+      ${state.reasoning ? `<div class="reasoning">${esc(state.reasoning)}</div>` : ''}
+      ${(state.assigned_team || state.poc_primary) ? `
+        <div class="routing">
+          ${state.assigned_team ? `<div><b>Team</b>${esc(state.assigned_team)}</div>` : ''}
+          ${state.poc_primary ? `<div><b>POC</b>${esc(state.poc_primary)}</div>` : ''}
+        </div>
+      ` : ''}
+    ` : ''}
+    ${threadHTML ? `<div class="thread">${threadHTML}</div>` : ''}
+    ${showClarify ? `
+      <div class="clarify">
+        <div class="q">${esc(state.clarifying_question || 'Could you provide more detail?')}</div>
+        <input type="text" placeholder="Your answer..." />
+        <button onclick="respond('${state.ticket_id}', this)">Send answer</button>
+      </div>
+    ` : ''}
+    ${canCorrect ? `
+      <div class="correction">
+        <label class="field-label">Not right? Correct it</label>
+        <select>${categoryOptionsGrouped(state.category_id)}</select>
+        <button class="secondary" onclick="correct('${state.ticket_id}', this)">Submit correction</button>
+      </div>
+    ` : ''}
+  `;
+}
+
+function esc(s) {
+  if (s === null || s === undefined) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function upsertCard(state, originalText) {
+  let el = document.getElementById('card-' + state.ticket_id);
+  if (!el) {
+    if (log.querySelector('.empty')) log.innerHTML = '';
+    el = document.createElement('div');
+    el.className = 'card';
+    el.id = 'card-' + state.ticket_id;
+    log.prepend(el);
+  }
+  el.innerHTML = cardHTML(state);
+  if (originalText) el.querySelector('[data-original]').innerText = originalText;
+  else if (el.dataset.text) el.querySelector('[data-original]').innerText = el.dataset.text;
+  if (originalText) el.dataset.text = originalText;
+}
+
+async function submitTicket() {
+  const input = document.getElementById('ticketInput');
+  const text = input.value.trim();
+  if (!text) return;
+  const btn = document.getElementById('submitBtn');
+  const status = document.getElementById('submitStatus');
+  if (!getApiKey()) {
+    status.innerText = 'enter your OpenAI API key above first';
+    setTimeout(() => status.innerText = '', 3000);
+    return;
+  }
+  btn.disabled = true; status.innerText = 'classifying…';
+  try {
+    const res = await fetch('/api/tickets', {
+      method: 'POST', headers: {'Content-Type':'application/json', ...authHeaders()},
+      body: JSON.stringify({ text })
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const state = await res.json();
+    upsertCard(state, text);
+    input.value = '';
+  } catch (e) {
+    status.innerText = 'error — check your API key is valid';
+    console.error(e);
+    setTimeout(() => status.innerText = '', 3000);
+    btn.disabled = false;
+    return;
+  }
+  status.innerText = ''; btn.disabled = false;
+}
+
+async function respond(ticketId, btnEl) {
+  const wrap = btnEl.closest('.clarify');
+  const input = wrap.querySelector('input');
+  const answer = input.value.trim();
+  if (!answer) return;
+  btnEl.disabled = true;
+  const res = await fetch(`/api/tickets/${ticketId}/respond`, {
+    method: 'POST', headers: {'Content-Type':'application/json', ...authHeaders()},
+    body: JSON.stringify({ answer })
+  });
+  const state = await res.json();
+  upsertCard(state);
+}
+
+async function correct(ticketId, btnEl) {
+  const wrap = btnEl.closest('.correction');
+  const select = wrap.querySelector('select');
+  btnEl.disabled = true;
+  const res = await fetch(`/api/tickets/${ticketId}/correct`, {
+    method: 'POST', headers: {'Content-Type':'application/json', ...authHeaders()},
+    body: JSON.stringify({ corrected_category_id: select.value, corrected_by: 'ui-operator' })
+  });
+  const state = await res.json();
+  upsertCard(state);
+}
+
+loadTaxonomy();
+</script>
+</body>
+</html>

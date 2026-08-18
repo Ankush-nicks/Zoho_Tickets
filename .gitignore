@@ -1,0 +1,15 @@
+# Environment / secrets
+.env
+
+# Virtual environment
+.venv/
+
+# Local runtime state (SQLite ticket store + Chroma vector store)
+app/data/
+
+# Python
+__pycache__/
+*.pyc
+
+# Editor/tooling
+.claude/

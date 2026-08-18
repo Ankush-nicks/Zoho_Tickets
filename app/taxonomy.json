@@ -1,0 +1,1129 @@
+{
+  "version": 2,
+  "categories": [
+    {
+      "id": "G01",
+      "name": "QA Report / Instructor Evaluation",
+      "subcategories": [
+        {
+          "id": "G01-S01",
+          "name": "Feedback Too Generic or Vague",
+          "description": "QA report was generated but comments lack specific timestamps, examples, or actionable detail.",
+          "assigned_team": "IAS/SET",
+          "poc_primary": "ranjith.kumar@nxtwave.co.in",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in",
+          "ticket_volume": 33,
+          "data_coverage": "Likely Complete",
+          "examples": [
+            "Hi Team, This is to inform you that my score in the QA report has been marked as 2.7, even though I have implemented the required criteria during the session. I noticed that no scores have been given ...",
+            "I am facing an issue with the Curriculum Alignment & Content Accuracy evaluation. The score is displayed as 0.0/10.0, but no detailed feedback or explanation is provided to understand why the score wa...",
+            "I would like to request a review of the QA feedback provided for my session. The observed session was designed as an activity-based session, not a slide-based lecture. As per the curriculum flow, I fi...",
+            "Subject: Request to Remove QA Report from Performance Analysis. we are also unable to upload any files in upload supporting files. please look at this issue. Dear QA Team, I covered all the required q..."
+          ]
+        },
+        {
+          "id": "G01-S02",
+          "name": "QA Evaluation Prompt Update Request",
+          "description": "Instructor or internal team flags that the underlying QA evaluation prompt/rubric configuration itself needs to be corrected, updated, or deployed to production -- e.g. a subject's prompt was never updated in prod, a prompt doesn't account for bilingual (Telugu/English) teaching, or prompt/rubric changes are stuck in staging and delaying QA reports.",
+          "assigned_team": "IAS/SET",
+          "poc_primary": "ranjith.kumar@nxtwave.co.in",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in",
+          "ticket_volume": 3,
+          "data_coverage": "Likely Complete",
+          "examples": [
+            "1. There is an issue with updating the prompts in prod, as mentioned by Ranjith. The math prompts have not been updated in the prod, which is limiting our ability to evaluate instructors preparing for...",
+            "For the Intensive Offline Campus instructors, they need to teach the classes in Telugu & English. This is affecting their QA Report. Kindly update the prompt for these instructors",
+            "Hi Team, I wanted to flag a delay on our end that needs immediate prioritisation. The QA evaluation prompts, covering English, Math, Aptitude, Tech, Practice, Invigilation, and related session types, ..."
+          ]
+        },
+        {
+          "id": "G01-S03",
+          "name": "AI / Automated Evaluation Accuracy Error",
+          "description": "The automated QA/evaluation tool got something factually wrong -- misheard/mis-transcribed audio, misread a classroom interaction, misjudged an instructor's example, raised a false grooming flag, or a recording problem that's explicitly reported as impacting the QA evaluation. An AI/tool accuracy issue, filed under QA Report since it's about evaluation correctness, but fixed by the Product team.",
+          "assigned_team": "IAS/SET",
+          "poc_primary": "ranjith.kumar@nxtwave.co.in",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in, vamsitallam@nxtwave.co.in",
+          "ticket_volume": 175,
+          "data_coverage": "Likely Complete",
+          "examples": [
+            "The rubric - curriculum alignment and content accuracy is not evaluated",
+            "HTML & CSS Session 20, 30 July 2026 - language rubric is evaluated to flag the usage of Telugu",
+            "Two planned question types (man-days variation and contractor problem) were left unillustrated because you did not work out questions 09 and 10 during the session. This weakens the completeness of exa...",
+            "I would like to raise a concern regarding the Curriculum Alignment & Content Accuracy evaluation for the Filtering and Sorting session. This session contains approximately 115–120 slides, including co..."
+          ]
+        },
+        {
+          "id": "G01-S04",
+          "name": "Scorecard / Rubric Discrepancy",
+          "description": "The QA report WAS generated, but the instructor is disputing its content -- a specific rubric/category missing, scored zero, an unexpectedly low or dropped score, or a mismatch between the report and what actually happened in session. A content dispute, not a technical failure.",
+          "assigned_team": "IAS/SET",
+          "poc_primary": "ranjith.kumar@nxtwave.co.in",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in",
+          "ticket_volume": 62,
+          "data_coverage": "Likely Complete",
+          "examples": [
+            "Very Low Score for Invigilation",
+            "No Action Items but low Score",
+            "QA Report giving low Scores and no action items",
+            "QA Report giving low Scores"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "G02",
+      "name": "Content & Curriculum",
+      "subcategories": [
+        {
+          "id": "G02-S01",
+          "name": "Content Sequence / Incorrect Examples / Logic / Formula",
+          "description": "The written or shown content in a slide, video, or reading material is factually wrong — incorrect formula, wrong code, wrong explanation.",
+          "assigned_team": "Content Team",
+          "poc_primary": "Respective POC based on the course chosen (see subject breakdown)",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "ticket_volume": 50,
+          "data_coverage": "Likely Complete",
+          "examples": [
+            "In the image in slide 57, both scenarios have FLAT 80 on the box.",
+            "In the Scope and Namespace section, Slides 29, 30, and 31 contain incorrect outputs. They also mention the global keyword incorrectly.",
+            "In the introduction to matrices the slides are wrong -- the operation we are performing is addition of two matrices but in the slide it shows a different operation.",
+            "Looking at the third graph in attached screenshot (Amplitude Modulated Signal) on Slide 47, there is an explicit labeling error -- 'Minimum Amplitude' points to two different spots."
+          ]
+        },
+        {
+          "id": "G02-S02",
+          "name": "Learning Hours Discrepancy",
+          "description": "Estimated learning time shown on the portal is significantly more or less than the actual content duration.",
+          "assigned_team": "Content Team",
+          "poc_primary": "Respective POC based on the course chosen (see subject breakdown)",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "ticket_volume": 43,
+          "data_coverage": "Possibly Incomplete",
+          "examples": [
+            "I have completed the class only half since it's very lengthy and covered remaining half topic in the next session. But it's evaluating for the full content.",
+            "For LLM (Today's topic) the session is partially completed as students need groq and openweathermap API key which is activated few hours after creation and students were having multiple errors for the same. \nthe session is also a bit lengthy and requires  20-30 more mins to be completed.\nI want this session to be continued in the next slots.",
+            "Roots in AP, GP, and HP\nRelationship Between Roots and Coefficients\nRoot Transformations\nFormation of Equations\nThe PPT's of all these topics have same repeating things i.e. how to form equations using available roots and is very short for 1 hour session. I think these PPT's needs to be combined in a proper manner so that we are not giving monotonous feel to the students. \nSome PPT's are hard to cover in 1 hour while some has very few things to cover in 1 hour.",
+            "The session contains approximately 80 slides, and the corresponding video duration exceeds one hour, making it impractical to complete within a single scheduled session. Please either split the content into two sessions or provide 2 slots in the prod sequence."
+          ]
+        },
+        {
+          "id": "G02-S03",
+          "name": "Module Quiz / Classroom Quiz Concerns",
+          "description": "Quiz questions have wrong answers, duplicate options, ambiguous wording, or quiz progress is not updating.",
+          "assigned_team": "Content Team",
+          "poc_primary": "Respective POC based on the course chosen (see subject breakdown)",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "ticket_volume": 33,
+          "data_coverage": "Likely Complete",
+          "examples": [
+            "Given Data in question and explanation are different. Also Options are not according to Question data.",
+            "In module quiz, time complexity of insertion in BST is marked wrong for O(log n).",
+            "For the following Classroom Quiz - B, pass marks is 5, but total marks is only 4, so even when getting 4/4, it says failed.",
+            "A question in classroom quiz 1 is wrong for the whole set."
+          ]
+        },
+        {
+          "id": "G02-S04",
+          "name": "Broken Links / Non-functional Resources",
+          "description": "A PPT, slide, video, or resource link in the course content cannot be opened — permission denied, broken URL, or private video.",
+          "assigned_team": "Content Team",
+          "poc_primary": "Respective POC based on the course chosen (see subject breakdown)",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "ticket_volume": 28,
+          "data_coverage": "Possibly Incomplete",
+          "examples": [
+            "The video shows as unavailable, so learners are unable to access the required content.",
+            "Access to the below PPT is revoked: https://docs.google.com/presentation/d/1MkV0izjZYGX1o67HG4bk3jXkYU7cnOulrkbASiZpBN8/edit",
+            "For the following sessions of the course 'Build your own responsive website', the access for the PPT is not provided for the NxtWave Academy team.",
+            "Students are facing an issue in the HTML/CSS course -- they receive an 'Unauthorized' error when they click the required link."
+          ]
+        },
+        {
+          "id": "G02-S05",
+          "name": "Missing Content / Topic Not Covered",
+          "description": "A topic expected to be part of the course is absent from the portal with no content published for it.",
+          "assigned_team": "Content Team",
+          "poc_primary": "Respective POC based on the course chosen (see subject breakdown)",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "ticket_volume": 23,
+          "data_coverage": "Possibly Incomplete",
+          "examples": [
+            "I checked the project 'PDF Content Previewer' and found that the instructions mention a prefilled PDF file named attention_all_you_need.pdf. However, this file is not available in the Cloud IDE/project files.",
+            "After the recent portal update, the initial four ReactJS topics are no longer visible in the course.",
+            "In this session, HTML, CSS, and JavaScript were explained. However, the respective playground also uses Tailwind CSS along with HTML, and Tailwind CSS has not yet been covered in the sessions.",
+            "Missing hands on Collab Link."
+          ]
+        },
+        {
+          "id": "G02-S06",
+          "name": "IDE / Terminal / API Keys Issues",
+          "description": "The embedded IDE or coding environment is not loading, throwing errors, or not rendering output; or API keys for course exercises are unavailable or quota exhausted.",
+          "assigned_team": "Content Team",
+          "poc_primary": "Respective POC based on the course chosen (see subject breakdown)",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "ticket_volume": 31,
+          "data_coverage": "Likely Complete",
+          "examples": [
+            "Issue Report: Book Store API Quota Limit Exceeded. API Endpoint: https://apis.ccbp.in/book-store",
+            "Since the beginning of today, the IDE has not been working. Can you please check on it?",
+            "Cannot see server output on localhost:3000 after running the Express server code in the IDE.",
+            "The output is not Rendering."
+          ]
+        },
+        {
+          "id": "G02-S07",
+          "name": "Outdated / Deprecated Content",
+          "description": "Course content references tools, APIs, libraries, or approaches that are no longer current or valid.",
+          "assigned_team": "Content Team",
+          "poc_primary": "Respective POC based on the course chosen (see subject breakdown)",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "ticket_volume": 11,
+          "data_coverage": "Likely Complete",
+          "examples": [
+            "The projects and workflows covered in the sessions were built using an earlier version of the Composio platform. Since then, Composio has been completely updated, and the current platform differs significantly.",
+            "For any real-world application (invoicing, compliance, advisory), we'll need to ingest the latest GST notifications (2026) into your knowledge base. Otherwise, your RAG system risks surfacing outdated (2022) tax rates.",
+            "We were using VAPI AI for generating AI calls, however it is now a paid tool.",
+            "The slides related to Custom Input (from slide 19 onwards) need to be updated, as the learning portal UI has changed. The current slides still refer to the previous version."
+          ]
+        },
+        {
+          "id": "G02-S08",
+          "name": "Conflicting Explanations in Modules",
+          "description": "Two different modules in the same course give contradictory explanations of the same concept.",
+          "assigned_team": "Content Team",
+          "poc_primary": "Respective POC based on the course chosen (see subject breakdown)",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "ticket_volume": 14,
+          "data_coverage": "Possibly Incomplete",
+          "examples": [
+            "Types of Naive Bayes explained in the session titled 'Naive Bayes Part-2' but appears in the Agenda slide of the session titled differently.",
+            "Attached questions are from the Man Chain Rule and Wages concept but it is given in the Time and Work daily practice.",
+            "Question and Explanation are conflicting for student."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "G03",
+      "name": "Instructor Platform (Teach OS)",
+      "subcategories": [
+        {
+          "id": "G03-S01",
+          "name": "Platform Bug / Other Technical Issue",
+          "description": "A Teach OS feature, button, or workflow doesn't work as expected, or the issue doesn't fit a more specific bug category.",
+          "assigned_team": "Product Team",
+          "poc_primary": "catherine.joannamathews@nxtwave.co.in, gauthami.chandil@nxtwave.co.in, ankon.nandi@nxtwave.co.in",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in, vamsitallam@nxtwave.co.in",
+          "ticket_volume": 21,
+          "data_coverage": "Likely Complete",
+          "examples": [
+            "I would like to request a feature enhancement for the student attendance page of Teach OS sessions. Currently, the roll numbers of students are not displayed on that page; only their names and photogr...",
+            "whenever i start recording session after session it shows like not recorded but it got saved in downloads after 4 hrs and when i go to teach os for uploading audio it says suspected malpractice",
+            "While marking the attendance, portal got reloaded automatically whitout my presence, due to which my entire cllass recording got refreshed and started recording again in the end. \"Hall 4 July 18th Com...",
+            "During today's session, I was scheduled to conduct the 'Designing Clear Prompts' topic. However, the Teach OS portal displayed the 'Mastering the Art of Discussion' presentation instead, so the conten..."
+          ]
+        },
+        {
+          "id": "G03-S02",
+          "name": "Teach OS Performance / Speed Issue",
+          "description": "Teach OS is loading very slowly, freezing, or crashing during use.",
+          "assigned_team": "Product Team",
+          "poc_primary": "catherine.joannamathews@nxtwave.co.in, gauthami.chandil@nxtwave.co.in, ankon.nandi@nxtwave.co.in",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in, vamsitallam@nxtwave.co.in",
+          "ticket_volume": 61,
+          "data_coverage": "Likely Complete",
+          "examples": [
+            "Power outage, could not record session in teachOS, have recorded the session in phone but cannot upload that audio since it says \"malpractice\" also unable to upload the audio recording in \"supporting ...",
+            "As soon as i started the recording it got submitted and i recorded the session in my phone to upload, but i am unable to upload the recording now. The Q/A rating for the session is scored-1/10.0. Plea...",
+            "In Teachos I'm not getting a score for the Curriculum alignment parameter and giving very less score which is effecting my overall performance please i request you to Evaluate my QA report provide wit...",
+            "The Teach OS recording is not available and. I couldn't find the recording. I have a backup recording. But I am unable to upload it."
+          ]
+        },
+        {
+          "id": "G03-S03",
+          "name": "Instructor Scorecard Issues",
+          "description": "The QA report itself never got created -- stuck, failed, or missing entirely -- with no specific rubric/score named to dispute yet. A platform/technical failure preventing the scorecard from generating at all.",
+          "assigned_team": "Product Team",
+          "poc_primary": "catherine.joannamathews@nxtwave.co.in, gauthami.chandil@nxtwave.co.in, ankon.nandi@nxtwave.co.in",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in, vamsitallam@nxtwave.co.in",
+          "ticket_volume": 52,
+          "data_coverage": "Likely Complete",
+          "examples": [
+            "report failed to generate even though it was successfully uploaded.",
+            "I've start class and click on start recording but somehow it didn't work and now it's not showing anything.",
+            "QA Report Failed",
+            "Qa report did not generated, got the status a s failed for HTML/CSS session."
+          ]
+        },
+        {
+          "id": "G03-S04",
+          "name": "Recording Issue (Platform / Software)",
+          "description": "TeachOS itself failed to capture, process, or upload the recording despite working equipment -- a software/platform bug. Routed first to the instructor's Capability Manager to confirm it isn't an equipment issue, then escalated to the Product team if it's genuinely a platform failure.",
+          "assigned_team": "Capability Manager (first) -> Central Team / Product (escalation)",
+          "poc_primary": "Respective Capability Manager; escalate to catherine.joannamathews@nxtwave.co.in, gauthami.chandil@nxtwave.co.in, ankon.nandi@nxtwave.co.in",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in, vamsitallam@nxtwave.co.in",
+          "ticket_volume": 24,
+          "data_coverage": "Likely Complete",
+          "examples": [
+            "Audio not recorded",
+            "My session ended before even I started and they could't realot the slot. So, I took the session in google meet and recorded the session manually in my mobile phone.",
+            "The audio is not being uploaded.",
+            "Unable to upload recording. Same issue that was reported on Monday. It says the audio is unverified."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "G04",
+      "name": "Learning Portal Access (CCBP)",
+      "subcategories": [
+        {
+          "id": "G04-S01",
+          "name": "Learning Portal Access & Technical Issue",
+          "description": "Any login, access, unlocking, expiry, or general technical problem with either the instructor Teach OS platform or the student Learning Portal -- both route to the same Central Operations team.",
+          "assigned_team": "Central Operations",
+          "poc_primary": "narayana.dubbala@nxtwave.co.in, gompa.mounica@nxtwave.co.in",
+          "poc_cc": "naga.nunna@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "ticket_volume": 70,
+          "data_coverage": "Likely Complete",
+          "examples": [
+            "Streams Coding Module",
+            "I need access to dsa level-2 course .",
+            "Hi Team, I'm a DSA Instructor deployed to MRV College, Currently facing issue where, I'm unable to conduct the class Room Quizes for the students in the sem-3 modules( https://learning.ccbp.in/course?...",
+            "Need access to Mongo DB Lecture content"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "G05",
+      "name": "Scheduling & Session Delivery",
+      "subcategories": [
+        {
+          "id": "G05-S01",
+          "name": "Timetable Conflict",
+          "description": "Two sessions are scheduled at the same time for the same instructor, or the same classroom is double-booked.",
+          "assigned_team": "Program operations",
+          "poc_primary": "manoj.panchothi@nxtwave.co.in",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "ticket_volume": 22,
+          "data_coverage": "Possibly Incomplete",
+          "examples": [
+            "As there is difference in the LMS Portal and Prod Sheet of Semester 2, where there is some topic missed in the Prod Sheet in the Module of Bit Manipulation. And in Semester 3 it is starting from Hashi...",
+            "In TeachOS - Manager connect - tracker, The available filters of completed pre-scheduled, not booked etc. These filters are showing the wrong data.",
+            "Section 1: Topic: Implementing CRUD Operations Part 1(11:00 to 11:50 AM) I would like to raise a concern regarding the QA evaluation for my session at the 42:00 timestamp. The report states that I had...",
+            "Correct answer format is not clear"
+          ]
+        },
+        {
+          "id": "G05-S02",
+          "name": "Session Rescheduled",
+          "description": "A confirmed session has been moved to a different date or time without adequate notice or consent.",
+          "assigned_team": "Program operations",
+          "poc_primary": "manoj.panchothi@nxtwave.co.in",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "ticket_volume": 3,
+          "data_coverage": "Possibly Incomplete",
+          "examples": [
+            "even informed prior wrong sessions are being scheduled and moving forward this is very difficult for the taking class. Actually, it has to be practice session of measures of variability due to wrong s...",
+            "The record of my sessions taken at SGU, Kolhapur are missing from the TeachOS platform. I was there from January 2026- June 2026.",
+            "After 20 minutes of starting the session recording, the portal took me to the login page, which terminated the recording also. So now, I don't have the session recording saved."
+          ]
+        },
+        {
+          "id": "G05-S03",
+          "name": "Session Cancelled",
+          "description": "A session has been cancelled entirely without a makeup plan or adequate notice.",
+          "assigned_team": "Program operations",
+          "poc_primary": "manoj.panchothi@nxtwave.co.in",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "ticket_volume": 23,
+          "data_coverage": "Possibly Incomplete",
+          "examples": [
+            "I'm unable to record the practice session. The practice session was scheduled as an online session. When I click Start Practice, it redirects me to the Learning Portal, but I don't see any recording o...",
+            "in TeachOS manager connect, when we accept the meet , the google meet is being scheduled which is good but when we are rescheduling the meet, the meet scheduled in google meet is not being cancelled -...",
+            "Incorrect session was scheduled earlier and correct one was assigned later",
+            "I was mapped to a lecture session instead of a practice so I didn't record the session since the rating will drop drastically."
+          ]
+        },
+        {
+          "id": "G05-S04",
+          "name": "Session Mismatch",
+          "description": "The session assigned does not match the instructor's subject expertise or the agreed curriculum.",
+          "assigned_team": "Program operations",
+          "poc_primary": "manoj.panchothi@nxtwave.co.in",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "ticket_volume": 21,
+          "data_coverage": "Possibly Incomplete",
+          "examples": [
+            "Incorrect session was assigned ,this is supposed to be regular session but ps was scheduled as morning class previous to this wasnt taken",
+            "The recording has not been uploaded or downloaded.",
+            "Recording not uploaded completely.",
+            "The audio is not uploaded. So, I tried to upload manually but it's showing like this. I have uploaded the Screen shot"
+          ]
+        },
+        {
+          "id": "G05-S05",
+          "name": "Late or Incorrect Schedule Communication",
+          "description": "Schedule was shared with less than 48 hours notice, or contained incorrect information.",
+          "assigned_team": "Program operations",
+          "poc_primary": "manoj.panchothi@nxtwave.co.in",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "ticket_volume": 9,
+          "data_coverage": "Possibly Incomplete",
+          "examples": [
+            "I have been teaching the concept \"BUILDING AGENT WITH MEMORY\" which is very important as content is more i asked for 2 sessions for one topic and divided it in to 2parts so i have completed with 1 st ...",
+            "This is not my subject and session was schedule without any information.",
+            "in KKH, i have connected with Snehal(scheduling person) - he mentioned that they are scheduling the DSA sessions as PS, But from my end and from instructors end, the schedule is not being reflected at...",
+            "Everyday before getting schedule it is showing to upload the previous audios. Recurring daily we are clicking upload for later . For the next day again same thing is happening."
+          ]
+        },
+        {
+          "id": "G05-S06",
+          "name": "Extra Session Required",
+          "description": "Additional sessions beyond the standard schedule are needed to complete the curriculum.",
+          "assigned_team": "Program operations",
+          "poc_primary": "manoj.panchothi@nxtwave.co.in",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "ticket_volume": 24,
+          "data_coverage": "Possibly Incomplete",
+          "examples": [
+            "You might have avoided the extended Python for loop lecture at ((32:00)) which was unrelated to the aptitude practice — this disrupted the session focus and confused the topic. You could have checked ...",
+            "The evaluation report status for Getting started with ReactJS session shows fail.",
+            "1. On 27th July 2026 at 3:50 PM in section two, there was a DSA quiz scheduled. I was invigilating the quiz, so few students had learning portal access so they were writing the quiz. Others were revis...",
+            "I didn't say anything in the exam except begin the exam and keep the mobiles aside And also it's an aptitude Module Quiz, Why is there an Loops Concept came here About the time reminders, Every Studen..."
+          ]
+        },
+        {
+          "id": "G05-S07",
+          "name": "Schedule Updated but Not Reflected in System",
+          "description": "A schedule change agreed via email or verbally is not yet updated in the official portal or calendar.",
+          "assigned_team": "Program operations",
+          "poc_primary": "manoj.panchothi@nxtwave.co.in",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "ticket_volume": 13,
+          "data_coverage": "Possibly Incomplete",
+          "examples": [
+            "Due to Network Issues in Campus and Personnel Hotspots are not working and also extra class scheduled due to some instructors are absent. This leads to Schedule change and the BOA Team didn't notify m...",
+            "On 24th July, the session scheduled in TeachOS was \"C++ Basics Part 1 – Coding Practice.\" When we attempted to start the session, it immediately redirected us to the coding practice in the learning po...",
+            "Nitish's capability manager mapping was recently updated from me to Pradeep. However, Nitish was still able to book a Weeksprint slot on my calendar. Since the mapping has changed, the system should i...",
+            "So on 24/07, we had online classes. I took online classes. When I was taking the class it was showing recording. SO I thought it is the recording. But when I finished the class it was showing not reco..."
+          ]
+        },
+        {
+          "id": "G05-S08",
+          "name": "Session Added (New Session Requirement)",
+          "description": "A completely new session needs to be added to the calendar that was not previously planned.",
+          "assigned_team": "Program operations",
+          "poc_primary": "manoj.panchothi@nxtwave.co.in",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "ticket_volume": 15,
+          "data_coverage": "Possibly Incomplete",
+          "examples": [
+            "Gradio SDK now marked as “Paid” when creating a new Space. This is showing for new accounts. As for the old accounts the Space hardware CPU basic is also now paid.",
+            "this report is from the 16th of July, section 18. This report says I ma saying something about Rayleigh scattering, which is completely wrong",
+            "When an instructor navigates to a past date (e.g., January 2026) using the calendar to mark previously missed sessions as completed, clicking \"Mark Session as Complete\" automatically redirects the Sch...",
+            "i have expalined two questions to a student but yet my personal computer microphone couldnt able to capture the audio and my doubt clearing session rating is zero nowI explained both of the student's ..."
+          ]
+        },
+        {
+          "id": "G05-S09",
+          "name": "GRIT / BRAVE / MINT Related Concerns",
+          "description": "A regular class/session could not run, was delayed, or needs a makeup because it conflicted with a scheduled GRIT, BRAVE, or MINT programme event (e.g. an exam occupying the room/time). Use this for scheduling disruption caused by these programmes — NOT for issues with the exam/programme content itself, see G11-S05/S06/S07 for that.",
+          "assigned_team": "Program operations",
+          "poc_primary": "manoj.panchothi@nxtwave.co.in",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "ticket_volume": 1,
+          "data_coverage": "Possibly Incomplete",
+          "examples": [
+            "since the start of term 3, the scheduling team is been sooo poor. They are not even scheduling the right classes for the instructors. Daily we need to go to the concern member, there we need to update..."
+          ]
+        },
+        {
+          "id": "G05-S10",
+          "name": "Any Issue Leading to Session Disruption",
+          "description": "An active, real-time issue is preventing the session from running normally — raise during or within 10 minutes of session start.",
+          "assigned_team": "Central Managers",
+          "poc_primary": "ninitha.h@nxtwave.co.in",
+          "poc_cc": "vamsitallam@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "ticket_volume": 23,
+          "data_coverage": "Possibly Incomplete",
+          "examples": [
+            "Due to network issue session started late since it was raining and it was last session students start going for last minutes for buses.",
+            "these are the reasons for qa dropping You could have explained the MCP protocol concept in more depth at ((20:06)) beyond calling it \"a protocol\" — students would benefit from understanding how it sta...",
+            "In Maths class,tech related topics are reflected even though not discussed in lecture : Scope for Improvement You should avoid mixing unrelated topics in the same session — the discussion about while ...",
+            "Again we are facing sales call issues during practice session. this is a recorring issue for many reports. Kindly please look into this.It is not at all feasible for us to raise a ticket for every rep..."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "G06",
+      "name": "Leave / WFH Approvals",
+      "subcategories": [
+        {
+          "id": "G06-S01",
+          "name": "Leave Approval",
+          "description": "Request for planned leave (CL / SL / EL) requiring manager acknowledgement.",
+          "assigned_team": "Capability Managers",
+          "poc_primary": "Respective COS's > If chose 'Back up required' > arunkumar.naram@nxtwave.co.in",
+          "poc_cc": "manoj.panchothi@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "ticket_volume": 46,
+          "data_coverage": "Possibly Incomplete",
+          "examples": [
+            "I ll be on leave on 3rd 5th of august and half day leave on 7th and 11th august as there is my m.tech exams",
+            "Requesting one day leave",
+            "Hello, I would like to request leave from 10th August to 14th August as I need to travel to my hometown, Patna, to attend an important family function. Kindly grant me leave for the above-mentioned pe...",
+            "Requesting Casual leave (CL) for 20th July"
+          ]
+        },
+        {
+          "id": "G06-S02",
+          "name": "Long Leave Approval",
+          "description": "Request for extended leave of 2+ consecutive days with supporting documents.",
+          "assigned_team": "Capability Managers",
+          "poc_primary": "Respective COS's > If chose 'Back up required' > arunkumar.naram@nxtwave.co.in",
+          "poc_cc": "manoj.panchothi@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "ticket_volume": 40,
+          "data_coverage": "Possibly Incomplete",
+          "examples": [
+            "Dear Loknadh, I hope you are doing well. I would like to request casual leave for 17th August and 18th August, 2026 due to personal reasons. I will ensure that all my responsibilities are managed appr...",
+            "I kindly request permission to take leave on 20 July 2026 as I need to visit my hometown. I will ensure that my responsibilities are managed accordingly. Thank you for your understanding.",
+            "I am having my M.Tech internals and lab external from 18-07-2026 to 21-07-2025",
+            "I would like to request leave from 03/07/2026 to 06/07/2026 as I am scheduled to undergo a wisdom tooth extraction. The pain has been affecting my ability to conduct 4-hour teaching sessions effective..."
+          ]
+        },
+        {
+          "id": "G06-S03",
+          "name": "Comp-Off Request",
+          "description": "Request for compensatory leave after working on a declared holiday or weekly off.",
+          "assigned_team": "Capability Managers",
+          "poc_primary": "Respective COS's > If chose 'Back up required' > arunkumar.naram@nxtwave.co.in",
+          "poc_cc": "manoj.panchothi@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "ticket_volume": 11,
+          "data_coverage": "Possibly Incomplete",
+          "examples": [
+            "I would like to formally request leave from 24th August to 29th August to travel to my hometown. As discussed and informed one month in advance, I will be on leave during this period. Please note that...",
+            "I would like to inform you that I am planning to take leave on Friday and Monday. Since the 3rd Saturday is already a holiday for me, and I do not have any classes or invigilation duties scheduled dur...",
+            "I am Sick today Please approve my Leave request at your convinence.",
+            "Urgent request regarding the preparation of the upcoming semester examination paper for BTNX212 Mathematics – 2."
+          ]
+        },
+        {
+          "id": "G06-S04",
+          "name": "WFH Approval",
+          "description": "Request to work from home on specific dates instead of reporting to campus.",
+          "assigned_team": "Capability Managers",
+          "poc_primary": "Respective COS's > If chose 'Back up required' > arunkumar.naram@nxtwave.co.in",
+          "poc_cc": "manoj.panchothi@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "ticket_volume": 12,
+          "data_coverage": "Possibly Incomplete",
+          "examples": [
+            "Hello, I have a doctor's appointment and hence will be taking half day leave today(19th June). Thanks for understanding. Annan Sadr",
+            "I am requesting for work from home from 26th May to 6th June since students are also on leave, I won't have any sessions scheduled. I hope you understand my situation and confirm about the same as soo...",
+            "I would like to inform you that summer holidays are currently being observed at Chalapathy campus from May 11th to May 31st. During the first week, from May 12th to May 16th, we conducted online class...",
+            "Dear Team, I would like to request leave from 25-05-2026 to 30-05-2026 due to an emergency medical condition. For the past month, I have been experiencing continuous bleeding. Initially, I managed the..."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "G07",
+      "name": "L&D / Upskilling",
+      "subcategories": [
+        {
+          "id": "G07-S01",
+          "name": "Demo Related Issue",
+          "description": "Issues related to the assignment, evaluation, or re-scheduling of mandatory demo sessions.",
+          "assigned_team": "Capability Managers",
+          "poc_primary": "Respective Capability Manager",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in",
+          "ticket_volume": 16,
+          "data_coverage": "Likely Complete",
+          "examples": [
+            "I received a very low QA rating with a significant drop in the Ethical Compliance section. However, I believe this evaluation is incorrect. During the entire session, I was focused solely on explainin...",
+            "I conducted a session on Designing Clear Prompts, but in the portal, it was incorrectly mapped to the content for Mastering the Art of Discussion. As a result, my session was evaluated against the wro...",
+            "I would like to raise a concern regarding the AI QA evaluation for practice sessions. Currently, the AI-generated QA report appears to evaluate practice sessions using the same criteria as regular lec...",
+            "As Aurora students had issue in joining online classes no student has joined both Data Visualization class (S-024 and S-025). Even though Class was not conducted audio is submitted and given QA rating..."
+          ]
+        },
+        {
+          "id": "G07-S02",
+          "name": "Any Issue Related to Upskilling",
+          "description": "General issues with skill development programmes, assessments, or learning access.",
+          "assigned_team": "Capability Managers",
+          "poc_primary": "Respective Capability Manager",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in",
+          "ticket_volume": 6,
+          "data_coverage": "Likely Complete",
+          "examples": [
+            "couldn't able to submit the audio that the teachos recorded",
+            "couldn't able to submit the audio",
+            "Dummy Issue",
+            "No issue"
+          ]
+        },
+        {
+          "id": "G07-S03",
+          "name": "Skill Upgrade Request / GRIT / MINT / BRAVE",
+          "description": "Instructor or Learning & Outcomes team seeks support from Capability Managers.",
+          "assigned_team": "Capability Managers",
+          "poc_primary": "Respective Capability Manager",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in",
+          "ticket_volume": 6,
+          "data_coverage": "Likely Complete",
+          "examples": [
+            "1. When we are in term 4, our capability manager has said to prepare for adv DBMS and mongo DB. We started preparing those topics 2. The topics which we have prepared upto now are different and the to...",
+            "As we are about to commence the 3rd semester at MRV University, my Capability Manager informed me that I will be handling the Node JS subject this semester. To prepare in advance, I referred to the MR...",
+            "There are certain round offs in the expected output, but that is not mentioned in the question.",
+            "The question presents the following SQL query and asks whether it correctly lists all employees who do not have managers: SELECT A.name AS EmployeeName, B.name AS ManagerName FROM employees A LEFT JOI..."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "G08",
+      "name": "Facilities & Equipment",
+      "subcategories": [
+        {
+          "id": "G08-S01",
+          "name": "Any Facility Related Issue (Wi-Fi / AC / Staffrooms)",
+          "description": "General campus physical infrastructure problems — staffroom conditions, AC, ventilation — not covered by specific sub-categories below.",
+          "assigned_team": "Program Operations",
+          "poc_primary": "Respective Campus COS",
+          "poc_cc": "manoj.panchothi@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "ticket_volume": 11,
+          "data_coverage": "Possibly Incomplete",
+          "examples": [
+            "Hi Team, This concern has already been raised collectively by all the instructors through an Outlook email. I am raising the same concerns through the ticketing system for further follow-up. We were p...",
+            "Hi, this is Naveen from Aurora. I would like to raise a concern regarding the faculty bus facility from Pocharam to Bhongir Aurora Campus. Almost 30 faculty members travel daily on this route, and the...",
+            "WI-FI restrictions to the students across all the universities. Students must have the access to the whitelisted websites and no other website links should be accessible.",
+            "Recently we are facing a lot of issues related to power cuts, Wi-Fi, and AC. We are having frequent power cuts which are effecting our efficiency. Due to power cuts, there are fluctuations in network ..."
+          ]
+        },
+        {
+          "id": "G08-S02",
+          "name": "Campus Network / Wi-Fi Issue",
+          "description": "Internet connectivity at campus is absent or too slow to conduct sessions or submit recordings.",
+          "assigned_team": "Program Operations",
+          "poc_primary": "Respective Campus COS",
+          "poc_cc": "manoj.panchothi@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "ticket_volume": 27,
+          "data_coverage": "Possibly Incomplete",
+          "examples": [
+            "I had no Wi-Fi connectivity for around 30 minutes during the class. After the connection was restored, I spent approximately 10 minutes taking attendance. Additionally, there were frequent power fluct...",
+            "I was unable to connect to the Wi-Fi because the network was not working. I had to use my personal mobile data instead, but the connection was very slow and unstable. Due to the poor network, I was un...",
+            "In Aurora University there is a concept of a student lecture where each and every week there is a special session for each section where students give the lecture on any of the topics that are covered...",
+            "Not able to submit recording via pportal or Manually"
+          ]
+        },
+        {
+          "id": "G08-S03",
+          "name": "Laptop / Device Issue",
+          "description": "Work laptop not provided, faulty, or other device issues.",
+          "assigned_team": "Program Operations",
+          "poc_primary": "Respective Campus COS",
+          "poc_cc": "manoj.panchothi@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "ticket_volume": 7,
+          "data_coverage": "Possibly Incomplete",
+          "examples": [
+            "I would like to report an issue with my company-issued laptop. The laptop screen is not functioning properly, making it difficult to use the device for my daily work. I request that the laptop be insp...",
+            "problem with microphone as I company has not provided me any laptop untill now",
+            "Since this morning, my office hp laptop has not been switching on. When I press the power button, the light blinks briefly and then turns off. I have tried basic troubleshooting, but it is still not w...",
+            "Since laptop is too far it is unable to catch our resolving doubts . Since it is easy topic, i was not saying on screen. I have cleared doubts from one to one which audio cannot be recognised."
+          ]
+        },
+        {
+          "id": "G08-S04",
+          "name": "Microphone / Recording Equipment Issue",
+          "description": "Microphone is unavailable, not working, has dead batteries, or disconnected mid-session — directly impacting QA recording.",
+          "assigned_team": "Program Operations",
+          "poc_primary": "Respective Campus COS",
+          "poc_cc": "manoj.panchothi@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "ticket_volume": 18,
+          "data_coverage": "Possibly Incomplete",
+          "examples": [
+            "We would like to request individual microphones for each instructor instead of assigning microphones based on classrooms. Currently, our campus has three classrooms, and only three microphones have be...",
+            "I have recorded but the interface have automatically closed before I clicked on \"stop recording \" , the audio not downloaded nor uploaded.",
+            "We are facing an issue with audio recording while resolving students' doubts. Currently, we do not have a proper microphone, so we have to carry a laptop every time we need to record audio, which is i...",
+            "During the practice sessions, we need to explain students' doubts by speaking, but we currently do not have a microphone available. This is affecting our ability to communicate clearly during the sess..."
+          ]
+        },
+        {
+          "id": "G08-S05",
+          "name": "Request from L&O on BRAVE / GRIT / MINT / GSoC",
+          "description": "Request routed via Facilities/Program Ops on behalf of the L&O team for these specific initiatives.",
+          "assigned_team": "Program Operations",
+          "poc_primary": "BOA'S",
+          "poc_cc": "manoj.panchothi@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "ticket_volume": 14,
+          "data_coverage": "Possibly Incomplete",
+          "examples": [
+            "You should cover the Stable Diffusion version details and platforms (SD 1.5, SDXL, SD 3.5 and Hugging Face Spaces, CivitAI) so students know which model to choose and where to run it. (Slides on SD ve...",
+            "Dummy ticket.",
+            "This ticket is related to another ticket id:1006 I need to have a one to one session with the students who have raise the concern",
+            "The recap slides of the preious session need to be included which is Event listeners and more events"
+          ]
+        },
+        {
+          "id": "G08-S06",
+          "name": "Audio Not Captured (Equipment / Facility Issue)",
+          "description": "The recording failed specifically because of broken, missing, or dead equipment -- mic not working, mic battery not charged, no mic provided, laptop/USB port issue, or no electricity/network at the campus. A facilities problem, not a product bug.",
+          "assigned_team": "Program Operations",
+          "poc_primary": "Respective Campus COS",
+          "poc_cc": "manoj.panchothi@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "ticket_volume": 15,
+          "data_coverage": "Likely Complete",
+          "examples": [
+            "Audio has not been recorded properly due to sudden halt in mic functioning, and it has been mentioned that session went off topic and also i have explained about python but the truth is I havent even ...",
+            "Because of N/W issue the session has not been recorded, it was recorder for only 54 seconds",
+            "Due to laptop issue,audio not uploaded.",
+            "Due to laptop audio issue,recording not submitted."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "G09",
+      "name": "Escalations & Workplace Concerns",
+      "subcategories": [
+        {
+          "id": "G09-S01",
+          "name": "Lack of Clear Communication or Transparency",
+          "description": "Decisions or information affecting the instructor are being withheld or not communicated in a timely manner.",
+          "assigned_team": "Capability Managers",
+          "poc_primary": "Respective Capability Manager",
+          "poc_cc": "kattekola.shravani@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "ticket_volume": 6,
+          "data_coverage": "Possibly Incomplete",
+          "examples": [
+            "At this particular time frame (40:00) there is no proper audio recorded, but it has been detected that instructor is discussing abouit the (you initiated a conversation with a student asking about Nxt...",
+            "**Ticket Description:** **Issue:** Last-minute leave intimation by Kavya Chalamalasetty – MRV College Invigilation Duty **Details:** Kavya Chalamalasetty was absent today and informed about her leave ...",
+            "There is no water on the cold water on the floor and the temperature here in Jaipur is 45 degree and also the lift is not working so we need to go by stairs to bring water and sometimes even downstair...",
+            "Avoid public shaming. At ((00:06:40)), the statement “for you only, you are the least one” was observed. This feedback was communicated privately and professionally, not in front of others, because al..."
+          ]
+        },
+        {
+          "id": "G09-S02",
+          "name": "Unprofessional Conduct / Manager or Peer Behaviour Concerns",
+          "description": "A manager or peer has behaved unprofessionally — verbal abuse, dismissiveness, or public humiliation.",
+          "assigned_team": "Capability Managers",
+          "poc_primary": "Respective Capability Manager",
+          "poc_cc": "kattekola.shravani@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "ticket_volume": 8,
+          "data_coverage": "Possibly Incomplete",
+          "examples": [
+            "No Action Items were given in Behaviour but score was low",
+            "No Action Items were given in Behaviour but score was low",
+            "I would like to bring to your attention a concern regarding a recent feedback stating \"Worst behaviour & Sleeping in the class\" against me. I would like to clarify that I have maintained proper discip...",
+            "**Subject: Formal Complaint Regarding Unprofessional Behaviour – Syed Hadi (Employee ID: NW0004588)** I would like to raise a formal complaint regarding the repeated unprofessional behaviour of **Syed..."
+          ]
+        },
+        {
+          "id": "G09-S03",
+          "name": "Harassment / Discrimination",
+          "description": "Instructor has experienced harassment, bullying, or discrimination of any kind. Treated with strict confidentiality.",
+          "assigned_team": "Capability Managers",
+          "poc_primary": "Respective Capability Manager",
+          "poc_cc": "kattekola.shravani@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "ticket_volume": 1,
+          "data_coverage": "Possibly Incomplete",
+          "examples": [
+            "The behaviour of the COS of NIAT-Aurora (Mr. Banda Sandeep) is becoming worst day-by-day. He has literally turned the Workspace toxic to work in. He is constantly involving in the personal matters of ..."
+          ]
+        },
+        {
+          "id": "G09-S04",
+          "name": "Skip Level Escalation (General)",
+          "description": "A grievance escalated past the normal manager because it wasn't acted on, keeps recurring, is actively disrupting live classes/students, the manager is unreachable, or a management decision appears biased/unfair. All variants route to the same Skip Level owner, so they're combined into one.",
+          "assigned_team": "Central Managers/HOD",
+          "poc_primary": "prudhviraj.garlapati@nxtwave.co.in",
+          "poc_cc": "vamsitallam@nxtwave.co.in",
+          "ticket_volume": 41,
+          "data_coverage": "Likely Complete",
+          "examples": [
+            "Hi, I am unable to raise a new ticket. I previously raised a ticket regarding a content issue. When I try to raise another ticket for the same issue on a different question, the portal displays the me...",
+            "I would like to bring to your attention my current designation and payroll status. I have been working as a Mentor at Crescent University from August 2025 to the first week of February 2026. Subsequen...",
+            "My colleague Sahina (Official ID : shinamithani@aurora.edu.in) is unable to access the ticketing portal.",
+            "I would like to bring to your attention the ongoing issues regarding the coffee machine facility in our college campus. For the past 1.5 months, the coffee machine has frequently remained non-function..."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "G10",
+      "name": "Compensation & Reimbursement",
+      "subcategories": [
+        {
+          "id": "G10-S01",
+          "name": "Salary Delayed",
+          "description": "Monthly salary has not been credited within 3 working days of the standard pay date.",
+          "assigned_team": "Capability Managers",
+          "poc_primary": "Respective Capability Manager",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in",
+          "ticket_volume": 6,
+          "data_coverage": "Likely Complete",
+          "examples": [
+            "I would like to take a moment to express my gratitude for the guidance and support I have received over the past year at NxtWave. It has been a valuable learning experience, and I truly appreciate the...",
+            "Recently got Promoted from Mentor to Instructor but my salary is not increased.",
+            "I would like to raise a concern regarding my retention bonus. In my recent two hike letters, it was mentioned that I would receive a retention bonus upon completion of one year, effective from March 2...",
+            "Hi, I completed one year with NxtWave on March 10, 2026. I would like to request my annual appraisal. Thank you."
+          ]
+        },
+        {
+          "id": "G10-S02",
+          "name": "Salary Deducted",
+          "description": "Net salary received is lower than expected with no communicated reason for the deduction.",
+          "assigned_team": "Capability Managers",
+          "poc_primary": "Respective Capability Manager",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in",
+          "ticket_volume": 8,
+          "data_coverage": "Likely Complete",
+          "examples": [
+            "Hi, I completed one year with the organization on 5th March 2026. Since my payroll is through NIU but I'm deployed by NxtWave, could you please confirm if I'm eligible for the 1.25 Earned Leaves per m...",
+            "Initially we informed a candidate - suganeshwaran that we are working on earned leaves part - the candidate is frustated that we are not taking care of the university payrole candidates. I informed hi...",
+            "Clarification on Statutory Bonus Arrears deduction.",
+            "My payslip shows a deduction of ₹2,993 under 'Statutory Bonus Arrears'. Could you please confirm this?? Then money has been cutted from my salary and may I know the reason for this. Statutory Bonus Ar..."
+          ]
+        },
+        {
+          "id": "G10-S03",
+          "name": "Salary Increment / Hike Not Processed",
+          "description": "A confirmed salary revision has not been reflected in payroll by the effective date.",
+          "assigned_team": "Capability Managers",
+          "poc_primary": "Respective Capability Manager",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in",
+          "ticket_volume": 7,
+          "data_coverage": "Likely Complete",
+          "examples": [
+            "Requesting an update on the previously raised tickets. During the townhall meeting, it was mentioned that tickets would be resolved within 24 hours. However, ticket numbers 976, 852, 479, and 697 have...",
+            "Regarding the town hall meeting I don't know about the eligiblity criteria for the hike. As we are now in May & we didn't got any information regarding the hike & we want to know the status of our hik...",
+            "Hi, It has been around 10 days now, and I have not yet received any update regarding the salary revision after the promotion from Mentor to Instructor. As discussed earlier, it was mentioned that once...",
+            "I hope you are doing well. Since joining on March 7, 2025, I have been sincerely contributing to my responsibilities and taking ownership of assigned tasks. Considering my performance and contribution..."
+          ]
+        },
+        {
+          "id": "G10-S04",
+          "name": "Arrears / Variable Pay / Referral / Retention Bonus Not Credited",
+          "description": "Performance-linked pay, arrears, variable pay, retention or referral bonus not credited.",
+          "assigned_team": "Capability Managers",
+          "poc_primary": "Respective Capability Manager",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in",
+          "ticket_volume": 8,
+          "data_coverage": "Likely Complete",
+          "examples": [
+            "I am following up regarding my retention bonus and earned leave. Earlier, I had raised this concern and was informed that it would be processed. However, I have still not received the bonus or leave e...",
+            "total mcq's are 15 , but the score is calculated for out of 25--one of my student reported this.",
+            "Hi, I would like some clarification regarding my earned leave balance. Previously, I could see a total of 30 earned leaves, with 15 carried forward from the previous year and 15 accrued for the curren...",
+            "I am currently working with NxtWave, though I am enrolled under the university payroll system. As per the terms mentioned in my offer letter and NxtWave's policy, employees who complete one year of se..."
+          ]
+        },
+        {
+          "id": "G10-S05",
+          "name": "Leave Approved but Salary Deducted",
+          "description": "An approved leave has been treated as Loss of Pay (LOP) in the payroll.",
+          "assigned_team": "Capability Managers",
+          "poc_primary": "Respective Capability Manager",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in",
+          "ticket_volume": 8,
+          "data_coverage": "Likely Complete",
+          "examples": [
+            "I am writing to report an issue regarding my salary and contract conversion. Although I began my role as an instructor at ADYPU, my salary has not been adjusted to reflect the CTC structure as promise...",
+            "I hope you are doing well. I would like to request leave from 8 June to 26 June due to a persistent heel pain issue. As you have seen over the past month, I have been facing difficulty walking properl...",
+            "I would like to inform you that I will be appearing for my examinations and would like to request leave on 10th June, 12th June, 15th June, 24th June, and 25th June. I have also sent a formal leave re...",
+            "My CoS has asked me to obtain approval from my Capability Manager. My CM is already aware of my leave request, and she had verbally approved it during our weekly meetup. However, I have not yet receiv..."
+          ]
+        },
+        {
+          "id": "G10-S06",
+          "name": "Back-up Instructor Reimbursement",
+          "description": "Claim for payment for backup or substitute instructor sessions conducted.",
+          "assigned_team": "Central Team",
+          "poc_primary": "arunkumar.naram@nxtwave.co.in",
+          "poc_cc": "chepuri.sanjaykumar@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "ticket_volume": 2,
+          "data_coverage": "Possibly Incomplete",
+          "examples": [
+            "I have applied for travel reimbursement in Nxtclaim, its been a month but still no one responded for that.",
+            "I would like to raise a concern regarding the pending reimbursement for my relocation expenses. I was asked to relocate from Hyderabad to Bangalore due to immediate business requirements. Before reloc..."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "G11",
+      "name": "Learning Outcome Issues (Student)",
+      "subcategories": [
+        {
+          "id": "G11-S01",
+          "name": "Internships",
+          "description": "Issues related to student internship opportunities, placement coordination, or internship status.",
+          "assigned_team": "L&O",
+          "poc_primary": "veldurthi.kartheek@nxtwave.co.in, kurukuri.vignesh@nxtwave.co.in",
+          "poc_cc": "bhavana.panchothi@nxtwave.co.in; maddikari.sireesha@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "ticket_volume": 4,
+          "data_coverage": "Possibly Incomplete",
+          "examples": [
+            "Please do check the below Action Items and compare it to the Audio Boundary & Privacy 2.5/10.0 What Worked Well You opened the session with a clear, professional instruction to review previous concept...",
+            "Please do check below Action Items...I haven't talked about them At ((40:52)), you asked the student (in Telugu) 'What are you doing currently? Are you studying or working?' This is a personal inquiry...",
+            "Even though I haven't spoke anything at that time stamp it's showing that I've used telugu.",
+            "Misinterpretation of lines and marking as asking for student's wife number."
+          ]
+        },
+        {
+          "id": "G11-S02",
+          "name": "Other / Common Student Issues",
+          "description": "General student welfare or academic progress concerns needing Learning Outcomes team attention.",
+          "assigned_team": "L&O",
+          "poc_primary": "bandichandana.laxmi@nxtwave.co.in",
+          "poc_cc": "bhavana.panchothi@nxtwave.co.in; maddikari.sireesha@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "ticket_volume": 16,
+          "data_coverage": "Possibly Incomplete",
+          "examples": [
+            "Hi Team, I have noticed a discrepancy between the Student Learning Portal and my dashboard. When I check the Student Learning Portal, it shows that several students have successfully completed **100% ...",
+            "my feedback has \"\"\"\"At ((11:51)), you transitioned into a personal conversation about the NxtWave CCBP 4.0 program, offered to send fee details on WhatsApp, and asked the student to call you. This is ...",
+            "There is NO POWER HERE IN CDU SINCE MORNING.",
+            "Hello Team, This observation and request came from the students. They are requesting classes on Computer Science Fundamentals and Server Building subjects, as they feel these topics would be beneficia..."
+          ]
+        },
+        {
+          "id": "G11-S03",
+          "name": "GSoC / Open Source Contributions / Hackathons",
+          "description": "Support or facilitation needed for students participating in GSoC, hackathons, or open-source projects.",
+          "assigned_team": "L&O",
+          "poc_primary": "debashis.nayak@nxtwave.co.in, saisumanth.vadla@nxtwave.co.in, diya.gandota@nxtwave.co.in",
+          "poc_cc": "bhavana.panchothi@nxtwave.co.in; maddikari.sireesha@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "ticket_volume": 2,
+          "data_coverage": "Possibly Incomplete",
+          "examples": [
+            "The QA report flags the statement \"Tenses are the agreement of noun and verb\" as conceptually incorrect because it conflates tense with subject–verb agreement. However, this wording appears in the sou...",
+            "Hi Team Sharing below a few concerns from KKH students. 1. Regarding GSoC preparation, the student expressed disappointment over delayed support despite repeated requests and strong interest in partic..."
+          ]
+        },
+        {
+          "id": "G11-S04",
+          "name": "Academic Assessments / Skill Assessment",
+          "description": "Issues with assessment scheduling, content accuracy, or grading disputes.",
+          "assigned_team": "L&O",
+          "poc_primary": "saisuchal.sadula@nxtwave.co.in",
+          "poc_cc": "bhavana.panchothi@nxtwave.co.in; maddikari.sireesha@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "ticket_volume": 10,
+          "data_coverage": "Possibly Incomplete",
+          "examples": [
+            "There are 15 questions in MCQs. Even after solving all of them correctly it's showing fail.",
+            "Hi team, There is a mistake in one of the questions in data arrangements assessment . Please change \"B is next to the left of F\" to \"B is second to the left of F.\" \"Next to the left\" means B must be i...",
+            "Module Quiz and Classroom Quiz scores were planned as part of the final assessment to encourage participation, as many students were skipping these assessments during the first semester. However, sinc...",
+            "I am currently handling both English and EVS subjects. For EVS, there is no dedicated content team, and the University has asked us to submit a question bank consisting of 15 questions per topic, alon..."
+          ]
+        },
+        {
+          "id": "G11-S05",
+          "name": "BRAVE",
+          "description": "Issues with the BRAVE programme itself — exam conduct, evaluation disputes, malpractice flags, hall/registration issues, or content/participation concerns. NOT for a regular class being displaced or rescheduled because of a BRAVE exam — see G05-S09 for that.",
+          "assigned_team": "L&O",
+          "poc_primary": "tirupathirao.kella@nxtwave.co.in",
+          "poc_cc": "bhavana.panchothi@nxtwave.co.in; maddikari.sireesha@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "ticket_volume": 0,
+          "data_coverage": "Possibly Incomplete",
+          "examples": []
+        },
+        {
+          "id": "G11-S06",
+          "name": "MINT",
+          "description": "Issues with the MINT programme itself — exam conduct, evaluation disputes, malpractice flags, hall/registration issues, or content/participation concerns. NOT for a regular class being displaced or rescheduled because of a MINT exam — see G05-S09 for that.",
+          "assigned_team": "L&O",
+          "poc_primary": "narra.devender@nxtwave.co.in, saiteja.boda@nxtwave.co.in",
+          "poc_cc": "bhavana.panchothi@nxtwave.co.in; maddikari.sireesha@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "ticket_volume": 4,
+          "data_coverage": "Possibly Incomplete",
+          "examples": [
+            "Low Score giving and Action items doesn't match",
+            "Options & Explanation doesn't match",
+            "Questions and Options Doesn't match",
+            "In Concept & Terminology Accuracy , I didn't say \"toposidium\" because if I say it, I might as well explain it also."
+          ]
+        },
+        {
+          "id": "G11-S07",
+          "name": "GRIT",
+          "description": "Issues with the GRIT programme itself — exam conduct, evaluation disputes, malpractice flags, hall/registration issues, or content/participation concerns. NOT for a regular class being displaced or rescheduled because of a GRIT exam — see G05-S09 for that.",
+          "assigned_team": "L&O",
+          "poc_primary": "krovvidi.lokesh@nxtwave.co.in, maddikari.sireesha@nxtwave.co.in",
+          "poc_cc": "bhavana.panchothi@nxtwave.co.in; maddikari.sireesha@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "ticket_volume": 2,
+          "data_coverage": "Possibly Incomplete",
+          "examples": [
+            "the date is wrong no classes were schedulded on 8th. Full day we had grit exam Suggesting Malpractice please help me understand how uploading the audio of the lecture is considering as malpractice? an...",
+            "There were no register students in hall 19 - so grit exam was not conducted in hall 19"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "G12",
+      "name": "Staffing & HR Lifecycle",
+      "subcategories": [
+        {
+          "id": "G12-S01",
+          "name": "Planned Replacement (Leave / Exit)",
+          "description": "Replacement instructor needed for a known upcoming absence or a confirmed exit.",
+          "assigned_team": "Central Managers",
+          "poc_primary": "Respective COS's & chepuri.sanjaykumar@nxtwave.co.in",
+          "poc_cc": "naga.nunna@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "ticket_volume": 9,
+          "data_coverage": "Possibly Incomplete",
+          "examples": [
+            "I had been assigned this as replacement instructor on a sudden demand and the institute itself is far hence this class was missed",
+            "I had been assigned this as replacement instructor on a sudden demand and the institute, itself is far hence this class was missed",
+            "I had been assigned this as replacement instructor on a sudden demand and the institute itself is far hence this class was missed",
+            "I will be traveling to Nashik with my family on 31st July and 1st August. I kindly request you to arrange a replacement instructor to handle my Academy Live Class sessions on these two days. On 31st J..."
+          ]
+        },
+        {
+          "id": "G12-S02",
+          "name": "Backup Resource Needed",
+          "description": "Immediate replacement needed for an unplanned instructor absence with less than 24 hours notice.",
+          "assigned_team": "Central Managers",
+          "poc_primary": "Respective COS's & chepuri.sanjaykumar@nxtwave.co.in",
+          "poc_cc": "naga.nunna@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "ticket_volume": 2,
+          "data_coverage": "Possibly Incomplete",
+          "examples": [
+            "Instructors do not have microphones during practice sessions. Additionally, please provide Extension Box as well because the iron rod in the charger sockets prevents the charger from being supported. ...",
+            "I am willing to take the 3rd-semester DSA course and handle the lecture sessions. However, I would appreciate support for the mentoring/practice sessions and a backup instructor, as the course is exte..."
+          ]
+        },
+        {
+          "id": "G12-S03",
+          "name": "Skill-Specific Replacement Required",
+          "description": "Current instructor lacks the domain expertise required for specific modules.",
+          "assigned_team": "Central Managers",
+          "poc_primary": "Respective COS's & chepuri.sanjaykumar@nxtwave.co.in",
+          "poc_cc": "naga.nunna@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "ticket_volume": 4,
+          "data_coverage": "Possibly Incomplete",
+          "examples": [
+            "I wanted to bring a critical operational issue regarding the NRI practice sessions to your attention. It recently came to light that certain instructors are systematically staging live practice sessio...",
+            "The Allowed host domain url is wrong as we are not using drops.earlywave.in it needs to be updated as drops.earlywave.tech",
+            "At the end of the PPT for React Context | Part 4 we are deploying the final react project however no iteration of domain name is being deployed",
+            "Hello Team, Hope you're doing well. As part of our ongoing instructor readiness efforts, we have noticed that certain content is currently not available across departments, which is impacting training..."
+          ]
+        },
+        {
+          "id": "G12-S04",
+          "name": "Exit",
+          "description": "Queries about the resignation and offboarding process — notice period, handover, or exit formalities.",
+          "assigned_team": "Central Managers",
+          "poc_primary": "kattekola.shravani@nxtwave.co.in",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in",
+          "ticket_volume": 2,
+          "data_coverage": "Likely Complete",
+          "examples": [
+            "Few visuals need to be plotted for each question, but exact information on the same is not been given",
+            "As it is a Dummy ticket, I just wanna check the process"
+          ]
+        },
+        {
+          "id": "G12-S05",
+          "name": "Contract Related",
+          "description": "Questions about employment contract terms, designation, or contract renewal.",
+          "assigned_team": "Central Managers",
+          "poc_primary": "kattekola.shravani@nxtwave.co.in",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in",
+          "ticket_volume": 3,
+          "data_coverage": "Likely Complete",
+          "examples": [
+            "I have been working in this organisation for last 1 year and my designation is trainee I want this to change",
+            "Few students kept the feedback as content is not upto the mark and they are keeping to teach interview related questions.",
+            "You could have defined key terms like \"RAG\", \"agent\", and \"tools\" earlier ((00:01:50)) to help everyone follow the topic. You might have introduced acronyms like \"LLM\" and \"API\" with a quick meaning w..."
+          ]
+        },
+        {
+          "id": "G12-S06",
+          "name": "Post-Deployment Policy Concerns",
+          "description": "Leave policy or leave encashment related concerns post deployment.",
+          "assigned_team": "Central Managers",
+          "poc_primary": "kattekola.shravani@nxtwave.co.in",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in",
+          "ticket_volume": 3,
+          "data_coverage": "Likely Complete",
+          "examples": [
+            "Hi, good evening. When I discussed the hike process with my RP after completing 1 year and 3 months at NxtWave, I was informed that hikes would be considered only after deployment to a university. Acc...",
+            "This is regarding receiving employment offer from University. Post university deployment and transitioning to university payroll I was relieved from Nxtwave for compliance reasons. My last working day...",
+            "Hello, I would like to inform you that I have been deployed to NIU (Noida International University), and my payroll was transitioned from NxtWave to NIU since October 1, 2025. It has now been over 8 m..."
+          ]
+        },
+        {
+          "id": "G12-S07",
+          "name": "Policy / Compliance Clarification",
+          "description": "Request for clarification on an official HR policy — leave, code of conduct, compliance requirements.",
+          "assigned_team": "Central Managers",
+          "poc_primary": "kattekola.shravani@nxtwave.co.in",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in",
+          "ticket_volume": 7,
+          "data_coverage": "Likely Complete",
+          "examples": [
+            "Subject: Clarification Required Before Signing the Retainer Agreement Dear HR Team, I hope you are doing well. I have received the Retainer Agreement for signing. Before proceeding, I would like to se...",
+            "Dear Team, I would like to request an update regarding my transition process. As per the communication received earlier, my last working day at Aurora University was 4th July 2026, and I was informed ...",
+            "Dear Team, I would like to request a No Objection Certificate (NOC) from the organization for applying to Ph.D. admission at Annamacharya University. The university requires the NOC as part of the adm...",
+            "Hello, I am formally requesting clarification and resolution on multiple employment-related discrepancies that have impacted my appraisal eligibility, role designation, and benefits entitlement. 1. AP..."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "G13",
+      "name": "Instructor Feedback & Initiatives",
+      "subcategories": [
+        {
+          "id": "G13-S01",
+          "name": "Suggestions / Advice on Any Tool",
+          "description": "Suggestion to improve an existing platform tool — portal, Teach OS, or any internal tool.",
+          "assigned_team": "Central Managers",
+          "poc_primary": "ninitha.h@nxtwave.co.in",
+          "poc_cc": "vamsitallam@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "ticket_volume": 15,
+          "data_coverage": "Possibly Incomplete",
+          "examples": [
+            "The Audio is not getting submitted after the recording is completed, solve this issue asap. Session Link:- https://niat-instructor-platform.ccbp.in/sessions/9003c647-599a-4297-ba7f-8719168d809d/in-lec...",
+            "Batteries weren't available and review and resolve the sessions issue was popping up repeatedly due to which I had lost enough time and couldn't continue with the session. Only took the attendance of ...",
+            "The recording is not getting uploaded for these particular sessions. Could you please check and resolve the issue?",
+            "Grooming checking can be bring down to once or twice a day. Reducing time consumption, ensuring smoother flow between sessions."
+          ]
+        },
+        {
+          "id": "G13-S02",
+          "name": "Feature Development Request",
+          "description": "Request for a completely new feature to be built into an existing platform.",
+          "assigned_team": "Central Managers",
+          "poc_primary": "ninitha.h@nxtwave.co.in",
+          "poc_cc": "vamsitallam@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "ticket_volume": 5,
+          "data_coverage": "Possibly Incomplete",
+          "examples": [
+            "We have identified an issue in the MCQ Practice evaluation. For the question \"What is the structure of the JSON response returned by the GET /users endpoint when retrieving all user documents?\", two a...",
+            "Many students start focusing on RC and vocabulary only when the GRIT exam comes closer. Due to lack of regular reading practice, students face difficulty in comprehension, vocabulary, and reading spee...",
+            "I am unable to efficiently track students’ course progress, including how much of the material each student has completed. Currently, monitoring progress requires individually asking each student to d...",
+            "The application is experiencing delays (5–10 seconds) when generating responses using the LLM API. This is affecting user experience in the chatbot interface."
+          ]
+        },
+        {
+          "id": "G13-S03",
+          "name": "Suggestions / Advice on Process or Systems",
+          "description": "Suggestion to improve an operational process or system flow.",
+          "assigned_team": "Central Managers",
+          "poc_primary": "ninitha.h@nxtwave.co.in",
+          "poc_cc": "vamsitallam@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "ticket_volume": 6,
+          "data_coverage": "Possibly Incomplete",
+          "examples": [
+            "I would like to request a change in my work location from Bhongir to Hyderabad. I am originally from Maharashtra and am currently facing significant communication challenges due to the language barrie...",
+            "I want to suggest a new university collaboration in Hyderabad. Through some contacts of mine in the university, I got to know that they are interested in collaborating with Nxtwave. I know the Vice Ch...",
+            "I would like to request a change of my work location to Gurugram – Sushant University. My hometown is in Punjab and my parents are currently planning my marriage. As a girl, it is important for me to ...",
+            "I am requesting to change my work location. There is a medical emergency at my home for which my presence and visits are required. I am requesting the central team to please consider my new working lo..."
+          ]
+        }
+      ]
+    }
+  ]
+}
