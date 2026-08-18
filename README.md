@@ -1,5 +1,10 @@
 # Ticket Router
 
+![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688)
+![OpenAI](https://img.shields.io/badge/OpenAI-structured%20outputs-412991)
+![Chroma](https://img.shields.io/badge/vector%20store-Chroma-orange)
+
 A dynamic, learning ticket classifier: a ticket comes in, it's matched against your
 taxonomy, and if the intent is genuinely ambiguous the system asks a follow-up
 question before committing to a route. Every human correction is fed back into a
