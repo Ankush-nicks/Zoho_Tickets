@@ -49,7 +49,7 @@ app/
   classifier.py    Builds the dynamic prompt, calls OpenAI, decides finalize vs clarify
   memory.py        Chroma vector store — the "context memory" (seed + corrections)
   taxonomy.py      Loads taxonomy.json, exposes it to the prompt + JSON schema
-  taxonomy.json    <-- your real taxonomy (13 categories / 67 routed subcategories)
+  taxonomy.json    <-- your real taxonomy (14 categories / 68 routed subcategories)
   db.py            SQLite — ticket/session state, conversation turns, correction log
   models.py        Pydantic request/response + structured-output schema
   static/index.html  Test console UI
@@ -61,18 +61,21 @@ app/
 cd ticket-classifier
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env        # then add your OPENAI_API_KEY
+cp .env.example .env        # optional overrides only, see below
 uvicorn app.main:app --reload --port 8000
 ```
 
-Open http://localhost:8000 — type a ticket, watch it get classified (or asked a
-clarifying question), and use "Correct it" to simulate an agent fixing a bad call.
+Open http://localhost:8000, paste your OpenAI API key into the box at the top of the
+page (kept in your browser's local storage, sent per-request — never written to disk
+server-side), then type a ticket and watch it get classified (or asked a clarifying
+question), and use "Correct it" to simulate an agent fixing a bad call.
 
 ## The taxonomy
 
-`app/taxonomy.json` is wired to the real taxonomy (13 top-level categories,
-67 routed subcategories — QA/instructor evaluation, curriculum, staffing/HR,
-scheduling, etc.). Classification targets the **subcategory** level, since
+`app/taxonomy.json` is wired to the real taxonomy (14 top-level categories,
+68 routed subcategories — QA/instructor evaluation, curriculum, staffing/HR,
+scheduling, etc., plus a catch-all "Other / Unclear" category for tickets with
+no discernible intent). Classification targets the **subcategory** level, since
 that's what actually determines routing (`assigned_team`, `poc_primary`,
 `poc_cc`) — the classifier picks a `category_id` like `G01-S01`, and the API/UI
 resolve that back to its parent category, team, and point of contact.
@@ -125,7 +128,7 @@ this file at startup. To update it, re-export the same 2-level shape:
   embeddings for removed/renamed categories won't be auto-purged; delete
   `app/data/chroma` if you want a clean re-seed.
 - The rendered taxonomy block in the prompt is currently ~13K characters
-  (~3K tokens) for 67 subcategories — comfortably within context for either
+  (~3K tokens) for 68 subcategories — comfortably within context for either
   `gpt-4o-mini` or `gpt-4o`. If you grow well past ~150-200 subcategories,
   consider two-stage classification (pick the category group first, then the
   subcategory within it) to keep each individual prompt smaller and more precise.

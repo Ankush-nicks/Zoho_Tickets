@@ -64,9 +64,14 @@ RULES:
 2. If the ticket text genuinely does not give you enough information to confidently
    distinguish between two or more categories, set needs_clarification=true and write ONE
    specific, short clarifying question that would resolve the ambiguity. Do not ask a
-   clarifying question just because the ticket is short - only when it's genuinely ambiguous.
-3. confidence should reflect your true certainty, not be inflated. Use the full 0-1 range.
-4. reasoning should be concise (1-2 sentences), referencing what in the text drove the decision.
+   clarifying question just because the ticket is short - only when it's genuinely ambiguous
+   between two or more plausible categories.
+3. If the ticket has no discernible topic at all (a greeting, a single word, random
+   characters, "test", etc.) such that there's nothing to even ask a clarifying question
+   about, route it to the "Other / Unclear" category's id (see taxonomy above) with
+   needs_clarification=false rather than guessing a specific category or asking a question.
+4. confidence should reflect your true certainty, not be inflated. Use the full 0-1 range.
+5. reasoning should be concise (1-2 sentences), referencing what in the text drove the decision.
 """
 
 

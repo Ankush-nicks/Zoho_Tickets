@@ -1124,6 +1124,26 @@
           ]
         }
       ]
+    },
+    {
+      "id": "G14",
+      "name": "Other / Unclear",
+      "subcategories": [
+        {
+          "id": "G14-S01",
+          "name": "Insufficient Information - No Routing Required",
+          "description": "The ticket is too short, vague, or contentless to determine intent at all (e.g. a single word, a greeting, random characters, or a message with no discernible topic) - there isn't enough signal to even ask a targeted clarifying question. Use this ONLY when no other category is even plausible; if the text hints at a topic but is ambiguous between two or more specific categories, ask a clarifying question instead of using this.",
+          "examples": [
+            "help",
+            "hi",
+            "issue",
+            "not working",
+            "?",
+            "please help asap",
+            "test"
+          ]
+        }
+      ]
     }
   ]
 }
