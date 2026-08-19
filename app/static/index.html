@@ -132,7 +132,7 @@
 <div class="wrap">
   <div class="masthead">
     <h1><span class="dot"></span>Ticket Router</h1>
-    <div class="sub">classify &rarr; clarify &rarr; route &rarr; learn</div>
+    <div class="sub">classify &rarr; clarify &rarr; route &rarr; learn &middot; <a href="#" id="logoutLink" onclick="logout(event)" style="color:var(--muted);text-decoration:underline;">log out</a></div>
   </div>
 
   <div class="panel key-panel" id="keyPanel">
@@ -209,6 +209,12 @@ function clearApiKey() {
 }
 
 refreshKeyPanel();
+
+async function logout(e) {
+  e.preventDefault();
+  await fetch('/api/logout', { method: 'POST' });
+  window.location = '/login';
+}
 
 async function loadTaxonomy() {
   const res = await fetch('/api/taxonomy');

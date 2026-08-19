@@ -2,13 +2,16 @@ import csv
 import io
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, RedirectResponse, Response
+from starlette.middleware.sessions import SessionMiddleware
 
-from . import config, db, memory, classifier
+from . import auth, config, db, memory, classifier
 from .taxonomy import taxonomy
+from .auth import require_login
 from .models import (
+    LoginRequest,
     NewTicketRequest,
     ClarificationResponse,
     CorrectionRequest,
@@ -16,6 +19,7 @@ from .models import (
 )
 
 app = FastAPI(title="Ticket Classifier", version="0.1.0")
+app.add_middleware(SessionMiddleware, secret_key=config.SESSION_SECRET, session_cookie="ticket_router_session")
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
@@ -42,17 +46,40 @@ def startup():
 
 
 @app.get("/")
-def index():
+def index(request: Request):
+    if not request.session.get("user"):
+        return RedirectResponse("/login")
     return FileResponse(str(STATIC_DIR / "index.html"))
 
 
+@app.get("/login")
+def login_page(request: Request):
+    if request.session.get("user"):
+        return RedirectResponse("/")
+    return FileResponse(str(STATIC_DIR / "login.html"))
+
+
+@app.post("/api/login")
+def login(req: LoginRequest, request: Request):
+    if not auth.verify_credentials(req.username, req.password):
+        raise HTTPException(401, "Invalid username or password.")
+    request.session["user"] = req.username
+    return {"ok": True}
+
+
+@app.post("/api/logout")
+def logout(request: Request):
+    request.session.clear()
+    return {"ok": True}
+
+
 @app.get("/api/taxonomy")
-def get_taxonomy():
+def get_taxonomy(user: str = Depends(require_login)):
     return {"categories": taxonomy.groups}
 
 
 @app.get("/api/taxonomy/export.csv")
-def export_taxonomy_csv():
+def export_taxonomy_csv(user: str = Depends(require_login)):
     buf = io.StringIO()
     writer = csv.writer(buf)
     writer.writerow([
@@ -78,7 +105,7 @@ def export_taxonomy_csv():
 
 
 @app.get("/api/stats")
-def get_stats():
+def get_stats(user: str = Depends(require_login)):
     return db.stats()
 
 
@@ -143,7 +170,7 @@ def _run_classification_and_persist(ticket_id: str, context_text: str, clarifica
 
 
 @app.post("/api/tickets", response_model=TicketStateResponse)
-def create_ticket(req: NewTicketRequest, api_key: str = Depends(require_api_key)):
+def create_ticket(req: NewTicketRequest, api_key: str = Depends(require_api_key), user: str = Depends(require_login)):
     if not req.text.strip():
         raise HTTPException(400, "text is required")
     ticket_id = db.create_ticket(req.text.strip())
@@ -158,7 +185,9 @@ def create_ticket(req: NewTicketRequest, api_key: str = Depends(require_api_key)
 
 
 @app.post("/api/tickets/{ticket_id}/respond", response_model=TicketStateResponse)
-def respond_to_clarification(ticket_id: str, req: ClarificationResponse, api_key: str = Depends(require_api_key)):
+def respond_to_clarification(
+    ticket_id: str, req: ClarificationResponse, api_key: str = Depends(require_api_key), user: str = Depends(require_login)
+):
     ticket = db.get_ticket(ticket_id)
     if not ticket:
         raise HTTPException(404, "ticket not found")
@@ -179,7 +208,7 @@ def respond_to_clarification(ticket_id: str, req: ClarificationResponse, api_key
 
 
 @app.get("/api/tickets/{ticket_id}", response_model=TicketStateResponse)
-def get_ticket(ticket_id: str):
+def get_ticket(ticket_id: str, user: str = Depends(require_login)):
     ticket = db.get_ticket(ticket_id)
     if not ticket:
         raise HTTPException(404, "ticket not found")
@@ -187,7 +216,9 @@ def get_ticket(ticket_id: str):
 
 
 @app.post("/api/tickets/{ticket_id}/correct", response_model=TicketStateResponse)
-def correct_ticket(ticket_id: str, req: CorrectionRequest, api_key: str = Depends(require_api_key)):
+def correct_ticket(
+    ticket_id: str, req: CorrectionRequest, api_key: str = Depends(require_api_key), user: str = Depends(require_login)
+):
     """
     Human-in-the-loop correction. This is the endpoint that makes the
     system 'dynamic': the corrected (text -> category) pair is embedded

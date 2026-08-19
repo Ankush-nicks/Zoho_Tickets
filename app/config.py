@@ -1,4 +1,5 @@
 import os
+import secrets
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -23,3 +24,17 @@ SQLITE_PATH = DATA_DIR / "tickets.db"
 CHROMA_PATH = str(DATA_DIR / "chroma")
 
 TAXONOMY_PATH = BASE_DIR / "taxonomy.json"
+
+# Single admin account that gates the whole app. Change these in .env for
+# anything beyond local/dev use - these defaults are not secure.
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin")
+
+# Signs the session cookie. Not a config value - generated once and cached on
+# disk (outside git) so logins survive restarts but nothing secret is checked in.
+_SESSION_SECRET_PATH = DATA_DIR / ".session_secret"
+if _SESSION_SECRET_PATH.exists():
+    SESSION_SECRET = _SESSION_SECRET_PATH.read_text().strip()
+else:
+    SESSION_SECRET = secrets.token_hex(32)
+    _SESSION_SECRET_PATH.write_text(SESSION_SECRET)

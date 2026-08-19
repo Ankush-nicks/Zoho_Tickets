@@ -148,6 +148,10 @@ routes are getting through.
 
 ## API
 
+All routes below (and the UI itself) require an admin session — log in at
+`/login` first (`POST /api/login` `{username, password}` sets the session
+cookie; `POST /api/logout` clears it).
+
 - `POST /api/tickets` `{text}` → classify a new ticket; may return a clarifying question.
 - `POST /api/tickets/{id}/respond` `{answer}` → answer a clarifying question, re-classify.
 - `POST /api/tickets/{id}/correct` `{corrected_category_id, corrected_by?}` → human correction; **this is what teaches the system**.
@@ -160,11 +164,13 @@ routes are getting through.
 - **Storage**: SQLite + local Chroma are fine for one instance. For multi-instance
   production, move `db.py` to Postgres and point Chroma at a hosted instance (or
   swap to Pinecone/Weaviate) — `memory.py` is the only file that would need to change.
-- **Auth**: there is none yet. Put this behind your existing auth/gateway before
-  exposing `/api/tickets/*` beyond internal use, especially `/correct` (anyone
-  who can call it can poison the example bank). This matters more than usual
-  here since `taxonomy.json` and every classification response carry real
-  employee emails (`poc_primary`/`poc_cc`) — don't expose this API publicly.
+- **Auth**: a single admin login (session cookie, set via `ADMIN_USERNAME`/
+  `ADMIN_PASSWORD` in `.env`, defaulting insecurely to `admin`/`admin` if unset)
+  gates the UI and every `/api/*` route. This is fine for one trusted operator;
+  for multiple real agents/reviewers you'll want per-user accounts (a real
+  `users` table + password hashing) instead of one shared credential, since
+  `db.log_correction`'s `corrected_by` is just a free-text string right now and
+  can't be trusted to identify who actually made a change.
 - **Correction quality control**: right now any `corrected_by` string is
   accepted at face value. In production you'll want that endpoint restricted to
   verified agents, and probably a review queue for corrections that contradict

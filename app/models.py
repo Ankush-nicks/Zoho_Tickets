@@ -1,6 +1,11 @@
 from pydantic import BaseModel
 
 
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
 class NewTicketRequest(BaseModel):
     text: str
 
