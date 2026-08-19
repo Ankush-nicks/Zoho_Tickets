@@ -29,7 +29,7 @@
   .wrap{ max-width:760px; margin:0 auto; padding:40px 20px 80px; }
 
   .masthead{
-    display:flex; align-items:baseline; justify-content:space-between;
+    display:flex; align-items:flex-start; justify-content:space-between;
     border-bottom:1px solid var(--border); padding-bottom:16px; margin-bottom:28px;
   }
   .masthead h1{
@@ -119,20 +119,55 @@
   }
   .key-hint{ font-family:var(--mono); font-size:11px; color:var(--muted); margin-top:8px; }
   .key-panel.saved{ border-color:var(--accent); }
-  .toolbar{ display:flex; justify-content:flex-end; margin-bottom:14px; }
   a.download-link{
     font-family:var(--mono); font-size:11px; letter-spacing:.04em; text-transform:uppercase;
     color:var(--text); text-decoration:none; border:1px solid var(--border); border-radius:6px;
     padding:8px 14px; background:var(--panel);
   }
   a.download-link:hover{ border-color:var(--accent); color:var(--accent); }
+
+  .masthead-right{ display:flex; flex-direction:column; align-items:flex-end; gap:10px; }
+  .masthead-tools{ display:flex; align-items:center; gap:10px; }
+  #zohoStatusBadge{ cursor:help; }
+  .zoho-search{ display:flex; gap:6px; }
+  .zoho-search input[type=text]{
+    width:150px; background:var(--panel-2); border:1px solid var(--border); border-radius:6px;
+    color:var(--text); font-family:var(--mono); font-size:12px; padding:8px 10px;
+  }
+  .zoho-search button{ padding:8px 12px; }
+
+  .zoho-layout{ display:flex; gap:20px; }
+  .zoho-issue-block{ flex:1.6; min-width:0; }
+  .zoho-category-block{
+    flex:1; min-width:0; padding-left:18px; border-left:1px dashed var(--border);
+  }
+  .issue-text{
+    font-size:14px; margin:6px 0 10px; padding:10px 12px;
+    background:var(--panel-2); border:1px solid var(--border); border-radius:6px;
+  }
+  .ticket-id-line{ font-family:var(--mono); font-size:11px; color:var(--muted); }
+  .ticket-id-line .mono{ color:var(--text); }
+  .category-value{ font-size:14px; margin-bottom:2px; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="masthead">
     <h1><span class="dot"></span>Ticket Router</h1>
-    <div class="sub">classify &rarr; clarify &rarr; route &rarr; learn &middot; <a href="#" id="logoutLink" onclick="logout(event)" style="color:var(--muted);text-decoration:underline;">log out</a></div>
+    <div class="masthead-right">
+      <div class="sub">classify &rarr; clarify &rarr; route &rarr; learn &middot; <a href="/zoho-debug" style="color:var(--muted);text-decoration:underline;">zoho raw data</a> &middot; <a href="#" id="logoutLink" onclick="logout(event)" style="color:var(--muted);text-decoration:underline;">log out</a></div>
+      <div class="masthead-tools">
+        <a class="download-link" href="/api/taxonomy/export.csv" download="taxonomy.csv">&darr; Taxonomy CSV</a>
+        <span id="zohoStatusBadge" class="badge" title="Zoho credentials live in .env on the server (ZOHO_INVOKE_URL / ZOHO_API_KEY) - there is no in-browser control for them, same as the admin password.">zoho: checking…</span>
+      </div>
+      <div>
+        <form class="zoho-search" onsubmit="return searchZohoTicket(event)">
+          <input type="text" id="zohoSearchInput" placeholder="Zoho Ticket ID" autocomplete="off" />
+          <button type="submit">Look up</button>
+        </form>
+        <div id="zohoSearchStatus" class="status-line" style="text-align:right;"></div>
+      </div>
+    </div>
   </div>
 
   <div class="panel key-panel" id="keyPanel">
@@ -146,21 +181,8 @@
     <div class="key-hint">Stored only in this browser's local storage, sent directly with each request - never written to the server.</div>
   </div>
 
-  <div class="toolbar">
-    <a class="download-link" href="/api/taxonomy/export.csv" download="taxonomy.csv">&darr; Download taxonomy CSV</a>
-  </div>
-
-  <div class="panel">
-    <label class="field-label">New ticket</label>
-    <textarea id="ticketInput" placeholder="Paste or type ticket text, e.g. &quot;Our invoice from last month still hasn't been paid&quot;"></textarea>
-    <div class="row">
-      <button id="submitBtn" onclick="submitTicket()">Classify ticket</button>
-      <span id="submitStatus" class="status-line"></span>
-    </div>
-  </div>
-
   <div id="log" class="log">
-    <div class="empty">No tickets classified yet in this session.</div>
+    <div class="empty">Look up a Zoho Ticket ID above to classify it.</div>
   </div>
 </div>
 
@@ -228,6 +250,22 @@ async function loadTaxonomy() {
   });
 }
 
+async function loadZohoStatus() {
+  const el = document.getElementById('zohoStatusBadge');
+  try {
+    const res = await fetch('/api/zoho/status');
+    if (!res.ok) throw new Error(`status ${res.status}`);
+    const data = await res.json();
+    const isSample = data.invoke_url_is_sample || data.api_key_is_sample;
+    const color = isSample ? 'var(--amber)' : 'var(--accent)';
+    const label = isSample ? 'zoho: sample/mock config' : 'zoho: configured';
+    el.innerHTML = `<span class="swatch" style="background:${color}"></span>${label}`;
+  } catch (e) {
+    el.innerHTML = `<span class="swatch" style="background:var(--coral)"></span>zoho: status unknown`;
+    console.error(e);
+  }
+}
+
 function confBand(c) {
   if (c === null || c === undefined) return { color: 'var(--muted)', segs: 0 };
   if (c < 0.4) return { color: 'var(--coral)', segs: Math.max(1, Math.round(c * 5)) };
@@ -266,7 +304,68 @@ function categoryOptionsGrouped(selectedId) {
   }).join('');
 }
 
+function clarifyHTML(state) {
+  return `
+    <div class="clarify">
+      <div class="q">${esc(state.clarifying_question || 'Could you provide more detail?')}</div>
+      <input type="text" placeholder="Your answer..." />
+      <button onclick="respond('${state.ticket_id}', this)">Send answer</button>
+    </div>
+  `;
+}
+
+function correctionHTML(state) {
+  return `
+    <div class="correction">
+      <label class="field-label">Not right? Correct it</label>
+      <select>${categoryOptionsGrouped(state.category_id)}</select>
+      <button class="secondary" onclick="correct('${state.ticket_id}', this)">Submit correction</button>
+    </div>
+  `;
+}
+
+function zohoCardHTML(state) {
+  const band = confBand(state.confidence);
+  const showClarify = state.status === 'awaiting_clarification';
+  const canCorrect = state.status === 'classified' || state.status === 'needs_human_review';
+
+  const threadHTML = (state.conversation || []).map(t =>
+    `<div class="qa">${t.role === 'system_question' ? '→ ' : '↳ '}${esc(t.content)}</div>`
+  ).join('');
+
+  return `
+    <div class="zoho-layout">
+      <div class="zoho-issue-block">
+        <div class="field-label">Issue in Detail</div>
+        <div class="issue-text">${esc(state.issue_in_detail || '(Zoho returned no issue text)')}</div>
+        <div class="ticket-id-line">Ticket ID: <span class="mono">${esc(state.zoho_ticket_id)}</span> &middot; ${statusLabel(state.status)}</div>
+      </div>
+      <div class="zoho-category-block">
+        ${state.category_id ? `
+          <div class="field-label">Category</div>
+          <div class="category-value">${esc(state.category_group_name || '—')}</div>
+          <div class="field-label" style="margin-top:12px;">Sub-category</div>
+          <span class="badge"><span class="swatch" style="background:${band.color}"></span>${esc(state.category_name || state.category_id)}</span>
+          ${renderMeter(state.confidence)}
+          ${state.reasoning ? `<div class="reasoning">${esc(state.reasoning)}</div>` : ''}
+          ${(state.assigned_team || state.poc_primary) ? `
+            <div class="routing">
+              ${state.assigned_team ? `<div><b>Team</b>${esc(state.assigned_team)}</div>` : ''}
+              ${state.poc_primary ? `<div><b>POC</b>${esc(state.poc_primary)}</div>` : ''}
+            </div>
+          ` : ''}
+        ` : '<div class="reasoning">Not yet classified.</div>'}
+      </div>
+    </div>
+    ${threadHTML ? `<div class="thread">${threadHTML}</div>` : ''}
+    ${showClarify ? clarifyHTML(state) : ''}
+    ${canCorrect ? correctionHTML(state) : ''}
+  `;
+}
+
 function cardHTML(state) {
+  if (state.zoho_ticket_id) return zohoCardHTML(state);
+
   const band = confBand(state.confidence);
   const showClarify = state.status === 'awaiting_clarification';
   const canCorrect = state.status === 'classified' || state.status === 'needs_human_review';
@@ -317,7 +416,7 @@ function esc(s) {
     .replace(/"/g, '&quot;');
 }
 
-function upsertCard(state, originalText) {
+function upsertCard(state) {
   let el = document.getElementById('card-' + state.ticket_id);
   if (!el) {
     if (log.querySelector('.empty')) log.innerHTML = '';
@@ -327,40 +426,41 @@ function upsertCard(state, originalText) {
     log.prepend(el);
   }
   el.innerHTML = cardHTML(state);
-  if (originalText) el.querySelector('[data-original]').innerText = originalText;
-  else if (el.dataset.text) el.querySelector('[data-original]').innerText = el.dataset.text;
-  if (originalText) el.dataset.text = originalText;
 }
 
-async function submitTicket() {
-  const input = document.getElementById('ticketInput');
-  const text = input.value.trim();
-  if (!text) return;
-  const btn = document.getElementById('submitBtn');
-  const status = document.getElementById('submitStatus');
+async function searchZohoTicket(e) {
+  e.preventDefault();
+  const input = document.getElementById('zohoSearchInput');
+  const zohoTicketId = input.value.trim();
+  const status = document.getElementById('zohoSearchStatus');
+  if (!zohoTicketId) return false;
   if (!getApiKey()) {
     status.innerText = 'enter your OpenAI API key above first';
     setTimeout(() => status.innerText = '', 3000);
-    return;
+    return false;
   }
-  btn.disabled = true; status.innerText = 'classifying…';
+  const btn = e.target.querySelector('button');
+  btn.disabled = true; status.innerText = 'looking up…';
   try {
-    const res = await fetch('/api/tickets', {
-      method: 'POST', headers: {'Content-Type':'application/json', ...authHeaders()},
-      body: JSON.stringify({ text })
+    const res = await fetch(`/api/zoho/tickets/${encodeURIComponent(zohoTicketId)}/classify`, {
+      method: 'POST', headers: { ...authHeaders() },
     });
-    if (!res.ok) throw new Error(await res.text());
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.detail || `lookup failed (${res.status})`);
+    }
     const state = await res.json();
-    upsertCard(state, text);
+    upsertCard(state);
     input.value = '';
-  } catch (e) {
-    status.innerText = 'error — check your API key is valid';
-    console.error(e);
-    setTimeout(() => status.innerText = '', 3000);
+  } catch (err) {
+    status.innerText = err.message;
+    console.error(err);
+    setTimeout(() => status.innerText = '', 4000);
     btn.disabled = false;
-    return;
+    return false;
   }
   status.innerText = ''; btn.disabled = false;
+  return false;
 }
 
 async function respond(ticketId, btnEl) {
@@ -390,6 +490,7 @@ async function correct(ticketId, btnEl) {
 }
 
 loadTaxonomy();
+loadZohoStatus();
 </script>
 </body>
 </html>

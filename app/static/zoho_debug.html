@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ticket Router — Zoho raw data</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #12151B;
+    --panel: #1A1E26;
+    --panel-2: #20242E;
+    --border: #2B303B;
+    --text: #E7EAEE;
+    --muted: #8B93A1;
+    --accent: #3ED9C4;
+    --coral: #E8604C;
+    --mono: 'IBM Plex Mono', ui-monospace, monospace;
+    --sans: 'IBM Plex Sans', system-ui, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:var(--sans); line-height:1.5; min-height:100vh;
+  }
+  .wrap{ max-width:900px; margin:0 auto; padding:40px 20px 80px; }
+  .masthead{
+    display:flex; align-items:baseline; justify-content:space-between;
+    border-bottom:1px solid var(--border); padding-bottom:16px; margin-bottom:28px;
+  }
+  .masthead h1{
+    font-family:var(--mono); font-size:15px; font-weight:600;
+    letter-spacing:.08em; text-transform:uppercase; margin:0;
+  }
+  .masthead .sub{ font-family:var(--mono); font-size:12px; color:var(--muted); }
+  .masthead .sub a{ color:var(--muted); text-decoration:underline; }
+  .dot{ display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--accent); margin-right:6px; box-shadow:0 0 8px var(--accent); }
+
+  .panel{
+    background:var(--panel); border:1px solid var(--border); border-radius:10px;
+    padding:20px; margin-bottom:20px;
+  }
+  label.field-label{
+    display:block; font-family:var(--mono); font-size:11px; color:var(--muted);
+    text-transform:uppercase; letter-spacing:.06em; margin-bottom:8px;
+  }
+  input[type=text]{
+    background:var(--panel-2); border:1px solid var(--border); border-radius:6px;
+    color:var(--text); font-family:var(--mono); font-size:13px; padding:10px 12px;
+  }
+  input:focus{ outline:2px solid var(--accent); outline-offset:1px; }
+  button{
+    font-family:var(--mono); font-size:12px; letter-spacing:.04em; text-transform:uppercase;
+    background:var(--accent); color:#0B1411; border:none; border-radius:6px;
+    padding:10px 16px; cursor:pointer; font-weight:600;
+  }
+  button:hover{ filter:brightness(1.08); }
+  button:disabled{ opacity:.5; cursor:not-allowed; }
+  .row{ display:flex; gap:10px; align-items:center; }
+  .status-line{ font-family:var(--mono); font-size:11px; color:var(--muted); }
+  .status-line.error{ color:var(--coral); }
+
+  .section-title{
+    font-family:var(--mono); font-size:11px; color:var(--muted);
+    text-transform:uppercase; letter-spacing:.06em; margin:0 0 10px;
+  }
+  table.fields{ width:100%; border-collapse:collapse; font-size:13px; }
+  table.fields th, table.fields td{
+    text-align:left; padding:7px 10px; border-bottom:1px solid var(--border);
+    vertical-align:top; word-break:break-word;
+  }
+  table.fields th{
+    font-family:var(--mono); font-size:11px; color:var(--muted);
+    text-transform:uppercase; letter-spacing:.04em; width:38%;
+  }
+  table.fields td{ font-family:var(--mono); }
+  pre.raw{
+    background:var(--panel-2); border:1px solid var(--border); border-radius:6px;
+    padding:14px; font-family:var(--mono); font-size:12px; overflow-x:auto;
+    white-space:pre-wrap; word-break:break-word; margin:0;
+  }
+  .empty{ color:var(--muted); font-size:13px; font-family:var(--mono); text-align:center; padding:30px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="masthead">
+    <h1><span class="dot"></span>Zoho Raw Data</h1>
+    <div class="sub"><a href="/">&larr; back to ticket router</a></div>
+  </div>
+
+  <div class="panel">
+    <label class="field-label">Zoho Ticket ID</label>
+    <div class="row">
+      <input type="text" id="ticketIdInput" placeholder="e.g. TCK-1001" autocomplete="off" style="flex:1;" />
+      <button id="fetchBtn" onclick="fetchZoho()">Fetch</button>
+    </div>
+    <div class="row" style="margin-top:10px;">
+      <span id="status" class="status-line"></span>
+    </div>
+  </div>
+
+  <div id="results"></div>
+</div>
+
+<script>
+function esc(s) {
+  if (s === null || s === undefined) return '';
+  return String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// Walks the raw response at any depth/shape and returns a flat list of
+// [path, value] pairs so every field Zoho sent is visible in one table,
+// regardless of how deeply the actual record turns out to be nested.
+function flatten(node, path, out) {
+  if (node !== null && typeof node === 'object' && !Array.isArray(node)) {
+    const keys = Object.keys(node);
+    if (keys.length === 0) out.push([path || '(root)', '{}']);
+    for (const k of keys) flatten(node[k], path ? `${path}.${k}` : k, out);
+  } else if (Array.isArray(node)) {
+    if (node.length === 0) out.push([path || '(root)', '[]']);
+    node.forEach((item, i) => flatten(item, `${path}[${i}]`, out));
+  } else {
+    out.push([path || '(root)', node]);
+  }
+  return out;
+}
+
+async function fetchZoho() {
+  const input = document.getElementById('ticketIdInput');
+  const ticketId = input.value.trim();
+  const status = document.getElementById('status');
+  const results = document.getElementById('results');
+  if (!ticketId) return;
+
+  const btn = document.getElementById('fetchBtn');
+  btn.disabled = true;
+  status.className = 'status-line';
+  status.innerText = 'fetching…';
+  try {
+    const res = await fetch(`/api/zoho/tickets/${encodeURIComponent(ticketId)}`);
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.detail || `request failed (${res.status})`);
+    }
+    const data = await res.json();
+    const fields = flatten(data.raw, '', []);
+    const fieldRows = fields.map(([k, v]) =>
+      `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`
+    ).join('');
+
+    results.innerHTML = `
+      <div class="panel">
+        <div class="section-title">Extracted fields (used by the app)</div>
+        <table class="fields">
+          <tr><th>ticket_id</th><td>${esc(data.ticket_id)}</td></tr>
+          <tr><th>issue_in_detail</th><td>${esc(data.issue_in_detail)}</td></tr>
+        </table>
+      </div>
+      <div class="panel">
+        <div class="section-title">Every field in the raw Zoho response (${fields.length})</div>
+        <table class="fields">${fieldRows}</table>
+      </div>
+      <div class="panel">
+        <div class="section-title">Raw JSON (exactly as returned)</div>
+        <pre class="raw">${esc(JSON.stringify(data.raw, null, 2))}</pre>
+      </div>
+    `;
+    status.innerText = '';
+  } catch (e) {
+    status.className = 'status-line error';
+    status.innerText = e.message;
+    results.innerHTML = '';
+    console.error(e);
+  }
+  btn.disabled = false;
+}
+
+document.getElementById('ticketIdInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); fetchZoho(); }
+});
+</script>
+</body>
+</html>

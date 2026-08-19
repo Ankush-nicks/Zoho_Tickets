@@ -38,3 +38,28 @@ if _SESSION_SECRET_PATH.exists():
 else:
     SESSION_SECRET = secrets.token_hex(32)
     _SESSION_SECRET_PATH.write_text(SESSION_SECRET)
+
+# --- Zoho Creator integration ---------------------------------------------
+# All of this is a SAMPLE/placeholder pending real Zoho details - every value
+# is a single env var so going live is an .env edit, never a code change.
+#
+# ZOHO_INVOKE_URL: must contain the literal "{ticket_id}" placeholder, which
+# gets replaced with the requested ticket id before the request is made.
+# Defaults to our own local mock endpoint (see app/main.py's /_mock/zoho
+# route) so the integration is actually exercised end-to-end today.
+ZOHO_INVOKE_URL = os.getenv(
+    "ZOHO_INVOKE_URL", "http://127.0.0.1:8000/_mock/zoho-invoke?ticket_id={ticket_id}"
+)
+# Sent as a request header named ZOHO_AUTH_HEADER_NAME with this value.
+# Not sure yet whether Zoho expects this as a header at all (vs. baked into
+# the URL as the custom-API name) - swap ZOHO_AUTH_HEADER_NAME/ZOHO_API_KEY
+# once confirmed, no code change needed either way.
+ZOHO_AUTH_HEADER_NAME = os.getenv("ZOHO_AUTH_HEADER_NAME", "Ticket_Classification_version_0")
+ZOHO_API_KEY = os.getenv("ZOHO_API_KEY", "sample-zoho-key")
+
+# Field names as they appear (at any depth) in the JSON Zoho returns. These
+# are guesses at Zoho's usual "spaces become underscores" convention - the
+# /zoho-debug page (once built) is exactly the tool to confirm/correct these
+# against a real response.
+ZOHO_FIELD_TICKET_ID = os.getenv("ZOHO_FIELD_TICKET_ID", "Ticket_ID")
+ZOHO_FIELD_ISSUE_DETAIL = os.getenv("ZOHO_FIELD_ISSUE_DETAIL", "Issue_in_Detail")

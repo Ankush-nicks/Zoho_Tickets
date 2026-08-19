@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS tickets (
     confidence REAL,
     reasoning TEXT,
     clarification_turns INTEGER NOT NULL DEFAULT 0,
+    zoho_ticket_id TEXT,               -- set only for tickets sourced from a Zoho lookup, else NULL
     created_at REAL NOT NULL,
     updated_at REAL NOT NULL
 );
@@ -56,21 +57,27 @@ def get_conn():
 def init_db():
     with get_conn() as conn:
         conn.executescript(SCHEMA)
+        # Older DB files predate the zoho_ticket_id column - add it if missing
+        # (CREATE TABLE IF NOT EXISTS above is a no-op on an existing table).
+        try:
+            conn.execute("ALTER TABLE tickets ADD COLUMN zoho_ticket_id TEXT")
+        except sqlite3.OperationalError:
+            pass  # column already exists
 
 
 def new_id() -> str:
     return uuid.uuid4().hex[:12]
 
 
-def create_ticket(original_text: str) -> str:
+def create_ticket(original_text: str, zoho_ticket_id: str | None = None) -> str:
     ticket_id = new_id()
     now = time.time()
     with get_conn() as conn:
         conn.execute(
             """INSERT INTO tickets
-               (id, original_text, full_context, status, clarification_turns, created_at, updated_at)
-               VALUES (?, ?, ?, 'pending', 0, ?, ?)""",
-            (ticket_id, original_text, original_text, now, now),
+               (id, original_text, full_context, status, clarification_turns, zoho_ticket_id, created_at, updated_at)
+               VALUES (?, ?, ?, 'pending', 0, ?, ?, ?)""",
+            (ticket_id, original_text, original_text, zoho_ticket_id, now, now),
         )
     return ticket_id
 

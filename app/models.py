@@ -33,6 +33,10 @@ class TicketStateResponse(BaseModel):
     reasoning: str | None = None
     clarifying_question: str | None = None
     conversation: list[dict] = []
+    # Only set when this ticket originated from a Zoho Creator lookup rather
+    # than manual input - None for every existing/manual ticket.
+    zoho_ticket_id: str | None = None
+    issue_in_detail: str | None = None
 
 
 class ClassificationResult(BaseModel):

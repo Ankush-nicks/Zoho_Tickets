@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, RedirectResponse, Response
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import auth, config, db, memory, classifier
+from . import auth, config, db, memory, classifier, zoho
 from .taxonomy import taxonomy
 from .auth import require_login
 from .models import (
@@ -57,6 +57,13 @@ def login_page(request: Request):
     if request.session.get("user"):
         return RedirectResponse("/")
     return FileResponse(str(STATIC_DIR / "login.html"))
+
+
+@app.get("/zoho-debug")
+def zoho_debug_page(request: Request):
+    if not request.session.get("user"):
+        return RedirectResponse("/login")
+    return FileResponse(str(STATIC_DIR / "zoho_debug.html"))
 
 
 @app.post("/api/login")
@@ -109,6 +116,55 @@ def get_stats(user: str = Depends(require_login)):
     return db.stats()
 
 
+# --- Zoho Creator integration ----------------------------------------------
+
+@app.get("/_mock/zoho-invoke")
+def _mock_zoho_invoke(ticket_id: str):
+    """
+    TEMPORARY local stand-in for the real Zoho Creator Invoke URL, so the
+    fetch/auth/parse plumbing in app/zoho.py can be exercised end-to-end
+    before real Zoho credentials exist. ZOHO_INVOKE_URL defaults to this
+    route. Delete this once the real invoke URL is wired up in .env.
+    """
+    return {
+        "code": 3000,
+        "result": [
+            {
+                "ID": "6234000000123456",
+                "Ticket_ID": ticket_id,
+                "Issue_in_Detail": (
+                    f"[sample Zoho data for ticket {ticket_id}] The QA report for last week's "
+                    "session shows a zero score on a rubric item I clearly addressed - please review."
+                ),
+                "Status": "Open",
+                "Created_Time": "2026-08-01 10:15:00",
+            }
+        ],
+    }
+
+
+@app.get("/api/zoho/tickets/{ticket_id}")
+def get_zoho_ticket(ticket_id: str, user: str = Depends(require_login)):
+    """Fetch a ticket from Zoho Creator and return the fields we extracted plus the raw response."""
+    try:
+        return zoho.get_ticket_issue(ticket_id)
+    except zoho.ZohoError as e:
+        raise HTTPException(502, str(e))
+
+
+@app.get("/api/zoho/status")
+def get_zoho_status(user: str = Depends(require_login)):
+    """
+    Whether Zoho is still pointed at the local sample/mock setup vs a real
+    invoke URL and credential - never returns the actual URL or key value,
+    just enough to render a status indicator in the UI.
+    """
+    return {
+        "invoke_url_is_sample": "/_mock/zoho-invoke" in config.ZOHO_INVOKE_URL,
+        "api_key_is_sample": config.ZOHO_API_KEY == "sample-zoho-key",
+    }
+
+
 def _to_state_response(ticket: dict) -> TicketStateResponse:
     leaf = taxonomy.get(ticket["category_id"]) if ticket.get("category_id") else None
     conversation = []
@@ -128,6 +184,8 @@ def _to_state_response(ticket: dict) -> TicketStateResponse:
         reasoning=ticket.get("reasoning"),
         clarifying_question=ticket.get("clarifying_question"),
         conversation=conversation,
+        zoho_ticket_id=ticket.get("zoho_ticket_id"),
+        issue_in_detail=ticket.get("original_text"),
     )
 
 
@@ -175,6 +233,41 @@ def create_ticket(req: NewTicketRequest, api_key: str = Depends(require_api_key)
         raise HTTPException(400, "text is required")
     ticket_id = db.create_ticket(req.text.strip())
     _run_classification_and_persist(ticket_id, req.text.strip(), clarification_turns=0, api_key=api_key)
+    ticket = db.get_ticket(ticket_id)
+
+    resp = _to_state_response(ticket)
+    if ticket["status"] == "awaiting_clarification":
+        last_q = db.get_turns(ticket_id)[-1]["content"]
+        resp.clarifying_question = last_q
+    return resp
+
+
+@app.post("/api/zoho/tickets/{zoho_ticket_id}/classify", response_model=TicketStateResponse)
+def classify_zoho_ticket(zoho_ticket_id: str, api_key: str = Depends(require_api_key), user: str = Depends(require_login)):
+    """
+    Fetch a ticket from Zoho Creator and classify its "Issue in Detail" text
+    through the exact same pipeline manual input uses (create_ticket ->
+    _run_classification_and_persist -> _to_state_response) - nothing about
+    the classification logic itself is different for a Zoho-sourced ticket.
+    """
+    try:
+        zoho_result = zoho.get_ticket_issue(zoho_ticket_id)
+    except zoho.ZohoError as e:
+        raise HTTPException(502, str(e))
+
+    issue_text = zoho_result.get("issue_in_detail")
+    if not issue_text or not str(issue_text).strip():
+        raise HTTPException(
+            502,
+            f"Zoho response for ticket '{zoho_ticket_id}' has no usable "
+            f"'{config.ZOHO_FIELD_ISSUE_DETAIL}' field - check ZOHO_FIELD_ISSUE_DETAIL "
+            f"or inspect the raw response at /api/zoho/tickets/{zoho_ticket_id}.",
+        )
+    issue_text = str(issue_text).strip()
+    resolved_zoho_id = str(zoho_result.get("ticket_id") or zoho_ticket_id)
+
+    ticket_id = db.create_ticket(issue_text, zoho_ticket_id=resolved_zoho_id)
+    _run_classification_and_persist(ticket_id, issue_text, clarification_turns=0, api_key=api_key)
     ticket = db.get_ticket(ticket_id)
 
     resp = _to_state_response(ticket)
