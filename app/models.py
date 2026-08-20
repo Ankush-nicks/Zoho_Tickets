@@ -39,6 +39,18 @@ class TicketStateResponse(BaseModel):
     issue_in_detail: str | None = None
 
 
+class ZohoWebhookTicket(BaseModel):
+    """
+    Body Zoho Creator's Deluge "On Add" workflow sends to
+    POST /api/webhooks/zoho/tickets. Zoho already has the record in hand at
+    creation time, so it pushes the fields directly rather than this app
+    calling back into Zoho to fetch them (that pull path stays available
+    separately via ZOHO_INVOKE_URL / app/zoho.py for on-demand lookups).
+    """
+    zoho_ticket_id: str
+    issue_in_detail: str
+
+
 class ClassificationResult(BaseModel):
     """What the OpenAI structured-output call must return."""
     category_id: str

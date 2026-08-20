@@ -1,5 +1,6 @@
 import csv
 import io
+import secrets
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
@@ -16,6 +17,7 @@ from .models import (
     ClarificationResponse,
     CorrectionRequest,
     TicketStateResponse,
+    ZohoWebhookTicket,
 )
 
 app = FastAPI(title="Ticket Classifier", version="0.1.0")
@@ -35,6 +37,20 @@ def require_api_key(x_openai_api_key: str | None = Header(default=None, alias="X
     if not key:
         raise HTTPException(401, "OpenAI API key required - enter it in the box at the top of the page.")
     return key
+
+
+def require_webhook_secret(x_webhook_secret: str | None = Header(default=None, alias="X-Webhook-Secret")) -> None:
+    """
+    Authenticates Zoho Creator's Deluge "On Add" workflow for the push
+    endpoint below - deliberately NOT the session-cookie login the UI uses,
+    since a Deluge script can't practically hold a browser session. Fails
+    closed: an unset ZOHO_WEBHOOK_SECRET refuses every request rather than
+    silently accepting an unauthenticated one.
+    """
+    if not config.ZOHO_WEBHOOK_SECRET or not x_webhook_secret or not secrets.compare_digest(
+        x_webhook_secret, config.ZOHO_WEBHOOK_SECRET
+    ):
+        raise HTTPException(401, "Missing or invalid X-Webhook-Secret header.")
 
 
 @app.on_event("startup")
@@ -163,6 +179,42 @@ def get_zoho_status(user: str = Depends(require_login)):
         "invoke_url_is_sample": "/_mock/zoho-invoke" in config.ZOHO_INVOKE_URL,
         "api_key_is_sample": config.ZOHO_API_KEY == "sample-zoho-key",
     }
+
+
+@app.post("/api/webhooks/zoho/tickets", response_model=TicketStateResponse)
+def webhook_new_zoho_ticket(req: ZohoWebhookTicket, _: None = Depends(require_webhook_secret)):
+    """
+    PUSH counterpart to the pull-based /api/zoho endpoints above: Zoho
+    Creator's "On Add" workflow calls this directly with the new record's
+    fields (see zoho-invoke-url-setup.md for the Deluge script), so a new
+    ticket gets classified the moment it's created in Zoho - no polling,
+    no round trip back through ZOHO_INVOKE_URL.
+
+    Auth is a shared secret (X-Webhook-Secret, see require_webhook_secret)
+    rather than the session login the UI uses, since Deluge can't hold a
+    browser session. Classification runs with the server-side
+    OPENAI_API_KEY (no UI operator is present to supply one per-request).
+    """
+    if not config.OPENAI_API_KEY:
+        raise HTTPException(
+            500,
+            "OPENAI_API_KEY is not set in the server's .env - required for "
+            "webhook-triggered classification since there's no UI operator "
+            "to supply a per-request key.",
+        )
+    issue_text = req.issue_in_detail.strip()
+    if not issue_text:
+        raise HTTPException(400, "issue_in_detail is required")
+
+    ticket_id = db.create_ticket(issue_text, zoho_ticket_id=req.zoho_ticket_id.strip())
+    _run_classification_and_persist(ticket_id, issue_text, clarification_turns=0, api_key=config.OPENAI_API_KEY)
+    ticket = db.get_ticket(ticket_id)
+
+    resp = _to_state_response(ticket)
+    if ticket["status"] == "awaiting_clarification":
+        last_q = db.get_turns(ticket_id)[-1]["content"]
+        resp.clarifying_question = last_q
+    return resp
 
 
 def _to_state_response(ticket: dict) -> TicketStateResponse:

@@ -63,3 +63,12 @@ ZOHO_API_KEY = os.getenv("ZOHO_API_KEY", "sample-zoho-key")
 # against a real response.
 ZOHO_FIELD_TICKET_ID = os.getenv("ZOHO_FIELD_TICKET_ID", "Ticket_ID")
 ZOHO_FIELD_ISSUE_DETAIL = os.getenv("ZOHO_FIELD_ISSUE_DETAIL", "Issue_in_Detail")
+
+# Shared secret Zoho Creator's Deluge "On Add" workflow sends back as the
+# X-Webhook-Secret header when it PUSHes a brand-new ticket to
+# POST /api/webhooks/zoho/tickets (see main.py). This is separate from
+# ZOHO_API_KEY above (which authenticates *this app* to Zoho when it PULLs a
+# ticket) - this one authenticates Zoho to *this app* for the push direction.
+# Empty by default so the webhook endpoint is refused (fails closed) until
+# you set a real value in .env.
+ZOHO_WEBHOOK_SECRET = os.getenv("ZOHO_WEBHOOK_SECRET", "")
