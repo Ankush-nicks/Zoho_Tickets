@@ -122,13 +122,20 @@ def _exec(conn, sql, params=()):
 def init_db():
     with get_conn() as conn:
         if USE_POSTGRES:
-            conn.cursor().execute(SCHEMA_POSTGRES)
+            cur = conn.cursor()
+            cur.execute(SCHEMA_POSTGRES)
+            # CREATE TABLE IF NOT EXISTS is a no-op against a table that
+            # already exists, so a column added here after the table was
+            # first created on a given database (e.g. zoho_category/
+            # zoho_subcategory, added after some Postgres databases already
+            # had a tickets table) never actually gets added there - hence
+            # this explicit migration, safe to re-run every startup.
+            for col in ("zoho_ticket_id", "zoho_category", "zoho_subcategory"):
+                cur.execute(f"ALTER TABLE tickets ADD COLUMN IF NOT EXISTS {col} TEXT")
         else:
             conn.executescript(SCHEMA_SQLITE)
-            # Older SQLite DB files predate these columns - add them if
-            # missing (CREATE TABLE IF NOT EXISTS above is a no-op on an
-            # existing table). Postgres always starts from SCHEMA_POSTGRES,
-            # which already includes them, so this is SQLite-only.
+            # Same idea for older SQLite DB files - SQLite lacks "ADD COLUMN
+            # IF NOT EXISTS", hence the try/except instead.
             for col in ("zoho_ticket_id", "zoho_category", "zoho_subcategory"):
                 try:
                     conn.execute(f"ALTER TABLE tickets ADD COLUMN {col} TEXT")
