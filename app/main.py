@@ -4,9 +4,12 @@ import secrets
 from datetime import datetime, timezone
 from pathlib import Path
 
+import logging
+
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from starlette.middleware.sessions import SessionMiddleware
 
 from . import auth, config, db, memory, classifier, zoho
@@ -26,6 +29,29 @@ app.add_middleware(SessionMiddleware, secret_key=config.SESSION_SECRET, session_
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+logger = logging.getLogger("uvicorn.error")
+
+
+@app.exception_handler(RequestValidationError)
+async def zoho_webhook_debug_handler(request: Request, exc: RequestValidationError):
+    """
+    TEMPORARY DIAGNOSTIC (added to debug the live Zoho integration - safe to
+    remove once confirmed working). Logs the raw body Zoho actually sent
+    whenever a webhook payload fails validation, visible in Render's
+    Application logs, so we can see exactly what Zoho is sending without
+    needing direct access to the Zoho side.
+    """
+    if request.url.path == "/api/webhooks/zoho/tickets":
+        try:
+            raw_body = await request.body()
+        except Exception as e:
+            raw_body = f"<could not read body: {e}>".encode()
+        logger.error(
+            "ZOHO WEBHOOK DEBUG - validation failed. errors=%s raw_body=%r",
+            exc.errors(), raw_body,
+        )
+    return JSONResponse(status_code=422, content={"detail": exc.errors()})
 
 
 def require_api_key(x_openai_api_key: str | None = Header(default=None, alias="X-OpenAI-Api-Key")) -> str:
