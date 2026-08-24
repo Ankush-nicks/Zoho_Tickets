@@ -374,11 +374,26 @@ function zohoCardHTML(state) {
             </div>
           ` : ''}
         ` : '<div class="reasoning">Not yet classified.</div>'}
+        ${zohoAgreementHTML(state)}
       </div>
     </div>
     ${threadHTML ? `<div class="thread">${threadHTML}</div>` : ''}
     ${showClarify ? clarifyHTML(state) : ''}
     ${canCorrect ? correctionHTML(state) : ''}
+  `;
+}
+
+function zohoAgreementHTML(state) {
+  const zohoTag = state.zoho_subcategory || state.zoho_category;
+  if (!zohoTag) return '';
+  if (state.zoho_agrees === null || state.zoho_agrees === undefined) return '';
+  const color = state.zoho_agrees ? 'var(--accent)' : 'var(--coral)';
+  const label = state.zoho_agrees ? 'matches Zoho tag' : 'differs from Zoho tag';
+  return `
+    <div class="routing" style="margin-top:8px;">
+      <div><b>Zoho tag</b>${esc(zohoTag)}</div>
+      <div><b>Agreement</b><span class="badge"><span class="swatch" style="background:${color}"></span>${label}</span></div>
+    </div>
   `;
 }
 
@@ -550,8 +565,11 @@ async function loadDailyTickets() {
       [...tickets].reverse().forEach(state => upsertCard(state));
     }
     const needReview = tickets.filter(t => t.status === 'needs_human_review').length;
+    const comparable = tickets.filter(t => t.zoho_agrees !== null && t.zoho_agrees !== undefined);
+    const agree = comparable.filter(t => t.zoho_agrees).length;
     summary.innerText = `${tickets.length} ticket${tickets.length === 1 ? '' : 's'}` +
-      (needReview ? ` · ${needReview} need review` : '');
+      (needReview ? ` · ${needReview} need review` : '') +
+      (comparable.length ? ` · ${agree}/${comparable.length} match Zoho tag` : '');
   } catch (e) {
     summary.innerText = 'failed to load tickets';
     console.error(e);

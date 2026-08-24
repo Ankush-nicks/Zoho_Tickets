@@ -213,10 +213,39 @@ def webhook_new_zoho_ticket(req: ZohoWebhookTicket, _: None = Depends(require_we
     if not issue_text:
         raise HTTPException(400, "issue_in_detail is required")
 
-    ticket_id = db.create_ticket(issue_text, zoho_ticket_id=req.zoho_ticket_id.strip())
+    ticket_id = db.create_ticket(
+        issue_text,
+        zoho_ticket_id=req.zoho_ticket_id.strip(),
+        zoho_category=(req.category_of_the_issue or "").strip() or None,
+        zoho_subcategory=(req.sub_category_of_the_issue or "").strip() or None,
+    )
     _run_classification_and_persist(ticket_id, issue_text, clarification_turns=0, api_key=config.OPENAI_API_KEY)
 
     return {"ok": True}
+
+
+def _normalize_label(s: str) -> str:
+    """Lowercase and collapse separators so '/','-','_' and extra spaces don't
+    cause a spurious mismatch between our taxonomy names and Zoho's own text."""
+    for ch in ("/", "-", "_"):
+        s = s.replace(ch, " ")
+    return " ".join(s.lower().split())
+
+
+def _labels_loosely_match(a: str | None, b: str | None) -> bool | None:
+    """
+    None when there's nothing to compare (Zoho sent no tag); otherwise
+    whether the two labels are the same or one contains the other, e.g.
+    'Rubric Discrepancy' matching 'Scorecard / Rubric Discrepancy'. Exact
+    equality would miss most real matches since our taxonomy names and
+    Zoho's free-text category fields aren't guaranteed to use the same
+    wording - this is a rough accuracy signal for human review, not a
+    substitute for someone actually checking each ticket.
+    """
+    if not a or not b:
+        return None
+    na, nb = _normalize_label(a), _normalize_label(b)
+    return na == nb or na in nb or nb in na
 
 
 def _to_state_response(ticket: dict) -> TicketStateResponse:
@@ -224,13 +253,20 @@ def _to_state_response(ticket: dict) -> TicketStateResponse:
     conversation = []
     for t in db.get_turns(ticket["id"]):
         conversation.append({"role": t["role"], "content": t["content"]})
+    category_name = leaf["name"] if leaf else None
+    category_group_name = leaf["parent_name"] if leaf else None
+    zoho_category = ticket.get("zoho_category")
+    zoho_subcategory = ticket.get("zoho_subcategory")
+    zoho_agrees = _labels_loosely_match(category_name, zoho_subcategory)
+    if zoho_agrees is None:
+        zoho_agrees = _labels_loosely_match(category_group_name, zoho_category)
     return TicketStateResponse(
         ticket_id=ticket["id"],
         status=ticket["status"],
         category_id=ticket.get("category_id"),
-        category_name=leaf["name"] if leaf else None,
+        category_name=category_name,
         category_group_id=leaf["parent_id"] if leaf else None,
-        category_group_name=leaf["parent_name"] if leaf else None,
+        category_group_name=category_group_name,
         assigned_team=leaf.get("assigned_team") if leaf else None,
         poc_primary=leaf.get("poc_primary") if leaf else None,
         poc_cc=leaf.get("poc_cc") if leaf else None,
@@ -240,6 +276,9 @@ def _to_state_response(ticket: dict) -> TicketStateResponse:
         conversation=conversation,
         zoho_ticket_id=ticket.get("zoho_ticket_id"),
         issue_in_detail=ticket.get("original_text"),
+        zoho_category=zoho_category,
+        zoho_subcategory=zoho_subcategory,
+        zoho_agrees=zoho_agrees,
     )
 
 

@@ -142,7 +142,8 @@ specifically for this:
 ```
 POST /api/webhooks/zoho/tickets
 Headers:  X-Webhook-Secret: <shared secret>
-Body:     {"zoho_ticket_id": "...", "issue_in_detail": "..."}
+Body:     {"zoho_ticket_id": "...", "issue_in_detail": "...",
+           "category_of_the_issue": "...", "sub_category_of_the_issue": "..."}
 Response: {"ok": true}   (200) — classification runs server-side; the result
                             itself isn't sent back to Zoho, it just shows up
                             in this portal's UI. Zoho only needs the status
@@ -150,6 +151,14 @@ Response: {"ok": true}   (200) — classification runs server-side; the result
                             error body (401 bad secret, 400 empty text,
                             500 server misconfigured).
 ```
+
+The real "On Add" workflow sends many more fields than this (priority,
+assigned team, POC history, etc.) - only the four above are read, everything
+else is silently ignored. `category_of_the_issue` / `sub_category_of_the_issue`
+are optional: when present, they're kept alongside the ticket purely so the
+portal can show whether our model's prediction agrees with whatever category
+the ticket already carried on the Zoho side - a rough, automatic accuracy
+signal from real traffic, not something used in classification itself.
 
 It's authenticated by a shared secret instead of a session, and classifies
 using the server's own `OPENAI_API_KEY` (no UI operator involved). Changed/added:
@@ -185,6 +194,8 @@ headerMap.put("X-Webhook-Secret", secretKey);
 paramMap = Map();
 paramMap.put("zoho_ticket_id", input.Ticket_ID);
 paramMap.put("issue_in_detail", input.Issue_in_Detail);
+paramMap.put("category_of_the_issue", input.Category_Of_The_Issue);       // optional - for the portal's Zoho-agreement comparison only
+paramMap.put("sub_category_of_the_issue", input.Sub_Category_Of_The_Issue); // optional - adjust link names if yours differ
 
 response = invokeurl
 [
