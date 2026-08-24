@@ -70,8 +70,8 @@ ZOHO_AUTH_HEADER_NAME = os.getenv("ZOHO_AUTH_HEADER_NAME", "Ticket_Classificatio
 ZOHO_API_KEY = os.getenv("ZOHO_API_KEY", "sample-zoho-key")
 
 # Field names as they appear (at any depth) in the JSON Zoho returns. These
-# are guesses at Zoho's usual "spaces become underscores" convention - the
-# /zoho-debug page (once built) is exactly the tool to confirm/correct these
+# are guesses at Zoho's usual "spaces become underscores" convention - see
+# zoho-invoke-url-setup.md section 4 for how to confirm/correct these
 # against a real response.
 ZOHO_FIELD_TICKET_ID = os.getenv("ZOHO_FIELD_TICKET_ID", "Ticket_ID")
 ZOHO_FIELD_ISSUE_DETAIL = os.getenv("ZOHO_FIELD_ISSUE_DETAIL", "Issue_in_Detail")

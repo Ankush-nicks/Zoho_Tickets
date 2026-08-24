@@ -212,6 +212,13 @@ def log_correction(ticket_id: str, predicted_category_id: str | None, corrected_
         )
 
 
+def list_all_tickets() -> list[dict]:
+    """Every ticket ever stored, oldest first - backs the full CSV export."""
+    with get_conn() as conn:
+        rows = _exec(conn, "SELECT * FROM tickets ORDER BY created_at ASC").fetchall()
+        return [dict(r) for r in rows]
+
+
 def list_tickets_for_date(date_str: str) -> list[dict]:
     """
     Tickets created on the given UTC calendar date (YYYY-MM-DD), newest

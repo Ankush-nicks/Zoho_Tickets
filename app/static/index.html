@@ -159,9 +159,10 @@
   <div class="masthead">
     <h1><span class="dot"></span>Ticket Router</h1>
     <div class="masthead-right">
-      <div class="sub">classify &rarr; clarify &rarr; route &rarr; learn &middot; <a href="/zoho-debug" style="color:var(--muted);text-decoration:underline;">zoho raw data</a> &middot; <a href="#" id="logoutLink" onclick="logout(event)" style="color:var(--muted);text-decoration:underline;">log out</a></div>
+      <div class="sub">classify &rarr; clarify &rarr; route &rarr; learn &middot; <a href="#" id="logoutLink" onclick="logout(event)" style="color:var(--muted);text-decoration:underline;">log out</a></div>
       <div class="masthead-tools">
         <a class="download-link" href="/api/taxonomy/export.csv" download="taxonomy.csv">&darr; Taxonomy CSV</a>
+        <a class="download-link" href="/api/tickets/export.csv" download="tickets_all.csv">&darr; All Tickets CSV</a>
         <span id="zohoStatusBadge" class="badge" title="Zoho credentials live in .env on the server (ZOHO_INVOKE_URL / ZOHO_API_KEY) - there is no in-browser control for them, same as the admin password.">zoho: checking…</span>
       </div>
     </div>
@@ -183,6 +184,7 @@
       <label class="field-label" style="margin:0;">Day</label>
       <select id="dateSelect" onchange="onDateChange()"></select>
       <button class="secondary" onclick="loadDailyTickets()">Refresh</button>
+      <a class="download-link" id="exportDayLink" href="/api/tickets/export.csv" download="tickets_day.csv">&darr; This Day CSV</a>
     </div>
     <div id="dailySummary" class="status-line"></div>
   </div>
@@ -501,6 +503,8 @@ async function loadDateOptions() {
 async function loadDailyTickets() {
   const select = document.getElementById('dateSelect');
   currentDate = select.value || todayStr();
+  document.getElementById('exportDayLink').href = `/api/tickets/export.csv?date=${encodeURIComponent(currentDate)}`;
+  document.getElementById('exportDayLink').download = `tickets_${currentDate}.csv`;
   const summary = document.getElementById('dailySummary');
   summary.innerText = 'loading…';
   try {

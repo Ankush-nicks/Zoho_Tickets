@@ -121,12 +121,15 @@ arbitrary custom headers, so the script above checks a query param
 
 ## 4. Verify against a real response
 
-Once wired up, hit `/zoho-debug` in your portal (`app/static/zoho_debug.html`)
-with a real `ticket_id` — it shows the raw JSON Zoho returned so you can
-confirm `Ticket_ID` / `Issue_in_Detail` are really the field names coming
-back (Zoho's auto-generated link names don't always match the display names
-exactly), and adjust `ZOHO_FIELD_TICKET_ID` / `ZOHO_FIELD_ISSUE_DETAIL` in
-`.env` if not.
+Once wired up, call `app/zoho.py`'s `get_ticket_issue(ticket_id)` (e.g. from a
+one-off script, or a temporary route) with a real `ticket_id` — it returns the
+raw JSON Zoho returned under `"raw"` so you can confirm `Ticket_ID` /
+`Issue_in_Detail` are really the field names coming back (Zoho's
+auto-generated link names don't always match the display names exactly), and
+adjust `ZOHO_FIELD_TICKET_ID` / `ZOHO_FIELD_ISSUE_DETAIL` in `.env` if not.
+(The portal's old `/zoho-debug` page that did this in the UI was removed
+since it depended on this pull direction being set up, which it wasn't yet -
+add a route back for it once this section is actually wired up.)
 
 ## 5. Push direction — Zoho creates a ticket, portal classifies it automatically
 

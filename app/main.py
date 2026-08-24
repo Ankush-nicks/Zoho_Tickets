@@ -13,7 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import auth, config, db, memory, classifier, zoho
+from . import auth, config, db, memory, classifier
 from .taxonomy import taxonomy
 from .auth import require_login
 from .models import (
@@ -102,13 +102,6 @@ def login_page(request: Request):
     return FileResponse(str(STATIC_DIR / "login.html"))
 
 
-@app.get("/zoho-debug")
-def zoho_debug_page(request: Request):
-    if not request.session.get("user"):
-        return RedirectResponse("/login")
-    return FileResponse(str(STATIC_DIR / "zoho_debug.html"))
-
-
 @app.post("/api/login")
 def login(req: LoginRequest, request: Request):
     if not auth.verify_credentials(req.username, req.password):
@@ -160,15 +153,6 @@ def get_stats(user: str = Depends(require_login)):
 
 
 # --- Zoho Creator integration ----------------------------------------------
-
-@app.get("/api/zoho/tickets/{ticket_id}")
-def get_zoho_ticket(ticket_id: str, user: str = Depends(require_login)):
-    """Fetch a ticket from Zoho Creator and return the fields we extracted plus the raw response."""
-    try:
-        return zoho.get_ticket_issue(ticket_id)
-    except zoho.ZohoError as e:
-        raise HTTPException(502, str(e))
-
 
 @app.get("/api/zoho/status")
 def get_zoho_status(user: str = Depends(require_login)):
@@ -350,41 +334,6 @@ def create_ticket(req: NewTicketRequest, api_key: str = Depends(require_api_key)
     return resp
 
 
-@app.post("/api/zoho/tickets/{zoho_ticket_id}/classify", response_model=TicketStateResponse)
-def classify_zoho_ticket(zoho_ticket_id: str, api_key: str = Depends(require_api_key), user: str = Depends(require_login)):
-    """
-    Fetch a ticket from Zoho Creator and classify its "Issue in Detail" text
-    through the exact same pipeline manual input uses (create_ticket ->
-    _run_classification_and_persist -> _to_state_response) - nothing about
-    the classification logic itself is different for a Zoho-sourced ticket.
-    """
-    try:
-        zoho_result = zoho.get_ticket_issue(zoho_ticket_id)
-    except zoho.ZohoError as e:
-        raise HTTPException(502, str(e))
-
-    issue_text = zoho_result.get("issue_in_detail")
-    if not issue_text or not str(issue_text).strip():
-        raise HTTPException(
-            502,
-            f"Zoho response for ticket '{zoho_ticket_id}' has no usable "
-            f"'{config.ZOHO_FIELD_ISSUE_DETAIL}' field - check ZOHO_FIELD_ISSUE_DETAIL "
-            f"or inspect the raw response at /api/zoho/tickets/{zoho_ticket_id}.",
-        )
-    issue_text = str(issue_text).strip()
-    resolved_zoho_id = str(zoho_result.get("ticket_id") or zoho_ticket_id)
-
-    ticket_id = db.create_ticket(issue_text, zoho_ticket_id=resolved_zoho_id)
-    _run_classification_and_persist(ticket_id, issue_text, clarification_turns=0, api_key=api_key)
-    ticket = db.get_ticket(ticket_id)
-
-    resp = _to_state_response(ticket)
-    if ticket["status"] == "awaiting_clarification":
-        last_q = db.get_turns(ticket_id)[-1]["content"]
-        resp.clarifying_question = last_q
-    return resp
-
-
 @app.post("/api/tickets/{ticket_id}/respond", response_model=TicketStateResponse)
 def respond_to_clarification(
     ticket_id: str, req: ClarificationResponse, api_key: str = Depends(require_api_key), user: str = Depends(require_login)
@@ -425,6 +374,49 @@ def list_daily_tickets(date: str | None = None, user: str = Depends(require_logi
     date = date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
     tickets = db.list_tickets_for_date(date)
     return [_to_state_response(t) for t in tickets]
+
+
+@app.get("/api/tickets/export.csv")
+def export_tickets_csv(date: str | None = None, user: str = Depends(require_login)):
+    """
+    CSV export for offline/analytical use: ticket text, our predicted
+    category/sub-category and confidence, and whatever category Zoho already
+    had on the record for comparison. Exports every ticket ever stored when
+    `date` is omitted, or just one UTC calendar day when given.
+    """
+    tickets = db.list_tickets_for_date(date) if date else db.list_all_tickets()
+    tickets = sorted(tickets, key=lambda t: t["created_at"])
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow([
+        "ticket_id", "zoho_ticket_id", "created_at_utc", "status",
+        "issue_in_detail", "app_category_group", "app_subcategory", "confidence",
+        "reasoning", "zoho_category", "zoho_subcategory", "matches_zoho_tag",
+    ])
+    for t in tickets:
+        resp = _to_state_response(t)
+        writer.writerow([
+            resp.ticket_id,
+            resp.zoho_ticket_id or "",
+            datetime.fromtimestamp(t["created_at"], tz=timezone.utc).isoformat(),
+            resp.status,
+            resp.issue_in_detail or "",
+            resp.category_group_name or "",
+            resp.category_name or "",
+            resp.confidence if resp.confidence is not None else "",
+            resp.reasoning or "",
+            resp.zoho_category or "",
+            resp.zoho_subcategory or "",
+            "" if resp.zoho_agrees is None else ("yes" if resp.zoho_agrees else "no"),
+        ])
+
+    filename = f"tickets_{date}.csv" if date else "tickets_all.csv"
+    return Response(
+        content=buf.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
 
 
 @app.get("/api/tickets/{ticket_id}", response_model=TicketStateResponse)
