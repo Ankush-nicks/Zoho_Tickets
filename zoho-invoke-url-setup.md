@@ -143,6 +143,12 @@ specifically for this:
 POST /api/webhooks/zoho/tickets
 Headers:  X-Webhook-Secret: <shared secret>
 Body:     {"zoho_ticket_id": "...", "issue_in_detail": "..."}
+Response: {"ok": true}   (200) — classification runs server-side; the result
+                            itself isn't sent back to Zoho, it just shows up
+                            in this portal's UI. Zoho only needs the status
+                            code: 200 = accepted, anything else = check the
+                            error body (401 bad secret, 400 empty text,
+                            500 server misconfigured).
 ```
 
 It's authenticated by a shared secret instead of a session, and classifies

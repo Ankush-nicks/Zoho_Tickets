@@ -136,6 +136,16 @@
   }
   .zoho-search button{ padding:8px 12px; }
 
+  .daily-bar{
+    display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+  }
+  .daily-bar .left{ display:flex; align-items:center; gap:10px; }
+  .daily-bar select{
+    background:var(--panel-2); border:1px solid var(--border); border-radius:6px;
+    color:var(--text); font-family:var(--mono); font-size:12px; padding:8px 10px;
+  }
+  .daily-bar button{ padding:8px 12px; }
+
   .zoho-layout{ display:flex; gap:20px; }
   .zoho-issue-block{ flex:1.6; min-width:0; }
   .zoho-category-block{
@@ -181,8 +191,17 @@
     <div class="key-hint">Stored only in this browser's local storage, sent directly with each request - never written to the server.</div>
   </div>
 
+  <div class="panel daily-bar">
+    <div class="left">
+      <label class="field-label" style="margin:0;">Day</label>
+      <select id="dateSelect" onchange="onDateChange()"></select>
+      <button class="secondary" onclick="loadDailyTickets()">Refresh</button>
+    </div>
+    <div id="dailySummary" class="status-line"></div>
+  </div>
+
   <div id="log" class="log">
-    <div class="empty">Look up a Zoho Ticket ID above to classify it.</div>
+    <div class="empty">Loading today's tickets…</div>
   </div>
 </div>
 
@@ -489,8 +508,63 @@ async function correct(ticketId, btnEl) {
   upsertCard(state);
 }
 
+let currentDate = null; // YYYY-MM-DD (UTC calendar day), set by loadDateOptions()
+
+function todayStr() {
+  return new Date().toISOString().slice(0, 10); // UTC, matches the server's day bucketing
+}
+
+async function loadDateOptions() {
+  const select = document.getElementById('dateSelect');
+  const today = todayStr();
+  let dates = [today];
+  try {
+    const res = await fetch('/api/tickets/dates');
+    if (res.ok) {
+      const data = await res.json();
+      dates = Array.from(new Set([today, ...(data.dates || [])])).sort().reverse();
+    }
+  } catch (e) { console.error(e); }
+  select.innerHTML = dates.map(d =>
+    `<option value="${d}">${d === today ? `${d} (today)` : d}</option>`
+  ).join('');
+  select.value = currentDate || today;
+}
+
+async function loadDailyTickets() {
+  const select = document.getElementById('dateSelect');
+  currentDate = select.value || todayStr();
+  const summary = document.getElementById('dailySummary');
+  summary.innerText = 'loading…';
+  try {
+    const res = await fetch(`/api/tickets?date=${encodeURIComponent(currentDate)}`);
+    if (!res.ok) throw new Error(`failed (${res.status})`);
+    const tickets = await res.json();
+    log.innerHTML = '';
+    if (!tickets.length) {
+      log.innerHTML = '<div class="empty">No tickets for this day yet.</div>';
+    } else {
+      // tickets arrives newest-first, but upsertCard always prepends (shared
+      // with the manual-lookup flow) - reverse so the on-screen order still
+      // ends up newest-first after each prepend.
+      [...tickets].reverse().forEach(state => upsertCard(state));
+    }
+    const needReview = tickets.filter(t => t.status === 'needs_human_review').length;
+    summary.innerText = `${tickets.length} ticket${tickets.length === 1 ? '' : 's'}` +
+      (needReview ? ` · ${needReview} need review` : '');
+  } catch (e) {
+    summary.innerText = 'failed to load tickets';
+    console.error(e);
+  }
+}
+
+function onDateChange() {
+  loadDailyTickets();
+}
+
 loadTaxonomy();
 loadZohoStatus();
+loadDateOptions().then(loadDailyTickets);
 </script>
 </body>
 </html>

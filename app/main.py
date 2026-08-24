@@ -1,6 +1,7 @@
 import csv
 import io
 import secrets
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
@@ -181,7 +182,7 @@ def get_zoho_status(user: str = Depends(require_login)):
     }
 
 
-@app.post("/api/webhooks/zoho/tickets", response_model=TicketStateResponse)
+@app.post("/api/webhooks/zoho/tickets")
 def webhook_new_zoho_ticket(req: ZohoWebhookTicket, _: None = Depends(require_webhook_secret)):
     """
     PUSH counterpart to the pull-based /api/zoho endpoints above: Zoho
@@ -194,6 +195,12 @@ def webhook_new_zoho_ticket(req: ZohoWebhookTicket, _: None = Depends(require_we
     rather than the session login the UI uses, since Deluge can't hold a
     browser session. Classification runs with the server-side
     OPENAI_API_KEY (no UI operator is present to supply one per-request).
+
+    Intentionally returns only a bare ack, not the classification result
+    (category/team/confidence/etc.) - Zoho doesn't need to parse or display
+    any of that; a human checks the outcome in this portal's own UI. Keeping
+    the contract this thin means Zoho's side never has to change even if the
+    result shape here does.
     """
     if not config.OPENAI_API_KEY:
         raise HTTPException(
@@ -208,13 +215,8 @@ def webhook_new_zoho_ticket(req: ZohoWebhookTicket, _: None = Depends(require_we
 
     ticket_id = db.create_ticket(issue_text, zoho_ticket_id=req.zoho_ticket_id.strip())
     _run_classification_and_persist(ticket_id, issue_text, clarification_turns=0, api_key=config.OPENAI_API_KEY)
-    ticket = db.get_ticket(ticket_id)
 
-    resp = _to_state_response(ticket)
-    if ticket["status"] == "awaiting_clarification":
-        last_q = db.get_turns(ticket_id)[-1]["content"]
-        resp.clarifying_question = last_q
-    return resp
+    return {"ok": True}
 
 
 def _to_state_response(ticket: dict) -> TicketStateResponse:
@@ -350,6 +352,25 @@ def respond_to_clarification(
         last_q = db.get_turns(ticket_id)[-1]["content"]
         resp.clarifying_question = last_q
     return resp
+
+
+@app.get("/api/tickets/dates")
+def ticket_dates(user: str = Depends(require_login)):
+    """Calendar dates (UTC) with at least one ticket - powers the day picker."""
+    return {"dates": db.list_ticket_dates()}
+
+
+@app.get("/api/tickets")
+def list_daily_tickets(date: str | None = None, user: str = Depends(require_login)):
+    """
+    Day-wise dashboard feed: every ticket created on `date` (YYYY-MM-DD,
+    UTC calendar day), defaulting to today, newest first. This is what lets
+    the portal show "today's tickets so far" on open/reload without anyone
+    having to look each one up manually.
+    """
+    date = date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    tickets = db.list_tickets_for_date(date)
+    return [_to_state_response(t) for t in tickets]
 
 
 @app.get("/api/tickets/{ticket_id}", response_model=TicketStateResponse)

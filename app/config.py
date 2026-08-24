@@ -23,6 +23,14 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 SQLITE_PATH = DATA_DIR / "tickets.db"
 CHROMA_PATH = str(DATA_DIR / "chroma")
 
+# When set (a Postgres connection string, e.g. from Neon/Supabase's free
+# tier), app/db.py stores tickets there instead of the local SQLite file.
+# Needed on Render's free plan specifically because its disk is ephemeral -
+# every spin-down/redeploy wipes SQLITE_PATH, which would otherwise lose a
+# whole test period's worth of classified tickets. Local dev with this unset
+# keeps using SQLite exactly as before.
+DATABASE_URL = os.getenv("DATABASE_URL", "")
+
 TAXONOMY_PATH = BASE_DIR / "taxonomy.json"
 
 # Single admin account that gates the whole app. Change these in .env for
