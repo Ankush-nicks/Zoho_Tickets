@@ -135,31 +135,6 @@ def get_stats(user: str = Depends(require_login)):
 
 # --- Zoho Creator integration ----------------------------------------------
 
-@app.get("/_mock/zoho-invoke")
-def _mock_zoho_invoke(ticket_id: str):
-    """
-    TEMPORARY local stand-in for the real Zoho Creator Invoke URL, so the
-    fetch/auth/parse plumbing in app/zoho.py can be exercised end-to-end
-    before real Zoho credentials exist. ZOHO_INVOKE_URL defaults to this
-    route. Delete this once the real invoke URL is wired up in .env.
-    """
-    return {
-        "code": 3000,
-        "result": [
-            {
-                "ID": "6234000000123456",
-                "Ticket_ID": ticket_id,
-                "Issue_in_Detail": (
-                    f"[sample Zoho data for ticket {ticket_id}] The QA report for last week's "
-                    "session shows a zero score on a rubric item I clearly addressed - please review."
-                ),
-                "Status": "Open",
-                "Created_Time": "2026-08-01 10:15:00",
-            }
-        ],
-    }
-
-
 @app.get("/api/zoho/tickets/{ticket_id}")
 def get_zoho_ticket(ticket_id: str, user: str = Depends(require_login)):
     """Fetch a ticket from Zoho Creator and return the fields we extracted plus the raw response."""
@@ -172,12 +147,13 @@ def get_zoho_ticket(ticket_id: str, user: str = Depends(require_login)):
 @app.get("/api/zoho/status")
 def get_zoho_status(user: str = Depends(require_login)):
     """
-    Whether Zoho is still pointed at the local sample/mock setup vs a real
-    invoke URL and credential - never returns the actual URL or key value,
-    just enough to render a status indicator in the UI.
+    Whether the pull-direction (ZOHO_INVOKE_URL) is still an unset placeholder
+    rather than a real Zoho Custom API - never returns the actual URL or key
+    value, just enough to render a status indicator in the UI. Irrelevant to
+    the push webhook (/api/webhooks/zoho/tickets), which doesn't use these.
     """
     return {
-        "invoke_url_is_sample": "/_mock/zoho-invoke" in config.ZOHO_INVOKE_URL,
+        "invoke_url_is_sample": "REPLACE_WITH_REAL_ZOHO_CUSTOM_API" in config.ZOHO_INVOKE_URL,
         "api_key_is_sample": config.ZOHO_API_KEY == "sample-zoho-key",
     }
 

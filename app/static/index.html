@@ -129,12 +129,6 @@
   .masthead-right{ display:flex; flex-direction:column; align-items:flex-end; gap:10px; }
   .masthead-tools{ display:flex; align-items:center; gap:10px; }
   #zohoStatusBadge{ cursor:help; }
-  .zoho-search{ display:flex; gap:6px; }
-  .zoho-search input[type=text]{
-    width:150px; background:var(--panel-2); border:1px solid var(--border); border-radius:6px;
-    color:var(--text); font-family:var(--mono); font-size:12px; padding:8px 10px;
-  }
-  .zoho-search button{ padding:8px 12px; }
 
   .daily-bar{
     display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
@@ -169,13 +163,6 @@
       <div class="masthead-tools">
         <a class="download-link" href="/api/taxonomy/export.csv" download="taxonomy.csv">&darr; Taxonomy CSV</a>
         <span id="zohoStatusBadge" class="badge" title="Zoho credentials live in .env on the server (ZOHO_INVOKE_URL / ZOHO_API_KEY) - there is no in-browser control for them, same as the admin password.">zoho: checking…</span>
-      </div>
-      <div>
-        <form class="zoho-search" onsubmit="return searchZohoTicket(event)">
-          <input type="text" id="zohoSearchInput" placeholder="Zoho Ticket ID" autocomplete="off" />
-          <button type="submit">Look up</button>
-        </form>
-        <div id="zohoSearchStatus" class="status-line" style="text-align:right;"></div>
       </div>
     </div>
   </div>
@@ -460,41 +447,6 @@ function upsertCard(state) {
     log.prepend(el);
   }
   el.innerHTML = cardHTML(state);
-}
-
-async function searchZohoTicket(e) {
-  e.preventDefault();
-  const input = document.getElementById('zohoSearchInput');
-  const zohoTicketId = input.value.trim();
-  const status = document.getElementById('zohoSearchStatus');
-  if (!zohoTicketId) return false;
-  if (!getApiKey()) {
-    status.innerText = 'enter your OpenAI API key above first';
-    setTimeout(() => status.innerText = '', 3000);
-    return false;
-  }
-  const btn = e.target.querySelector('button');
-  btn.disabled = true; status.innerText = 'looking up…';
-  try {
-    const res = await fetch(`/api/zoho/tickets/${encodeURIComponent(zohoTicketId)}/classify`, {
-      method: 'POST', headers: { ...authHeaders() },
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new Error(body.detail || `lookup failed (${res.status})`);
-    }
-    const state = await res.json();
-    upsertCard(state);
-    input.value = '';
-  } catch (err) {
-    status.innerText = err.message;
-    console.error(err);
-    setTimeout(() => status.innerText = '', 4000);
-    btn.disabled = false;
-    return false;
-  }
-  status.innerText = ''; btn.disabled = false;
-  return false;
 }
 
 async function respond(ticketId, btnEl) {

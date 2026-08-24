@@ -4,13 +4,14 @@
 
 Your portal (`app/zoho.py` + `app/config.py`) already expects to **pull** a
 ticket from Zoho by calling an "Invoke URL" and reading back JSON. Nothing on
-the Zoho side exists yet — `ZOHO_INVOKE_URL` in `.env` currently points at a
-local mock (`/_mock/zoho-invoke` in `app/main.py`) just so the plumbing could
-be tested end to end.
+the Zoho side exists yet — `ZOHO_INVOKE_URL` in `.env` is an unset placeholder
+(deliberately - it fails loudly rather than returning fake data) until this
+is set up. Not needed for the push webhook (section 5 below), which doesn't
+use this at all.
 
 What's missing is the actual **Zoho Creator Custom API** (Zoho's name for a
-callable "Invoke URL" backed by a Deluge script) that your portal will call
-in place of the mock. That's what's below.
+callable "Invoke URL" backed by a Deluge script) that your portal will call.
+That's what's below.
 
 ```
 Your portal (app/zoho.py)  --GET-->  Zoho Creator Custom API (Deluge)  --reads-->  Tickets form

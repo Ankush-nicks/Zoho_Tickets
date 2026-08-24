@@ -53,10 +53,14 @@ else:
 #
 # ZOHO_INVOKE_URL: must contain the literal "{ticket_id}" placeholder, which
 # gets replaced with the requested ticket id before the request is made.
-# Defaults to our own local mock endpoint (see app/main.py's /_mock/zoho
-# route) so the integration is actually exercised end-to-end today.
+# Only used by the pull-direction lookup (/api/zoho/tickets/{id}, the portal's
+# "Look up" box) - the push webhook (/api/webhooks/zoho/tickets) doesn't need
+# this at all since Zoho sends ticket data directly. Unset/placeholder until
+# the real Zoho Creator Custom API from zoho-invoke-url-setup.md is set up -
+# until then, pull-direction lookups will fail with a clear connection/404
+# error rather than silently returning fake data.
 ZOHO_INVOKE_URL = os.getenv(
-    "ZOHO_INVOKE_URL", "http://127.0.0.1:8000/_mock/zoho-invoke?ticket_id={ticket_id}"
+    "ZOHO_INVOKE_URL", "https://REPLACE_WITH_REAL_ZOHO_CUSTOM_API/get-ticket?ticket_id={ticket_id}"
 )
 # Sent as a request header named ZOHO_AUTH_HEADER_NAME with this value.
 # Not sure yet whether Zoho expects this as a header at all (vs. baked into
