@@ -1,5 +1,6 @@
 import csv
 import io
+import json
 import secrets
 from datetime import datetime, timezone
 from pathlib import Path
@@ -21,7 +22,6 @@ from .models import (
     ClarificationResponse,
     CorrectionRequest,
     TicketStateResponse,
-    ZohoWebhookTicket,
 )
 
 app = FastAPI(title="Ticket Classifier", version="0.1.0")
@@ -185,7 +185,7 @@ def get_zoho_status(user: str = Depends(require_login)):
 
 
 @app.post("/api/webhooks/zoho/tickets")
-def webhook_new_zoho_ticket(req: ZohoWebhookTicket, _: None = Depends(require_webhook_secret)):
+def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_secret)):
     """
     PUSH counterpart to the pull-based /api/zoho endpoints above: Zoho
     Creator's "On Add" workflow calls this directly with the new record's
@@ -197,6 +197,15 @@ def webhook_new_zoho_ticket(req: ZohoWebhookTicket, _: None = Depends(require_we
     rather than the session login the UI uses, since Deluge can't hold a
     browser session. Classification runs with the server-side
     OPENAI_API_KEY (no UI operator is present to supply one per-request).
+
+    Accepts a plain dict rather than a typed model on purpose: the real
+    "On Add" workflow sends dozens of fields (priority, assigned team, POC
+    history, session/evaluation ids, etc.), and the whole payload is kept
+    as-is (see raw_payload below) for later analytics without this endpoint
+    needing a code change every time Zoho's form gains a field. Only
+    zoho_ticket_id/issue_in_detail/category_of_the_issue/
+    sub_category_of_the_issue are pulled out specifically, for classification
+    and the Zoho-tag comparison.
 
     Intentionally returns only a bare ack, not the classification result
     (category/team/confidence/etc.) - Zoho doesn't need to parse or display
@@ -211,15 +220,19 @@ def webhook_new_zoho_ticket(req: ZohoWebhookTicket, _: None = Depends(require_we
             "webhook-triggered classification since there's no UI operator "
             "to supply a per-request key.",
         )
-    issue_text = req.issue_in_detail.strip()
+    zoho_ticket_id = str(payload.get("zoho_ticket_id") or "").strip()
+    if not zoho_ticket_id:
+        raise HTTPException(400, "zoho_ticket_id is required")
+    issue_text = str(payload.get("issue_in_detail") or "").strip()
     if not issue_text:
         raise HTTPException(400, "issue_in_detail is required")
 
     ticket_id = db.create_ticket(
         issue_text,
-        zoho_ticket_id=req.zoho_ticket_id.strip(),
-        zoho_category=(req.category_of_the_issue or "").strip() or None,
-        zoho_subcategory=(req.sub_category_of_the_issue or "").strip() or None,
+        zoho_ticket_id=zoho_ticket_id,
+        zoho_category=str(payload.get("category_of_the_issue") or "").strip() or None,
+        zoho_subcategory=str(payload.get("sub_category_of_the_issue") or "").strip() or None,
+        raw_payload=json.dumps(payload),
     )
     _run_classification_and_persist(ticket_id, issue_text, clarification_turns=0, api_key=config.OPENAI_API_KEY)
 

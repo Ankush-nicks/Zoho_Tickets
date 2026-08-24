@@ -166,9 +166,13 @@ using the server's own `OPENAI_API_KEY` (no UI operator involved). Changed/added
 
 - `app/config.py` — new `ZOHO_WEBHOOK_SECRET` env var (empty by default, so
   the endpoint refuses everything until you set it)
-- `app/models.py` — new `ZohoWebhookTicket` request model
 - `app/main.py` — new `require_webhook_secret` dependency + the
-  `POST /api/webhooks/zoho/tickets` route
+  `POST /api/webhooks/zoho/tickets` route. Takes the payload as a plain dict
+  rather than a typed model on purpose - Zoho's real "On Add" workflow sends
+  dozens of fields, and the whole thing is kept as-is in the `tickets.raw_payload`
+  column for analytics, so this endpoint never needs a code change when
+  Zoho's form gains a field. Only zoho_ticket_id/issue_in_detail/
+  category_of_the_issue/sub_category_of_the_issue are pulled out specifically.
 - `.env.example` — documents both new/required vars
 
 **Before this works you need to, in Render's dashboard (Environment tab):**

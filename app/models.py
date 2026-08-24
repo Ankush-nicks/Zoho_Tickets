@@ -47,27 +47,6 @@ class TicketStateResponse(BaseModel):
     zoho_agrees: bool | None = None
 
 
-class ZohoWebhookTicket(BaseModel):
-    """
-    Body Zoho Creator's Deluge "On Add" workflow sends to
-    POST /api/webhooks/zoho/tickets. Zoho already has the record in hand at
-    creation time, so it pushes the fields directly rather than this app
-    calling back into Zoho to fetch them (that pull path stays available
-    separately via ZOHO_INVOKE_URL / app/zoho.py for on-demand lookups).
-
-    The real "On Add" workflow sends many more fields than this (priority,
-    assigned team, POC history, etc.) - Pydantic silently ignores anything
-    not declared here, which is fine for classification. category_of_the_issue
-    / sub_category_of_the_issue are pulled out specifically because they're
-    worth keeping: whatever category the ticket already carried on the Zoho
-    side, kept for an automatic accuracy comparison against our own prediction.
-    """
-    zoho_ticket_id: str
-    issue_in_detail: str
-    category_of_the_issue: str | None = None
-    sub_category_of_the_issue: str | None = None
-
-
 class ClassificationResult(BaseModel):
     """What the OpenAI structured-output call must return."""
     category_id: str

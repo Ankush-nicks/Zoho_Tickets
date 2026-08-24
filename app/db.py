@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS tickets (
     zoho_ticket_id TEXT,               -- set only for tickets sourced from a Zoho lookup, else NULL
     zoho_category TEXT,                -- category/sub-category Zoho already had on the record, if any -
     zoho_subcategory TEXT,             -- kept only to compare against our own prediction, never used to classify
+    raw_payload TEXT,                  -- full JSON body Zoho's webhook sent, for analytics - unused elsewhere
     created_at REAL NOT NULL,
     updated_at REAL NOT NULL
 );
@@ -65,6 +66,7 @@ CREATE TABLE IF NOT EXISTS tickets (
     zoho_ticket_id TEXT,
     zoho_category TEXT,
     zoho_subcategory TEXT,
+    raw_payload TEXT,
     created_at DOUBLE PRECISION NOT NULL,
     updated_at DOUBLE PRECISION NOT NULL
 );
@@ -130,13 +132,13 @@ def init_db():
             # zoho_subcategory, added after some Postgres databases already
             # had a tickets table) never actually gets added there - hence
             # this explicit migration, safe to re-run every startup.
-            for col in ("zoho_ticket_id", "zoho_category", "zoho_subcategory"):
+            for col in ("zoho_ticket_id", "zoho_category", "zoho_subcategory", "raw_payload"):
                 cur.execute(f"ALTER TABLE tickets ADD COLUMN IF NOT EXISTS {col} TEXT")
         else:
             conn.executescript(SCHEMA_SQLITE)
             # Same idea for older SQLite DB files - SQLite lacks "ADD COLUMN
             # IF NOT EXISTS", hence the try/except instead.
-            for col in ("zoho_ticket_id", "zoho_category", "zoho_subcategory"):
+            for col in ("zoho_ticket_id", "zoho_category", "zoho_subcategory", "raw_payload"):
                 try:
                     conn.execute(f"ALTER TABLE tickets ADD COLUMN {col} TEXT")
                 except Exception:
@@ -152,6 +154,7 @@ def create_ticket(
     zoho_ticket_id: str | None = None,
     zoho_category: str | None = None,
     zoho_subcategory: str | None = None,
+    raw_payload: str | None = None,
 ) -> str:
     ticket_id = new_id()
     now = time.time()
@@ -160,9 +163,9 @@ def create_ticket(
             conn,
             """INSERT INTO tickets
                (id, original_text, full_context, status, clarification_turns,
-                zoho_ticket_id, zoho_category, zoho_subcategory, created_at, updated_at)
-               VALUES (?, ?, ?, 'pending', 0, ?, ?, ?, ?, ?)""",
-            (ticket_id, original_text, original_text, zoho_ticket_id, zoho_category, zoho_subcategory, now, now),
+                zoho_ticket_id, zoho_category, zoho_subcategory, raw_payload, created_at, updated_at)
+               VALUES (?, ?, ?, 'pending', 0, ?, ?, ?, ?, ?, ?)""",
+            (ticket_id, original_text, original_text, zoho_ticket_id, zoho_category, zoho_subcategory, raw_payload, now, now),
         )
     return ticket_id
 
