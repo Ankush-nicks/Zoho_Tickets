@@ -269,6 +269,7 @@ def _to_state_response(ticket: dict) -> TicketStateResponse:
     zoho_agrees = _labels_loosely_match(category_name, zoho_subcategory)
     if zoho_agrees is None:
         zoho_agrees = _labels_loosely_match(category_group_name, zoho_category)
+    raw_payload = json.loads(ticket["raw_payload"]) if ticket.get("raw_payload") else None
     return TicketStateResponse(
         ticket_id=ticket["id"],
         status=ticket["status"],
@@ -288,6 +289,7 @@ def _to_state_response(ticket: dict) -> TicketStateResponse:
         zoho_category=zoho_category,
         zoho_subcategory=zoho_subcategory,
         zoho_agrees=zoho_agrees,
+        raw_payload=raw_payload,
     )
 
 

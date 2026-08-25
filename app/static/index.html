@@ -142,18 +142,25 @@
   .daily-bar button{ padding:8px 12px; }
   .day-nav-btn{ padding:8px 11px !important; line-height:1; }
 
-  .zoho-layout{ display:flex; gap:20px; }
-  .zoho-issue-block{ flex:1.6; min-width:0; }
-  .zoho-category-block{
-    flex:1; min-width:0; padding-left:18px; border-left:1px dashed var(--border);
-  }
-  .issue-text{
-    font-size:14px; margin:6px 0 10px; padding:10px 12px;
-    background:var(--panel-2); border:1px solid var(--border); border-radius:6px;
-  }
-  .ticket-id-line{ font-family:var(--mono); font-size:11px; color:var(--muted); }
+  .ticket-id-line{ font-family:var(--mono); font-size:11px; color:var(--muted); margin-bottom:10px; }
   .ticket-id-line .mono{ color:var(--text); }
   .category-value{ font-size:14px; margin-bottom:2px; }
+
+  .ticket-details{ margin-top:14px; padding-top:14px; border-top:1px dashed var(--border); }
+  .section-title{
+    font-family:var(--mono); font-size:10px; color:var(--muted);
+    text-transform:uppercase; letter-spacing:.06em; margin:0 0 8px;
+  }
+  table.fields{ width:100%; border-collapse:collapse; font-size:13px; }
+  table.fields th, table.fields td{
+    text-align:left; padding:6px 8px; border-bottom:1px solid var(--border);
+    vertical-align:top; word-break:break-word;
+  }
+  table.fields th{
+    font-family:var(--mono); font-size:10px; color:var(--muted);
+    text-transform:uppercase; letter-spacing:.04em; width:34%; white-space:nowrap;
+  }
+  table.fields td{ font-family:var(--mono); font-size:12px; }
 </style>
 </head>
 <body>
@@ -346,34 +353,64 @@ function zohoCardHTML(state) {
   ).join('');
 
   return `
-    <div class="zoho-layout">
-      <div class="zoho-issue-block">
-        <div class="field-label">Issue in Detail</div>
-        <div class="issue-text">${esc(state.issue_in_detail || '(Zoho returned no issue text)')}</div>
-        <div class="ticket-id-line">Ticket ID: <span class="mono">${esc(state.zoho_ticket_id)}</span> &middot; ${statusLabel(state.status)}</div>
-      </div>
-      <div class="zoho-category-block">
-        ${state.category_id ? `
-          <div class="field-label">Category</div>
-          <div class="category-value">${esc(state.category_group_name || '—')}</div>
-          <div class="field-label" style="margin-top:12px;">Sub-category</div>
-          <span class="badge"><span class="swatch" style="background:${band.color}"></span>${esc(state.category_name || state.category_id)}</span>
-          ${renderMeter(state.confidence)}
-          ${state.reasoning ? `<div class="reasoning">${esc(state.reasoning)}</div>` : ''}
-          ${(state.assigned_team || state.poc_primary) ? `
-            <div class="routing">
-              ${state.assigned_team ? `<div><b>Team</b>${esc(state.assigned_team)}</div>` : ''}
-              ${state.poc_primary ? `<div><b>POC</b>${esc(state.poc_primary)}</div>` : ''}
-            </div>
-          ` : ''}
-        ` : '<div class="reasoning">Not yet classified.</div>'}
-        ${zohoAgreementHTML(state)}
-      </div>
-    </div>
+    <div class="ticket-id-line">Ticket ID: <span class="mono">${esc(state.zoho_ticket_id)}</span> &middot; ${statusLabel(state.status)}</div>
+
+    ${state.category_id ? `
+      <div class="field-label">Category</div>
+      <div class="category-value">${esc(state.category_group_name || '—')}</div>
+      <div class="field-label" style="margin-top:12px;">Sub-category</div>
+      <span class="badge"><span class="swatch" style="background:${band.color}"></span>${esc(state.category_name || state.category_id)}</span>
+      ${renderMeter(state.confidence)}
+      ${state.reasoning ? `<div class="reasoning">${esc(state.reasoning)}</div>` : ''}
+      ${(state.assigned_team || state.poc_primary) ? `
+        <div class="routing">
+          ${state.assigned_team ? `<div><b>Team</b>${esc(state.assigned_team)}</div>` : ''}
+          ${state.poc_primary ? `<div><b>POC</b>${esc(state.poc_primary)}</div>` : ''}
+        </div>
+      ` : ''}
+    ` : '<div class="reasoning">Not yet classified.</div>'}
+    ${zohoAgreementHTML(state)}
     ${threadHTML ? `<div class="thread">${threadHTML}</div>` : ''}
     ${showClarify ? clarifyHTML(state) : ''}
     ${canCorrect ? correctionHTML(state) : ''}
+
+    <div class="ticket-details">
+      <div class="section-title">Ticket Details</div>
+      ${ticketDetailsHTML(state)}
+    </div>
   `;
+}
+
+// Walks the raw Zoho payload at any depth/shape into a flat list of
+// [path, value] pairs so every field that came in is visible, regardless
+// of how it's nested - same approach the old zoho-debug page used.
+function flattenObj(node, path, out) {
+  if (node !== null && typeof node === 'object' && !Array.isArray(node)) {
+    const keys = Object.keys(node);
+    if (keys.length === 0) out.push([path || '(root)', '{}']);
+    for (const k of keys) flattenObj(node[k], path ? `${path}.${k}` : k, out);
+  } else if (Array.isArray(node)) {
+    if (node.length === 0) out.push([path || '(root)', '[]']);
+    node.forEach((item, i) => flattenObj(item, `${path}[${i}]`, out));
+  } else {
+    out.push([path || '(root)', node]);
+  }
+  return out;
+}
+
+function fieldLabelFromKey(key) {
+  return key.replace(/\[\d+\]/g, '').split(/[._]/).filter(Boolean)
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
+function ticketDetailsHTML(state) {
+  if (!state.raw_payload) {
+    return `<table class="fields"><tr><th>Issue In Detail</th><td>${esc(state.issue_in_detail || '—')}</td></tr></table>`;
+  }
+  const rows = flattenObj(state.raw_payload, '', []).map(([k, v]) =>
+    `<tr><th>${esc(fieldLabelFromKey(k))}</th><td>${esc(v)}</td></tr>`
+  ).join('');
+  return `<table class="fields">${rows}</table>`;
 }
 
 function zohoAgreementHTML(state) {

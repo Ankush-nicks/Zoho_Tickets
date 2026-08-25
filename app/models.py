@@ -45,6 +45,11 @@ class TicketStateResponse(BaseModel):
     # None when there's nothing to compare (no zoho_subcategory); otherwise
     # whether our predicted category loosely matches Zoho's own tag.
     zoho_agrees: bool | None = None
+    # Every field Zoho's webhook sent for this ticket (priority, assigned
+    # team, POC/worklog history, session ids, etc.) - None for manual/local
+    # tickets that never came from a Zoho payload. Shown in full in the UI's
+    # "Ticket Details" section so nothing Zoho sent is hidden from a reviewer.
+    raw_payload: dict | None = None
 
 
 class ClassificationResult(BaseModel):
