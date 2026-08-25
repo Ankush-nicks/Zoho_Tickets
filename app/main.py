@@ -196,7 +196,23 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
     any of that; a human checks the outcome in this portal's own UI. Keeping
     the contract this thin means Zoho's side never has to change even if the
     result shape here does.
+
+    Deduplicates by zoho_ticket_id: if this ticket id was already stored
+    (e.g. Zoho retried the same "On Add" event after a slow/cold-start
+    response), this is a no-op rather than creating a second row and
+    re-spending an OpenAI call on identical text.
     """
+    zoho_ticket_id = str(payload.get("zoho_ticket_id") or "").strip()
+    if not zoho_ticket_id:
+        raise HTTPException(400, "zoho_ticket_id is required")
+    issue_text = str(payload.get("issue_in_detail") or "").strip()
+    if not issue_text:
+        raise HTTPException(400, "issue_in_detail is required")
+
+    existing = db.get_ticket_by_zoho_id(zoho_ticket_id)
+    if existing:
+        return {"ok": True, "duplicate": True, "ticket_id": existing["id"]}
+
     if not config.OPENAI_API_KEY:
         raise HTTPException(
             500,
@@ -204,12 +220,6 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
             "webhook-triggered classification since there's no UI operator "
             "to supply a per-request key.",
         )
-    zoho_ticket_id = str(payload.get("zoho_ticket_id") or "").strip()
-    if not zoho_ticket_id:
-        raise HTTPException(400, "zoho_ticket_id is required")
-    issue_text = str(payload.get("issue_in_detail") or "").strip()
-    if not issue_text:
-        raise HTTPException(400, "issue_in_detail is required")
 
     ticket_id = db.create_ticket(
         issue_text,

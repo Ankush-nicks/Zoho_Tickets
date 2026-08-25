@@ -176,6 +176,21 @@ def get_ticket(ticket_id: str) -> dict | None:
         return dict(row) if row else None
 
 
+def get_ticket_by_zoho_id(zoho_ticket_id: str) -> dict | None:
+    """
+    Most recent ticket already stored for this Zoho ticket id, if any - lets
+    the webhook skip re-creating a duplicate when Zoho re-sends the same
+    "On Add" event (e.g. a retry after a slow/cold-start response).
+    """
+    with get_conn() as conn:
+        row = _exec(
+            conn,
+            "SELECT * FROM tickets WHERE zoho_ticket_id = ? ORDER BY created_at DESC LIMIT 1",
+            (zoho_ticket_id,),
+        ).fetchone()
+        return dict(row) if row else None
+
+
 def update_ticket(ticket_id: str, **fields):
     fields["updated_at"] = time.time()
     cols = ", ".join(f"{k} = ?" for k in fields)
