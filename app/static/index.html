@@ -147,10 +147,16 @@
   .category-value{ font-size:14px; margin-bottom:2px; }
 
   .ticket-details{ margin-top:14px; padding-top:14px; border-top:1px dashed var(--border); }
-  .section-title{
+  .details-toggle{
+    display:flex; align-items:center; gap:6px; width:100%;
+    background:transparent; border:none; padding:0; margin:0;
     font-family:var(--mono); font-size:10px; color:var(--muted);
-    text-transform:uppercase; letter-spacing:.06em; margin:0 0 8px;
+    text-transform:uppercase; letter-spacing:.06em; cursor:pointer; text-align:left;
   }
+  .details-toggle:hover{ color:var(--text); }
+  .details-toggle .chevron{ font-size:9px; display:inline-block; transition:transform .15s ease; }
+  .details-toggle.open .chevron{ transform:rotate(90deg); }
+  .details-body{ margin-top:10px; }
   table.fields{ width:100%; border-collapse:collapse; font-size:13px; }
   table.fields th, table.fields td{
     text-align:left; padding:6px 8px; border-bottom:1px solid var(--border);
@@ -375,10 +381,21 @@ function zohoCardHTML(state) {
     ${canCorrect ? correctionHTML(state) : ''}
 
     <div class="ticket-details">
-      <div class="section-title">Ticket Details</div>
-      ${ticketDetailsHTML(state)}
+      <button class="details-toggle" onclick="toggleDetails('${state.ticket_id}', this)">
+        <span class="chevron">&#9656;</span> Ticket Details (${ticketDetailsFieldCount(state)})
+      </button>
+      <div class="details-body" id="details-${state.ticket_id}" style="display:none;">
+        ${ticketDetailsHTML(state)}
+      </div>
     </div>
   `;
+}
+
+function toggleDetails(ticketId, btnEl) {
+  const body = document.getElementById('details-' + ticketId);
+  const isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : 'block';
+  btnEl.classList.toggle('open', !isOpen);
 }
 
 // Walks the raw Zoho payload at any depth/shape into a flat list of
@@ -401,6 +418,10 @@ function flattenObj(node, path, out) {
 function fieldLabelFromKey(key) {
   return key.replace(/\[\d+\]/g, '').split(/[._]/).filter(Boolean)
     .map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
+function ticketDetailsFieldCount(state) {
+  return state.raw_payload ? flattenObj(state.raw_payload, '', []).length : 1;
 }
 
 function ticketDetailsHTML(state) {
