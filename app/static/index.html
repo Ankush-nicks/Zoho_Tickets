@@ -19,6 +19,7 @@
     --coral: #E8604C;
     --mono: 'IBM Plex Mono', ui-monospace, monospace;
     --sans: 'IBM Plex Sans', system-ui, sans-serif;
+    color-scheme: dark; /* native controls (date picker popover, etc.) render dark to match */
   }
   *{box-sizing:border-box;}
   body{
@@ -133,12 +134,13 @@
   .daily-bar{
     display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
   }
-  .daily-bar .left{ display:flex; align-items:center; gap:10px; }
-  .daily-bar select{
+  .daily-bar .left{ display:flex; align-items:center; gap:8px; }
+  .daily-bar input[type=date]{
     background:var(--panel-2); border:1px solid var(--border); border-radius:6px;
     color:var(--text); font-family:var(--mono); font-size:12px; padding:8px 10px;
   }
   .daily-bar button{ padding:8px 12px; }
+  .day-nav-btn{ padding:8px 11px !important; line-height:1; }
 
   .zoho-layout{ display:flex; gap:20px; }
   .zoho-issue-block{ flex:1.6; min-width:0; }
@@ -181,9 +183,11 @@
 
   <div class="panel daily-bar">
     <div class="left">
-      <label class="field-label" style="margin:0;">Day</label>
-      <select id="dateSelect" onchange="onDateChange()"></select>
-      <button class="secondary" onclick="loadDailyTickets()">Refresh</button>
+      <button class="secondary day-nav-btn" onclick="shiftDate(-1)" title="Previous day">&lsaquo;</button>
+      <input type="date" id="dateInput" onchange="onDateChange()" />
+      <button class="secondary day-nav-btn" onclick="shiftDate(1)" title="Next day">&rsaquo;</button>
+      <button class="secondary" onclick="jumpToday()">Today</button>
+      <button class="secondary day-nav-btn" onclick="loadDailyTickets()" title="Refresh">&#8635;</button>
       <a class="download-link" id="exportDayLink" href="/api/tickets/export.csv" download="tickets_day.csv">&darr; This Day CSV</a>
     </div>
     <div id="dailySummary" class="status-line"></div>
@@ -477,32 +481,29 @@ async function correct(ticketId, btnEl) {
   upsertCard(state);
 }
 
-let currentDate = null; // YYYY-MM-DD (UTC calendar day), set by loadDateOptions()
+let currentDate = todayStr(); // YYYY-MM-DD (UTC calendar day)
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10); // UTC, matches the server's day bucketing
 }
 
-async function loadDateOptions() {
-  const select = document.getElementById('dateSelect');
-  const today = todayStr();
-  let dates = [today];
-  try {
-    const res = await fetch('/api/tickets/dates');
-    if (res.ok) {
-      const data = await res.json();
-      dates = Array.from(new Set([today, ...(data.dates || [])])).sort().reverse();
-    }
-  } catch (e) { console.error(e); }
-  select.innerHTML = dates.map(d =>
-    `<option value="${d}">${d === today ? `${d} (today)` : d}</option>`
-  ).join('');
-  select.value = currentDate || today;
+function shiftDate(deltaDays) {
+  const [y, m, d] = currentDate.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + deltaDays);
+  document.getElementById('dateInput').value = dt.toISOString().slice(0, 10);
+  loadDailyTickets();
+}
+
+function jumpToday() {
+  document.getElementById('dateInput').value = todayStr();
+  loadDailyTickets();
 }
 
 async function loadDailyTickets() {
-  const select = document.getElementById('dateSelect');
-  currentDate = select.value || todayStr();
+  const input = document.getElementById('dateInput');
+  currentDate = input.value || todayStr();
+  input.value = currentDate;
   document.getElementById('exportDayLink').href = `/api/tickets/export.csv?date=${encodeURIComponent(currentDate)}`;
   document.getElementById('exportDayLink').download = `tickets_${currentDate}.csv`;
   const summary = document.getElementById('dailySummary');
@@ -538,7 +539,8 @@ function onDateChange() {
 
 loadTaxonomy();
 loadZohoStatus();
-loadDateOptions().then(loadDailyTickets);
+document.getElementById('dateInput').value = currentDate;
+loadDailyTickets();
 </script>
 </body>
 </html>

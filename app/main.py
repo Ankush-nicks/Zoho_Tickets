@@ -367,12 +367,6 @@ def respond_to_clarification(
     return resp
 
 
-@app.get("/api/tickets/dates")
-def ticket_dates(user: str = Depends(require_login)):
-    """Calendar dates (UTC) with at least one ticket - powers the day picker."""
-    return {"dates": db.list_ticket_dates()}
-
-
 @app.get("/api/tickets")
 def list_daily_tickets(date: str | None = None, user: str = Depends(require_login)):
     """

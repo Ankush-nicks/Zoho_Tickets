@@ -252,16 +252,6 @@ def list_tickets_for_date(date_str: str) -> list[dict]:
         return [dict(r) for r in rows]
 
 
-def list_ticket_dates() -> list[str]:
-    """Distinct UTC calendar dates with at least one ticket, most recent first."""
-    with get_conn() as conn:
-        rows = _exec(conn, "SELECT created_at FROM tickets").fetchall()
-    dates = {
-        datetime.fromtimestamp(r["created_at"], tz=timezone.utc).strftime("%Y-%m-%d") for r in rows
-    }
-    return sorted(dates, reverse=True)
-
-
 def stats() -> dict:
     with get_conn() as conn:
         total = _exec(conn, "SELECT COUNT(*) c FROM tickets").fetchone()["c"]
