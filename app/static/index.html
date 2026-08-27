@@ -246,6 +246,12 @@
     text-transform:uppercase; letter-spacing:.04em; width:34%; white-space:nowrap;
   }
   table.fields td{ font-family:var(--mono); font-size:12px; }
+
+  .pending-banner{
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    border-color:var(--amber); background:#FCF3E7;
+  }
+  .pending-banner span{ font-size:13px; }
 </style>
 </head>
 <body>
@@ -296,6 +302,11 @@
         <a class="download-link" href="/api/taxonomy/export.csv" download="taxonomy.csv">&darr; Taxonomy CSV</a>
         <a class="download-link" href="/api/tickets/export.csv" download="tickets_all.csv">&darr; All Tickets CSV</a>
         <span id="zohoStatusBadge" class="badge" title="Zoho credentials live in .env on the server (ZOHO_INVOKE_URL / ZOHO_API_KEY) - there is no in-browser control for them, same as the admin password.">zoho: checking…</span>
+      </div>
+
+      <div id="pendingBanner" class="panel pending-banner" style="display:none;">
+        <span id="pendingBannerText"></span>
+        <button class="secondary" id="classifyNowBtn" onclick="classifyPendingNow()">Classify Now</button>
       </div>
 
       <div id="ticketsView">
@@ -981,8 +992,54 @@ async function loadStats(dateFrom, dateTo) {
   }
 }
 
+async function loadPendingCount() {
+  const banner = document.getElementById('pendingBanner');
+  try {
+    const res = await fetch('/api/tickets/pending-count');
+    if (!res.ok) throw new Error(`failed (${res.status})`);
+    const data = await res.json();
+    if (data.count > 0) {
+      document.getElementById('pendingBannerText').innerText =
+        `${data.count} ticket${data.count === 1 ? '' : 's'} awaiting classification`;
+      banner.style.display = '';
+    } else {
+      banner.style.display = 'none';
+    }
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+async function classifyPendingNow() {
+  const btn = document.getElementById('classifyNowBtn');
+  const text = document.getElementById('pendingBannerText');
+  btn.disabled = true;
+  text.innerText = 'classifying…';
+  try {
+    const res = await fetch('/api/tickets/classify-pending?limit=20', { method: 'POST' });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.detail || `failed (${res.status})`);
+    }
+    const data = await res.json();
+    let msg = `classified ${data.classified}`;
+    if (data.remaining) msg += `, ${data.remaining} still pending`;
+    if (data.stopped_early) msg += ' - stopped early (rate limited), will retry automatically';
+    text.innerText = msg;
+    // refresh whatever's currently visible so newly-classified tickets show up
+    loadDailyTickets();
+    if (statsLoadedOnce) loadStats(document.getElementById('statsFromInput').value || null, document.getElementById('statsToInput').value || null);
+  } catch (e) {
+    text.innerText = e.message;
+    console.error(e);
+  }
+  btn.disabled = false;
+  loadPendingCount();
+}
+
 loadTaxonomy();
 loadZohoStatus();
+loadPendingCount();
 document.getElementById('dateInput').value = currentDate;
 loadDailyTickets();
 </script>

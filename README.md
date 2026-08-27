@@ -161,9 +161,10 @@ cookie; `POST /api/logout` clears it).
 
 ## Production notes / next steps
 
-- **Storage**: SQLite + local Chroma are fine for one instance. For multi-instance
-  production, move `db.py` to Postgres and point Chroma at a hosted instance (or
-  swap to Pinecone/Weaviate) — `memory.py` is the only file that would need to change.
+- **Storage**: SQLite locally, Firestore in production (set `FIREBASE_CREDENTIALS_BASE64`
+  - see `persistent-storage-setup.md`). Chroma is still local-only; for multi-instance
+  production point it at a hosted instance (or swap to Pinecone/Weaviate) —
+  `memory.py` is the only file that would need to change.
 - **Auth**: a single admin login (session cookie, set via `ADMIN_USERNAME`/
   `ADMIN_PASSWORD` in `.env`, defaulting insecurely to `admin`/`admin` if unset)
   gates the UI and every `/api/*` route. This is fine for one trusted operator;

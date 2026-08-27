@@ -1,11 +1,17 @@
 # Environment / secrets
 .env
+*firebase-adminsdk*.json
+*.serviceaccount.json
 
 # Virtual environment
 .venv/
 
 # Local runtime state (SQLite ticket store + Chroma vector store)
 app/data/
+
+# Real ticket/instructor data exports (e.g. CSV imports for scripts/import_zoho_csv.py) -
+# contains PII, never belongs in the repo
+*.csv
 
 # Python
 __pycache__/

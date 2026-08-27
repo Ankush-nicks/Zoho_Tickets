@@ -1,6 +1,6 @@
+import asyncio
 import csv
 import io
-import json
 import secrets
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -11,6 +11,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
+from openai import RateLimitError
 from starlette.middleware.sessions import SessionMiddleware
 
 from . import auth, config, db, memory, classifier
@@ -82,11 +83,12 @@ def require_webhook_secret(x_webhook_secret: str | None = Header(default=None, a
 
 
 @app.on_event("startup")
-def startup():
+async def startup():
     db.init_db()
     # Vector memory needs an OpenAI key to embed the seed examples, which we
     # don't have until a request carries one - seeding happens lazily on the
     # first classify() call instead (see classifier.classify).
+    asyncio.create_task(_auto_classify_loop())
 
 
 @app.get("/")
@@ -244,7 +246,6 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
 
     zoho_category = str(payload.get("category_of_the_issue") or "").strip() or None
     zoho_subcategory = str(payload.get("sub_category_of_the_issue") or "").strip() or None
-    raw_payload = json.dumps(payload)
 
     existing = db.get_ticket_by_zoho_id(zoho_ticket_id)
     if existing:
@@ -254,7 +255,7 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
             full_context=issue_text,
             zoho_category=zoho_category,
             zoho_subcategory=zoho_subcategory,
-            raw_payload=raw_payload,
+            raw_payload=payload,
         )
         return {"ok": True, "updated": True, "ticket_id": existing["id"]}
 
@@ -271,7 +272,7 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
         zoho_ticket_id=zoho_ticket_id,
         zoho_category=zoho_category,
         zoho_subcategory=zoho_subcategory,
-        raw_payload=raw_payload,
+        raw_payload=payload,
     )
     _run_classification_and_persist(ticket_id, issue_text, clarification_turns=0, api_key=config.OPENAI_API_KEY)
 
@@ -305,8 +306,14 @@ def _labels_loosely_match(a: str | None, b: str | None) -> bool | None:
 def _to_state_response(ticket: dict) -> TicketStateResponse:
     leaf = taxonomy.get(ticket["category_id"]) if ticket.get("category_id") else None
     conversation = []
-    for t in db.get_turns(ticket["id"]):
-        conversation.append({"role": t["role"], "content": t["content"]})
+    # get_turns() is a real (network) query on Firestore - clarification_turns
+    # is incremented every time append_turn() is, so ==0 reliably means no
+    # turns exist and this call can be skipped. Matters a lot in aggregate:
+    # this function runs per-ticket for potentially hundreds of tickets at
+    # once (day/range listings), and most tickets never have any turns.
+    if ticket.get("clarification_turns"):
+        for t in db.get_turns(ticket["id"]):
+            conversation.append({"role": t["role"], "content": t["content"]})
     category_name = leaf["name"] if leaf else None
     category_group_name = leaf["parent_name"] if leaf else None
     zoho_category = ticket.get("zoho_category")
@@ -314,7 +321,7 @@ def _to_state_response(ticket: dict) -> TicketStateResponse:
     zoho_agrees = _labels_loosely_match(category_name, zoho_subcategory)
     if zoho_agrees is None:
         zoho_agrees = _labels_loosely_match(category_group_name, zoho_category)
-    raw_payload = json.loads(ticket["raw_payload"]) if ticket.get("raw_payload") else None
+    raw_payload = ticket.get("raw_payload")
     return TicketStateResponse(
         ticket_id=ticket["id"],
         status=ticket["status"],
@@ -374,6 +381,79 @@ def _run_classification_and_persist(ticket_id: str, context_text: str, clarifica
         db.append_turn(ticket_id, "system_question", result.clarifying_question or "Could you provide more detail?")
 
     return result
+
+
+def _classify_pending_batch(limit: int, api_key: str) -> dict:
+    """
+    Classifies up to `limit` tickets left in status='pending' (e.g. from a
+    --no-classify historical import) - one-shot, no clarifying-question
+    round trip (there's no live user to answer for a batch of old tickets),
+    so an ambiguous result goes straight to needs_human_review instead of
+    awaiting_clarification, same rule scripts/import_zoho_csv.py uses.
+
+    Stops the batch immediately on a RateLimitError (further calls would
+    just fail the same way) but keeps going past other per-ticket errors.
+    Used by both the manual "Classify Now" button and the background
+    auto-classify loop below.
+    """
+    pending = [t for t in db.list_all_tickets() if t["status"] == "pending"][:limit]
+    classified_count = 0
+    stopped_early = False
+    error = None
+
+    for t in pending:
+        context_text = (t.get("full_context") or t.get("original_text") or "").strip()
+        if not context_text:
+            continue
+        try:
+            result = classifier.classify(context_text, api_key)
+        except RateLimitError as e:
+            stopped_early = True
+            error = str(e)
+            break
+        except Exception as e:
+            error = str(e)
+            continue
+
+        status = "needs_human_review" if (result.needs_clarification or result.confidence < config.CONFIDENCE_THRESHOLD) else "classified"
+        db.update_ticket(
+            t["id"],
+            status=status,
+            category_id=result.category_id,
+            confidence=result.confidence,
+            reasoning=result.reasoning,
+        )
+        classified_count += 1
+
+    remaining = sum(1 for t in db.list_all_tickets() if t["status"] == "pending")
+    return {"classified": classified_count, "remaining": remaining, "stopped_early": stopped_early, "error": error}
+
+
+_AUTO_CLASSIFY_INTERVAL_SECONDS = 1800  # 30 min
+_AUTO_CLASSIFY_BATCH_SIZE = 10
+
+
+async def _auto_classify_loop():
+    """
+    Background retry for pending tickets - picks up automatically once
+    OPENAI_API_KEY's rate limit (or whatever else caused a stall) clears,
+    with no need for anyone to click "Classify Now". Small batch size and
+    a long interval so a persistent outage just quietly no-ops each cycle
+    instead of hammering a dead API.
+    """
+    while True:
+        await asyncio.sleep(_AUTO_CLASSIFY_INTERVAL_SECONDS)
+        if not config.OPENAI_API_KEY:
+            continue
+        try:
+            result = _classify_pending_batch(_AUTO_CLASSIFY_BATCH_SIZE, config.OPENAI_API_KEY)
+            if result["classified"]:
+                logger.info(
+                    "auto-classify: classified %d pending ticket(s), %d remaining",
+                    result["classified"], result["remaining"],
+                )
+        except Exception as e:
+            logger.error("auto-classify loop error: %s", e)
 
 
 @app.post("/api/tickets", response_model=TicketStateResponse)
@@ -468,6 +548,24 @@ def export_tickets_csv(date: str | None = None, user: str = Depends(require_logi
         media_type="text/csv",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
+
+
+@app.get("/api/tickets/pending-count")
+def get_pending_count(user: str = Depends(require_login)):
+    """How many tickets are sitting in status='pending' - e.g. from a
+    --no-classify historical import - powers the portal's "Classify Now" banner."""
+    count = sum(1 for t in db.list_all_tickets() if t["status"] == "pending")
+    return {"count": count}
+
+
+@app.post("/api/tickets/classify-pending")
+def classify_pending_tickets(limit: int = 20, user: str = Depends(require_login)):
+    """Manually trigger classification for up to `limit` pending tickets - see
+    _classify_pending_batch. The background auto-classify loop does this too,
+    on its own schedule; this is for "I don't want to wait for the next cycle"."""
+    if not config.OPENAI_API_KEY:
+        raise HTTPException(500, "OPENAI_API_KEY is not set in the server's environment.")
+    return _classify_pending_batch(limit, config.OPENAI_API_KEY)
 
 
 @app.get("/api/tickets/{ticket_id}", response_model=TicketStateResponse)

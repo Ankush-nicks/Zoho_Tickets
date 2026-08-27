@@ -23,13 +23,18 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 SQLITE_PATH = DATA_DIR / "tickets.db"
 CHROMA_PATH = str(DATA_DIR / "chroma")
 
-# When set (a Postgres connection string, e.g. from Neon/Supabase's free
-# tier), app/db.py stores tickets there instead of the local SQLite file.
+# When set (base64-encoded contents of a Firebase service account JSON key),
+# app/db.py stores tickets in Firestore instead of the local SQLite file.
 # Needed on Render's free plan specifically because its disk is ephemeral -
 # every spin-down/redeploy wipes SQLITE_PATH, which would otherwise lose a
 # whole test period's worth of classified tickets. Local dev with this unset
-# keeps using SQLite exactly as before.
-DATABASE_URL = os.getenv("DATABASE_URL", "")
+# keeps using SQLite exactly as before. Generate the base64 with:
+# python -c "import base64; print(base64.b64encode(open('key.json','rb').read()).decode())"
+FIREBASE_CREDENTIALS_BASE64 = os.getenv("FIREBASE_CREDENTIALS_BASE64", "")
+# Firestore "Database ID" to connect to - defaults to the literal database
+# named "(default)", which is what most projects have. Only needs setting if
+# your Firestore database was created under a custom Database ID instead.
+FIREBASE_DATABASE_ID = os.getenv("FIREBASE_DATABASE_ID", "(default)")
 
 TAXONOMY_PATH = BASE_DIR / "taxonomy.json"
 
