@@ -66,6 +66,24 @@
 
   .row{ display:flex; gap:10px; align-items:center; margin-top:12px; }
 
+  .tab-bar{ display:flex; gap:6px; margin-bottom:20px; }
+  .tab-btn{
+    background:transparent; border:1px solid var(--border); color:var(--muted);
+    padding:8px 16px; border-radius:6px;
+  }
+  .tab-btn.active{ background:var(--panel-2); color:var(--text); border-color:var(--accent); }
+  .tab-btn:hover{ filter:none; color:var(--text); }
+
+  .preset-btn.active{ background:var(--accent); color:#0B1411; border-color:var(--accent); }
+
+  .stat-block{ margin-bottom:20px; }
+  .stat-block:last-child{ margin-bottom:0; }
+  .stat-row{ display:flex; align-items:center; gap:12px; padding:5px 0; }
+  .stat-label{ font-size:13px; flex:0 0 220px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .stat-bar-wrap{ flex:1; height:8px; background:var(--panel-2); border-radius:4px; overflow:hidden; }
+  .stat-bar{ height:100%; background:var(--accent); border-radius:4px; }
+  .stat-count{ flex:0 0 auto; font-family:var(--mono); font-size:12px; color:var(--muted); min-width:28px; text-align:right; }
+
   .log{ display:flex; flex-direction:column; gap:14px; }
   .card{
     background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:18px;
@@ -142,6 +160,11 @@
   .daily-bar button{ padding:8px 12px; }
   .day-nav-btn{ padding:8px 11px !important; line-height:1; }
 
+  .section-title{
+    font-family:var(--mono); font-size:10px; color:var(--muted);
+    text-transform:uppercase; letter-spacing:.06em; margin:0 0 10px;
+  }
+
   .ticket-id-line{ font-family:var(--mono); font-size:11px; color:var(--muted); margin-bottom:10px; }
   .ticket-id-line .mono{ color:var(--text); }
   .category-value{ font-size:14px; margin-bottom:2px; }
@@ -183,6 +206,12 @@
     </div>
   </div>
 
+  <div class="tab-bar">
+    <button class="tab-btn active" id="tabBtn-tickets" onclick="switchTab('tickets')">Tickets</button>
+    <button class="tab-btn" id="tabBtn-stats" onclick="switchTab('stats')">Stats</button>
+  </div>
+
+  <div id="ticketsView">
   <div class="panel key-panel" id="keyPanel">
     <label class="field-label">OpenAI API key</label>
     <input type="password" id="apiKeyInput" placeholder="sk-..." autocomplete="off" />
@@ -208,6 +237,23 @@
 
   <div id="log" class="log">
     <div class="empty">Loading today's tickets…</div>
+  </div>
+  </div>
+
+  <div id="statsView" style="display:none;">
+    <div class="panel daily-bar">
+      <div class="left">
+        <button class="secondary preset-btn" id="presetBtn-today" onclick="setStatsPreset('today')">Today</button>
+        <button class="secondary preset-btn" id="presetBtn-7d" onclick="setStatsPreset('7d')">7 Days</button>
+        <button class="secondary preset-btn" id="presetBtn-30d" onclick="setStatsPreset('30d')">30 Days</button>
+        <button class="secondary preset-btn" id="presetBtn-all" onclick="setStatsPreset('all')">All Time</button>
+        <input type="date" id="statsFromInput" onchange="onStatsCustomChange()" />
+        <span class="status-line">to</span>
+        <input type="date" id="statsToInput" onchange="onStatsCustomChange()" />
+      </div>
+      <div id="statsSummary" class="status-line"></div>
+    </div>
+    <div id="statsBlocks"></div>
   </div>
 </div>
 
@@ -545,11 +591,15 @@ function todayStr() {
   return new Date().toISOString().slice(0, 10); // UTC, matches the server's day bucketing
 }
 
-function shiftDate(deltaDays) {
-  const [y, m, d] = currentDate.split('-').map(Number);
+function addDaysUTC(dateStr, deltaDays) {
+  const [y, m, d] = dateStr.split('-').map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d));
   dt.setUTCDate(dt.getUTCDate() + deltaDays);
-  document.getElementById('dateInput').value = dt.toISOString().slice(0, 10);
+  return dt.toISOString().slice(0, 10);
+}
+
+function shiftDate(deltaDays) {
+  document.getElementById('dateInput').value = addDaysUTC(currentDate, deltaDays);
   loadDailyTickets();
 }
 
@@ -593,6 +643,91 @@ async function loadDailyTickets() {
 
 function onDateChange() {
   loadDailyTickets();
+}
+
+let statsLoadedOnce = false;
+
+function switchTab(tab) {
+  document.getElementById('ticketsView').style.display = tab === 'tickets' ? '' : 'none';
+  document.getElementById('statsView').style.display = tab === 'stats' ? '' : 'none';
+  document.getElementById('tabBtn-tickets').classList.toggle('active', tab === 'tickets');
+  document.getElementById('tabBtn-stats').classList.toggle('active', tab === 'stats');
+  if (tab === 'stats' && !statsLoadedOnce) {
+    statsLoadedOnce = true;
+    setStatsPreset('7d');
+  }
+}
+
+function highlightStatsPreset(active) {
+  ['today', '7d', '30d', 'all'].forEach(p =>
+    document.getElementById('presetBtn-' + p).classList.toggle('active', p === active)
+  );
+}
+
+function setStatsPreset(preset) {
+  const today = todayStr();
+  let from = null, to = null;
+  if (preset === 'today') { from = today; to = today; }
+  else if (preset === '7d') { from = addDaysUTC(today, -6); to = today; }
+  else if (preset === '30d') { from = addDaysUTC(today, -29); to = today; }
+  document.getElementById('statsFromInput').value = from || '';
+  document.getElementById('statsToInput').value = to || '';
+  highlightStatsPreset(preset);
+  loadStats(from, to);
+}
+
+function onStatsCustomChange() {
+  const from = document.getElementById('statsFromInput').value || null;
+  const to = document.getElementById('statsToInput').value || null;
+  highlightStatsPreset(null);
+  loadStats(from, to);
+}
+
+function statBlockHTML(title, entries, total) {
+  const rows = entries.map(([label, count]) => {
+    const pct = total ? Math.round((count / total) * 100) : 0;
+    return `
+      <div class="stat-row">
+        <div class="stat-label" title="${esc(label)}">${esc(label)}</div>
+        <div class="stat-bar-wrap"><div class="stat-bar" style="width:${pct}%"></div></div>
+        <div class="stat-count">${count}</div>
+      </div>`;
+  }).join('');
+  return `
+    <div class="panel stat-block">
+      <div class="section-title">${esc(title)}</div>
+      ${rows || '<div class="empty" style="padding:10px 0;">No data for this period.</div>'}
+    </div>`;
+}
+
+async function loadStats(dateFrom, dateTo) {
+  const summary = document.getElementById('statsSummary');
+  const blocks = document.getElementById('statsBlocks');
+  summary.innerText = 'loading…';
+  const params = new URLSearchParams();
+  if (dateFrom) params.set('date_from', dateFrom);
+  if (dateTo) params.set('date_to', dateTo);
+  try {
+    const res = await fetch(`/api/stats?${params.toString()}`);
+    if (!res.ok) throw new Error(`failed (${res.status})`);
+    const data = await res.json();
+    summary.innerText = `${data.total_tickets} ticket${data.total_tickets === 1 ? '' : 's'}`;
+
+    const statusEntries = Object.entries(data.by_status)
+      .map(([k, v]) => [statusLabel(k), v]).sort((a, b) => b[1] - a[1]);
+    const categoryEntries = data.by_category.map(c => [`${c.group} / ${c.subcategory}`, c.count]);
+    const priorityEntries = Object.entries(data.by_priority);
+    const teamEntries = Object.entries(data.by_assigned_team);
+
+    blocks.innerHTML =
+      statBlockHTML('By Status', statusEntries, data.total_tickets) +
+      statBlockHTML('By Category', categoryEntries, data.total_tickets) +
+      statBlockHTML('By Priority', priorityEntries, data.total_tickets) +
+      statBlockHTML('By Assigned Team', teamEntries, data.total_tickets);
+  } catch (e) {
+    summary.innerText = 'failed to load stats';
+    console.error(e);
+  }
 }
 
 loadTaxonomy();

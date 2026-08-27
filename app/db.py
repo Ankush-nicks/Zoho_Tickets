@@ -251,19 +251,3 @@ def list_tickets_for_date(date_str: str) -> list[dict]:
             (start_ts, end_ts),
         ).fetchall()
         return [dict(r) for r in rows]
-
-
-def stats() -> dict:
-    with get_conn() as conn:
-        total = _exec(conn, "SELECT COUNT(*) c FROM tickets").fetchone()["c"]
-        by_status = _exec(conn, "SELECT status, COUNT(*) c FROM tickets GROUP BY status").fetchall()
-        corrections = _exec(conn, "SELECT COUNT(*) c FROM corrections").fetchone()["c"]
-        by_category = _exec(
-            conn, "SELECT category_id, COUNT(*) c FROM tickets WHERE category_id IS NOT NULL GROUP BY category_id"
-        ).fetchall()
-        return {
-            "total_tickets": total,
-            "by_status": {r["status"]: r["c"] for r in by_status},
-            "by_category": {r["category_id"]: r["c"] for r in by_category},
-            "total_corrections": corrections,
-        }

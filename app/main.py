@@ -2,7 +2,7 @@ import csv
 import io
 import json
 import secrets
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import logging
@@ -148,8 +148,54 @@ def export_taxonomy_csv(user: str = Depends(require_login)):
 
 
 @app.get("/api/stats")
-def get_stats(user: str = Depends(require_login)):
-    return db.stats()
+def get_stats(date_from: str | None = None, date_to: str | None = None, user: str = Depends(require_login)):
+    """
+    Aggregated counts for the Stats tab: total tickets, by classification
+    status, by app-predicted category/sub-category, by Zoho priority_level,
+    and by assigned_team (both from raw_payload) - for tickets created
+    within [date_from, date_to] (UTC calendar days, inclusive of both
+    ends), or all-time when either/both are omitted.
+    """
+    tickets = db.list_all_tickets()
+    if date_from:
+        start_ts = datetime.strptime(date_from, "%Y-%m-%d").replace(tzinfo=timezone.utc).timestamp()
+        tickets = [t for t in tickets if t["created_at"] >= start_ts]
+    if date_to:
+        end_ts = (datetime.strptime(date_to, "%Y-%m-%d").replace(tzinfo=timezone.utc) + timedelta(days=1)).timestamp()
+        tickets = [t for t in tickets if t["created_at"] < end_ts]
+
+    by_status: dict[str, int] = {}
+    by_category: dict[tuple[str, str], int] = {}
+    by_priority: dict[str, int] = {}
+    by_team: dict[str, int] = {}
+
+    for t in tickets:
+        by_status[t["status"]] = by_status.get(t["status"], 0) + 1
+
+        leaf = taxonomy.get(t["category_id"]) if t.get("category_id") else None
+        group_name = leaf["parent_name"] if leaf else "(not yet classified)"
+        sub_name = leaf["name"] if leaf else "(not yet classified)"
+        key = (group_name, sub_name)
+        by_category[key] = by_category.get(key, 0) + 1
+
+        raw = json.loads(t["raw_payload"]) if t.get("raw_payload") else {}
+        priority = str(raw.get("priority_level") or "").strip() or "(not set)"
+        by_priority[priority] = by_priority.get(priority, 0) + 1
+        team = str(raw.get("assigned_team") or "").strip() or "(not set)"
+        by_team[team] = by_team.get(team, 0) + 1
+
+    return {
+        "date_from": date_from,
+        "date_to": date_to,
+        "total_tickets": len(tickets),
+        "by_status": by_status,
+        "by_category": [
+            {"group": g, "subcategory": s, "count": c}
+            for (g, s), c in sorted(by_category.items(), key=lambda x: -x[1])
+        ],
+        "by_priority": dict(sorted(by_priority.items(), key=lambda x: -x[1])),
+        "by_assigned_team": dict(sorted(by_team.items(), key=lambda x: -x[1])),
+    }
 
 
 # --- Zoho Creator integration ----------------------------------------------
