@@ -76,6 +76,15 @@
 
   .preset-btn.active{ background:var(--accent); color:#0B1411; border-color:var(--accent); }
 
+  .status-tag-bar{ display:flex; gap:8px; flex-wrap:wrap; margin:16px 0; }
+  .status-tag{
+    font-family:var(--mono); font-size:11px; letter-spacing:.03em;
+    background:var(--panel); border:1px solid var(--border); color:var(--muted);
+    padding:6px 12px; border-radius:20px; cursor:pointer;
+  }
+  .status-tag:hover{ color:var(--text); border-color:var(--muted); }
+  .status-tag.active{ background:var(--accent); color:#0B1411; border-color:var(--accent); font-weight:600; }
+
   .stat-block{ margin-bottom:20px; }
   .stat-block:last-child{ margin-bottom:0; }
   .stat-row{ padding:8px 0; border-bottom:1px solid var(--border); }
@@ -236,6 +245,8 @@
     </div>
     <div id="dailySummary" class="status-line"></div>
   </div>
+
+  <div id="statusTagBar" class="status-tag-bar"></div>
 
   <div id="log" class="log">
     <div class="empty">Loading today's tickets…</div>
@@ -610,6 +621,61 @@ function jumpToday() {
   loadDailyTickets();
 }
 
+let currentDayTickets = [];
+let activeStatusTag = 'all';
+let statusTagKeys = [];
+
+// Zoho's own workflow status (ticket_status in raw_payload) - separate
+// from this app's classification status. null when unset/not a Zoho ticket.
+function ticketZohoStatus(t) {
+  const v = t.raw_payload && t.raw_payload.ticket_status;
+  return v ? String(v).trim() : null;
+}
+
+function renderStatusTagBar() {
+  const bar = document.getElementById('statusTagBar');
+  if (!currentDayTickets.length) { bar.innerHTML = ''; return; }
+
+  const counts = {};
+  currentDayTickets.forEach(t => {
+    const s = ticketZohoStatus(t) || '(not set)';
+    counts[s] = (counts[s] || 0) + 1;
+  });
+  statusTagKeys = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+
+  let html = `<button class="status-tag ${activeStatusTag === 'all' ? 'active' : ''}" onclick="setStatusTag('all')">All (${currentDayTickets.length})</button>`;
+  // index-based onclick, not the raw tag text - ticket_status comes from
+  // Zoho and shouldn't be interpolated directly into an inline JS string.
+  statusTagKeys.forEach((tag, i) => {
+    html += `<button class="status-tag ${activeStatusTag === tag ? 'active' : ''}" onclick="setStatusTagByIndex(${i})">${esc(tag)} (${counts[tag]})</button>`;
+  });
+  bar.innerHTML = html;
+}
+
+function setStatusTagByIndex(i) {
+  setStatusTag(statusTagKeys[i]);
+}
+
+function setStatusTag(tag) {
+  activeStatusTag = tag;
+  renderStatusTagBar();
+  renderFilteredTickets();
+}
+
+function renderFilteredTickets() {
+  const filtered = activeStatusTag === 'all'
+    ? currentDayTickets
+    : currentDayTickets.filter(t => (ticketZohoStatus(t) || '(not set)') === activeStatusTag);
+  log.innerHTML = '';
+  if (!filtered.length) {
+    log.innerHTML = `<div class="empty">${currentDayTickets.length ? 'No tickets match this filter.' : 'No tickets for this day yet.'}</div>`;
+  } else {
+    // newest-first, but upsertCard always prepends - reverse so the
+    // on-screen order still ends up newest-first after each prepend.
+    [...filtered].reverse().forEach(state => upsertCard(state));
+  }
+}
+
 async function loadDailyTickets() {
   const input = document.getElementById('dateInput');
   currentDate = input.value || todayStr();
@@ -621,20 +687,15 @@ async function loadDailyTickets() {
   try {
     const res = await fetch(`/api/tickets?date=${encodeURIComponent(currentDate)}`);
     if (!res.ok) throw new Error(`failed (${res.status})`);
-    const tickets = await res.json();
-    log.innerHTML = '';
-    if (!tickets.length) {
-      log.innerHTML = '<div class="empty">No tickets for this day yet.</div>';
-    } else {
-      // tickets arrives newest-first, but upsertCard always prepends (shared
-      // with the manual-lookup flow) - reverse so the on-screen order still
-      // ends up newest-first after each prepend.
-      [...tickets].reverse().forEach(state => upsertCard(state));
-    }
-    const needReview = tickets.filter(t => t.status === 'needs_human_review').length;
-    const comparable = tickets.filter(t => t.zoho_agrees !== null && t.zoho_agrees !== undefined);
+    currentDayTickets = await res.json();
+    activeStatusTag = 'all';
+    renderStatusTagBar();
+    renderFilteredTickets();
+
+    const needReview = currentDayTickets.filter(t => t.status === 'needs_human_review').length;
+    const comparable = currentDayTickets.filter(t => t.zoho_agrees !== null && t.zoho_agrees !== undefined);
     const agree = comparable.filter(t => t.zoho_agrees).length;
-    summary.innerText = `${tickets.length} ticket${tickets.length === 1 ? '' : 's'}` +
+    summary.innerText = `${currentDayTickets.length} ticket${currentDayTickets.length === 1 ? '' : 's'}` +
       (needReview ? ` · ${needReview} need review` : '') +
       (comparable.length ? ` · ${agree}/${comparable.length} match Zoho tag` : '');
   } catch (e) {
