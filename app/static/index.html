@@ -117,6 +117,17 @@
 
   .preset-btn.active{ background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
 
+  .stats-filters-panel{ padding-bottom:16px; }
+  .stats-filters-header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .stats-filters-header button{ padding:6px 12px; font-size:12px; }
+  .stats-filters{ display:flex; flex-wrap:wrap; gap:12px; }
+  .filter-field{ display:flex; flex-direction:column; gap:6px; min-width:170px; flex:1 1 170px; }
+  .filter-field select{
+    background:var(--panel-2); border:1px solid var(--border); border-radius:6px;
+    color:var(--text); font-family:var(--sans); font-size:13px; padding:8px 10px;
+  }
+  .filter-field select.filter-active{ border-color:var(--accent); }
+
   .status-tag-bar{ display:flex; gap:8px; flex-wrap:wrap; margin:16px 0; }
   .status-tag{
     font-family:var(--mono); font-size:11px; letter-spacing:.03em;
@@ -321,6 +332,15 @@
           </div>
           <div id="statsSummary" class="status-line"></div>
         </div>
+
+        <div class="panel stats-filters-panel">
+          <div class="stats-filters-header">
+            <div class="field-label" style="margin:0;">Filters &mdash; combine any to drill down</div>
+            <button class="secondary" onclick="clearStatsFilters()">Clear filters</button>
+          </div>
+          <div id="statsFilters" class="stats-filters"></div>
+        </div>
+
         <div id="statsBlocks"></div>
       </div>
     </div>
@@ -795,7 +815,82 @@ function onStatsCustomChange() {
   loadStats(from, to);
 }
 
-function statBlockHTML(title, hint, entries, total) {
+// A field pulled from raw_payload, trimmed, or null if unset - shared by
+// every raw-payload-backed facet below.
+function rawField(t, key) {
+  const v = t.raw_payload && t.raw_payload[key];
+  const s = v === null || v === undefined ? '' : String(v).trim();
+  return s || null;
+}
+
+// Every dimension a filter can pin and/or a breakdown block can group by.
+// `get` returns null for "no value" - callers normalize that to '(not set)'.
+const STATS_FACETS = [
+  { key: 'category', label: 'Category / Sub-category',
+    get: t => (t.category_group_name && t.category_name) ? `${t.category_group_name} / ${t.category_name}` : null },
+  { key: 'university', label: 'University', get: t => rawField(t, 'university_boa') },
+  { key: 'sla_status', label: 'SLA Status', get: t => rawField(t, 'sla_breach_status') },
+  { key: 'classification_status', label: 'Classification Status', get: t => statusLabel(t.status) },
+  { key: 'zoho_status', label: 'Zoho Ticket Status', get: t => rawField(t, 'ticket_status') },
+  { key: 'priority', label: 'Priority', get: t => rawField(t, 'priority_level') },
+  { key: 'assigned_team', label: 'Assigned Team', get: t => rawField(t, 'assigned_team') },
+];
+
+let statsTickets = [];
+let activeFacetFilters = {}; // facet key -> selected value, absent = "All"
+
+function facetValue(facet, t) {
+  return facet.get(t) || '(not set)';
+}
+
+function ticketMatchesActiveFilters(t) {
+  return STATS_FACETS.every(f => {
+    const active = activeFacetFilters[f.key];
+    return !active || facetValue(f, t) === active;
+  });
+}
+
+function countEntries(tickets, facet) {
+  const counts = {};
+  tickets.forEach(t => {
+    const k = facetValue(facet, t);
+    counts[k] = (counts[k] || 0) + 1;
+  });
+  return Object.entries(counts).sort((a, b) => b[1] - a[1]);
+}
+
+function renderStatsFilters() {
+  const container = document.getElementById('statsFilters');
+  container.innerHTML = STATS_FACETS.map(f => {
+    const values = Array.from(new Set(statsTickets.map(t => facetValue(f, t)))).sort();
+    const active = activeFacetFilters[f.key] || '';
+    const options = values.map(v =>
+      `<option value="${esc(v)}" ${v === active ? 'selected' : ''}>${esc(v)}</option>`
+    ).join('');
+    return `
+      <div class="filter-field">
+        <label class="field-label">${esc(f.label)}</label>
+        <select class="${active ? 'filter-active' : ''}" onchange="setFacetFilter('${f.key}', this.value)">
+          <option value="">All</option>
+          ${options}
+        </select>
+      </div>`;
+  }).join('');
+}
+
+function setFacetFilter(key, value) {
+  if (value) activeFacetFilters[key] = value; else delete activeFacetFilters[key];
+  renderStatsFilters();
+  renderStatsBreakdown();
+}
+
+function clearStatsFilters() {
+  activeFacetFilters = {};
+  renderStatsFilters();
+  renderStatsBreakdown();
+}
+
+function statBlockHTML(title, entries, total) {
   const rows = entries.map(([label, count]) => {
     const pct = total ? Math.round((count / total) * 100) : 0;
     return `
@@ -809,37 +904,35 @@ function statBlockHTML(title, hint, entries, total) {
   }).join('');
   return `
     <div class="panel stat-block">
-      <div class="section-title">${esc(title)}${hint ? ` <span style="text-transform:none;letter-spacing:normal;">&mdash; ${esc(hint)}</span>` : ''}</div>
-      ${rows || '<div class="empty" style="padding:10px 0;">No data for this period.</div>'}
+      <div class="section-title">${esc(title)}</div>
+      ${rows || '<div class="empty" style="padding:10px 0;">No data for this selection.</div>'}
     </div>`;
+}
+
+function renderStatsBreakdown() {
+  const filtered = statsTickets.filter(ticketMatchesActiveFilters);
+  document.getElementById('statsSummary').innerText =
+    `${filtered.length} ticket${filtered.length === 1 ? '' : 's'}` +
+    (filtered.length !== statsTickets.length ? ` of ${statsTickets.length}` : '');
+
+  document.getElementById('statsBlocks').innerHTML = STATS_FACETS
+    .map(f => statBlockHTML(f.label, countEntries(filtered, f), filtered.length))
+    .join('');
 }
 
 async function loadStats(dateFrom, dateTo) {
   const summary = document.getElementById('statsSummary');
-  const blocks = document.getElementById('statsBlocks');
   summary.innerText = 'loading…';
   const params = new URLSearchParams();
   if (dateFrom) params.set('date_from', dateFrom);
   if (dateTo) params.set('date_to', dateTo);
   try {
-    const res = await fetch(`/api/stats?${params.toString()}`);
+    const res = await fetch(`/api/tickets/range?${params.toString()}`);
     if (!res.ok) throw new Error(`failed (${res.status})`);
-    const data = await res.json();
-    summary.innerText = `${data.total_tickets} ticket${data.total_tickets === 1 ? '' : 's'}`;
-
-    const statusEntries = Object.entries(data.by_status)
-      .map(([k, v]) => [statusLabel(k), v]).sort((a, b) => b[1] - a[1]);
-    const zohoStatusEntries = Object.entries(data.by_zoho_status);
-    const categoryEntries = data.by_category.map(c => [`${c.group} / ${c.subcategory}`, c.count]);
-    const priorityEntries = Object.entries(data.by_priority);
-    const teamEntries = Object.entries(data.by_assigned_team);
-
-    blocks.innerHTML =
-      statBlockHTML('By Classification Status', 'this app\'s own routing state', statusEntries, data.total_tickets) +
-      statBlockHTML('By Zoho Ticket Status', 'whether it\'s been picked up / actioned in Zoho', zohoStatusEntries, data.total_tickets) +
-      statBlockHTML('By Category', null, categoryEntries, data.total_tickets) +
-      statBlockHTML('By Priority', null, priorityEntries, data.total_tickets) +
-      statBlockHTML('By Assigned Team', null, teamEntries, data.total_tickets);
+    statsTickets = await res.json();
+    activeFacetFilters = {};
+    renderStatsFilters();
+    renderStatsBreakdown();
   } catch (e) {
     summary.innerText = 'failed to load stats';
     console.error(e);

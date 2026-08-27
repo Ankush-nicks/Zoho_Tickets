@@ -148,61 +148,34 @@ def export_taxonomy_csv(user: str = Depends(require_login)):
     )
 
 
-@app.get("/api/stats")
-def get_stats(date_from: str | None = None, date_to: str | None = None, user: str = Depends(require_login)):
-    """
-    Aggregated counts for the Stats tab: total tickets, by classification
-    status, by app-predicted category/sub-category, by Zoho priority_level,
-    by assigned_team, and by Zoho's own ticket_status (all three from
-    raw_payload - ticket_status is whatever Zoho's workflow actually uses,
-    e.g. "Yet to Pick"/"Awaiting Instructor Response"/etc., not a fixed
-    list) - for tickets created within [date_from, date_to] (UTC calendar
-    days, inclusive of both ends), or all-time when either/both are omitted.
-    """
-    tickets = db.list_all_tickets()
+def _filter_tickets_by_date_range(tickets: list[dict], date_from: str | None, date_to: str | None) -> list[dict]:
     if date_from:
         start_ts = datetime.strptime(date_from, "%Y-%m-%d").replace(tzinfo=timezone.utc).timestamp()
         tickets = [t for t in tickets if t["created_at"] >= start_ts]
     if date_to:
         end_ts = (datetime.strptime(date_to, "%Y-%m-%d").replace(tzinfo=timezone.utc) + timedelta(days=1)).timestamp()
         tickets = [t for t in tickets if t["created_at"] < end_ts]
+    return tickets
 
-    by_status: dict[str, int] = {}
-    by_category: dict[tuple[str, str], int] = {}
-    by_priority: dict[str, int] = {}
-    by_team: dict[str, int] = {}
-    by_zoho_status: dict[str, int] = {}
 
-    for t in tickets:
-        by_status[t["status"]] = by_status.get(t["status"], 0) + 1
+@app.get("/api/tickets/range")
+def list_tickets_range(date_from: str | None = None, date_to: str | None = None, user: str = Depends(require_login)):
+    """
+    Every ticket (full state, including raw_payload) created within
+    [date_from, date_to] (UTC calendar days, inclusive of both ends), or
+    all-time when either/both are omitted.
 
-        leaf = taxonomy.get(t["category_id"]) if t.get("category_id") else None
-        group_name = leaf["parent_name"] if leaf else "(not yet classified)"
-        sub_name = leaf["name"] if leaf else "(not yet classified)"
-        key = (group_name, sub_name)
-        by_category[key] = by_category.get(key, 0) + 1
-
-        raw = json.loads(t["raw_payload"]) if t.get("raw_payload") else {}
-        priority = str(raw.get("priority_level") or "").strip() or "(not set)"
-        by_priority[priority] = by_priority.get(priority, 0) + 1
-        team = str(raw.get("assigned_team") or "").strip() or "(not set)"
-        by_team[team] = by_team.get(team, 0) + 1
-        zoho_status = str(raw.get("ticket_status") or "").strip() or "(not set)"
-        by_zoho_status[zoho_status] = by_zoho_status.get(zoho_status, 0) + 1
-
-    return {
-        "date_from": date_from,
-        "date_to": date_to,
-        "total_tickets": len(tickets),
-        "by_status": by_status,
-        "by_zoho_status": dict(sorted(by_zoho_status.items(), key=lambda x: -x[1])),
-        "by_category": [
-            {"group": g, "subcategory": s, "count": c}
-            for (g, s), c in sorted(by_category.items(), key=lambda x: -x[1])
-        ],
-        "by_priority": dict(sorted(by_priority.items(), key=lambda x: -x[1])),
-        "by_assigned_team": dict(sorted(by_team.items(), key=lambda x: -x[1])),
-    }
+    Powers the Stats tab's faceted filtering (University, SLA status,
+    Category, Priority, Team, etc.) entirely client-side: rather than the
+    server pre-aggregating a fixed set of breakdowns, the UI fetches the
+    raw ticket set once per date range and does all filtering/grouping in
+    the browser, so any combination of filters recomputes instantly with
+    no extra request per combination. Fine at today's ticket volume; would
+    need to move back to server-side aggregation (or pagination) if volume
+    grows enough that shipping full raw_payload per ticket gets heavy.
+    """
+    tickets = _filter_tickets_by_date_range(db.list_all_tickets(), date_from, date_to)
+    return [_to_state_response(t) for t in tickets]
 
 
 # --- Zoho Creator integration ----------------------------------------------

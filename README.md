@@ -157,7 +157,7 @@ cookie; `POST /api/logout` clears it).
 - `POST /api/tickets/{id}/correct` `{corrected_category_id, corrected_by?}` → human correction; **this is what teaches the system**.
 - `GET /api/tickets/{id}` → current state + full conversation.
 - `GET /api/taxonomy` → current taxonomy (drives the UI's category dropdown).
-- `GET /api/stats?date_from=&date_to=` → ticket counts by classification status, by predicted category/sub-category, by Zoho `priority_level`, and by `assigned_team`, for an optional UTC date range (all-time if omitted) — powers the UI's Stats tab.
+- `GET /api/tickets/range?date_from=&date_to=` → every ticket (full state incl. `raw_payload`) in an optional UTC date range (all-time if omitted) — the Stats tab fetches this once per range and does all faceted filtering/grouping (by category, university, SLA status, priority, team, etc.) client-side.
 
 ## Production notes / next steps
 
@@ -176,7 +176,7 @@ cookie; `POST /api/logout` clears it).
   verified agents, and probably a review queue for corrections that contradict
   a high volume of prior seed examples, to guard against bad corrections
   degrading the retrieval bank over time.
-- **Analytics**: the Stats tab / `GET /api/stats` is a starting point. For real accuracy tracking
+- **Analytics**: the Stats tab / `GET /api/tickets/range` is a starting point. For real accuracy tracking
   you'll want to periodically sample `classified` tickets for agent QA (not just
   rely on the `correct` endpoint, which only captures cases someone bothered to fix).
 - **Observability**: log every `classify()` call's retrieved few-shot set
