@@ -80,11 +80,8 @@
     padding:9px 10px; margin:1px 0; cursor:pointer; text-align:left; text-decoration:none;
   }
   .nav-item .nav-icon{ display:flex; flex-shrink:0; opacity:.85; }
-  .nav-item .nav-chevron{ margin-left:auto; opacity:.5; display:flex; }
   .nav-item:hover{ background:var(--sidebar-hover-bg); filter:none; }
   .nav-item.active{ background:var(--sidebar-active-bg); font-weight:600; }
-  .nav-item.disabled{ color:var(--sidebar-muted); cursor:default; }
-  .nav-item.disabled:hover{ background:transparent; }
 
   .sidebar-footer{ padding:14px 20px 20px; border-top:1px solid var(--sidebar-border); }
 
@@ -117,8 +114,6 @@
   button:hover{ filter:brightness(1.1); }
   button:disabled{ opacity:.5; cursor:not-allowed; }
   button.secondary{ background:#fff; border:1px solid var(--border); color:var(--text); }
-
-  .row{ display:flex; gap:10px; align-items:center; margin-top:12px; }
 
   .preset-btn.active{ background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
 
@@ -190,12 +185,6 @@
   .thread{ margin:10px 0; font-size:13px; color:var(--muted); }
   .thread .qa{ margin-bottom:4px; }
 
-  .key-panel input[type=password], .key-panel input[type=text]{
-    width:100%; background:var(--panel-2); border:1px solid var(--border); border-radius:6px;
-    color:var(--text); font-family:var(--mono); font-size:13px; padding:10px 12px;
-  }
-  .key-hint{ font-family:var(--mono); font-size:11px; color:var(--muted); margin-top:8px; }
-  .key-panel.saved{ border-color:var(--accent); }
   a.download-link{
     font-family:var(--mono); font-size:11px; letter-spacing:.04em; text-transform:uppercase;
     color:var(--text); text-decoration:none; border:1px solid var(--border); border-radius:6px;
@@ -264,28 +253,6 @@
 
     <nav class="sidebar-nav">
       <div class="nav-section">
-        <div class="nav-section-title">Staff Obs &amp; Tickets</div>
-        <div class="nav-item disabled">
-          <span class="nav-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>
-          </span>
-          Observations
-          <span class="nav-chevron">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-          </span>
-        </div>
-        <div class="nav-item disabled">
-          <span class="nav-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-          </span>
-          Escalations
-          <span class="nav-chevron">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-          </span>
-        </div>
-      </div>
-
-      <div class="nav-section">
         <div class="nav-section-title">Instructors Ticketing System</div>
         <button class="nav-item active" id="navBtn-tickets" onclick="switchTab('tickets')" type="button">
           <span class="nav-icon">
@@ -321,16 +288,6 @@
       </div>
 
       <div id="ticketsView">
-      <div class="panel key-panel" id="keyPanel">
-        <label class="field-label">OpenAI API key</label>
-        <input type="password" id="apiKeyInput" placeholder="sk-..." autocomplete="off" />
-        <div class="row">
-          <button id="saveKeyBtn" onclick="saveApiKey()">Save key</button>
-          <button class="secondary" id="clearKeyBtn" onclick="clearApiKey()">Clear</button>
-          <span id="keyStatus" class="status-line"></span>
-        </div>
-        <div class="key-hint">Stored only in this browser's local storage, sent directly with each request - never written to the server.</div>
-      </div>
 
       <div class="panel daily-bar">
         <div class="left">
@@ -371,50 +328,9 @@
 </div>
 
 <script>
-const API_KEY_STORAGE_KEY = 'ticketRouterOpenAIKey';
 let groups = [];
 let leafMap = {}; // subcategory id -> { name, groupId, groupName }
 const log = document.getElementById('log');
-
-function getApiKey() {
-  return localStorage.getItem(API_KEY_STORAGE_KEY) || '';
-}
-
-function authHeaders() {
-  const key = getApiKey();
-  return key ? { 'X-OpenAI-Api-Key': key } : {};
-}
-
-function refreshKeyPanel() {
-  const key = getApiKey();
-  const panel = document.getElementById('keyPanel');
-  const input = document.getElementById('apiKeyInput');
-  if (key) {
-    input.value = key;
-    panel.classList.add('saved');
-  } else {
-    panel.classList.remove('saved');
-  }
-}
-
-function saveApiKey() {
-  const input = document.getElementById('apiKeyInput');
-  const status = document.getElementById('keyStatus');
-  const key = input.value.trim();
-  if (!key) { status.innerText = 'enter a key first'; setTimeout(() => status.innerText = '', 2000); return; }
-  localStorage.setItem(API_KEY_STORAGE_KEY, key);
-  refreshKeyPanel();
-  status.innerText = 'saved';
-  setTimeout(() => status.innerText = '', 2000);
-}
-
-function clearApiKey() {
-  localStorage.removeItem(API_KEY_STORAGE_KEY);
-  document.getElementById('apiKeyInput').value = '';
-  refreshKeyPanel();
-}
-
-refreshKeyPanel();
 
 async function logout(e) {
   e.preventDefault();
@@ -672,30 +588,63 @@ function upsertCard(state) {
   el.innerHTML = cardHTML(state);
 }
 
+function showInlineError(btnEl, message) {
+  let errEl = btnEl.nextElementSibling;
+  if (!errEl || !errEl.classList.contains('inline-error')) {
+    errEl = document.createElement('span');
+    errEl.className = 'inline-error status-line';
+    errEl.style.color = 'var(--coral)';
+    errEl.style.marginLeft = '8px';
+    btnEl.insertAdjacentElement('afterend', errEl);
+  }
+  errEl.innerText = message;
+  setTimeout(() => { errEl.innerText = ''; }, 5000);
+}
+
 async function respond(ticketId, btnEl) {
   const wrap = btnEl.closest('.clarify');
   const input = wrap.querySelector('input');
   const answer = input.value.trim();
   if (!answer) return;
   btnEl.disabled = true;
-  const res = await fetch(`/api/tickets/${ticketId}/respond`, {
-    method: 'POST', headers: {'Content-Type':'application/json', ...authHeaders()},
-    body: JSON.stringify({ answer })
-  });
-  const state = await res.json();
-  upsertCard(state);
+  try {
+    const res = await fetch(`/api/tickets/${ticketId}/respond`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ answer })
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.detail || `request failed (${res.status})`);
+    }
+    const state = await res.json();
+    upsertCard(state);
+  } catch (e) {
+    showInlineError(btnEl, e.message);
+    console.error(e);
+    btnEl.disabled = false;
+  }
 }
 
 async function correct(ticketId, btnEl) {
   const wrap = btnEl.closest('.correction');
   const select = wrap.querySelector('select');
   btnEl.disabled = true;
-  const res = await fetch(`/api/tickets/${ticketId}/correct`, {
-    method: 'POST', headers: {'Content-Type':'application/json', ...authHeaders()},
-    body: JSON.stringify({ corrected_category_id: select.value, corrected_by: 'ui-operator' })
-  });
-  const state = await res.json();
-  upsertCard(state);
+  try {
+    const res = await fetch(`/api/tickets/${ticketId}/correct`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ corrected_category_id: select.value, corrected_by: 'ui-operator' })
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.detail || `request failed (${res.status})`);
+    }
+    const state = await res.json();
+    upsertCard(state);
+  } catch (e) {
+    showInlineError(btnEl, e.message);
+    console.error(e);
+    btnEl.disabled = false;
+  }
 }
 
 let currentDate = todayStr(); // YYYY-MM-DD (UTC calendar day)

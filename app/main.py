@@ -56,13 +56,14 @@ async def zoho_webhook_debug_handler(request: Request, exc: RequestValidationErr
 
 def require_api_key(x_openai_api_key: str | None = Header(default=None, alias="X-OpenAI-Api-Key")) -> str:
     """
-    The OpenAI key comes from the UI (entered once, kept in the browser's
-    localStorage, sent on every request) rather than from a server-side
-    .env - falls back to OPENAI_API_KEY if that's set for local/dev use.
+    The OpenAI key comes from the server's OPENAI_API_KEY env var - the UI
+    no longer collects or sends one. X-OpenAI-Api-Key is still accepted as
+    an override (takes precedence when present) in case a per-request key
+    is ever needed again, but nothing in the current UI sets it.
     """
     key = x_openai_api_key or config.OPENAI_API_KEY
     if not key:
-        raise HTTPException(401, "OpenAI API key required - enter it in the box at the top of the page.")
+        raise HTTPException(401, "OpenAI API key required - set OPENAI_API_KEY in the server's environment.")
     return key
 
 
