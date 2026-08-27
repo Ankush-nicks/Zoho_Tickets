@@ -5,19 +5,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Ticket Router — Sign in</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg: #12151B;
-    --panel: #1A1E26;
-    --panel-2: #20242E;
-    --border: #2B303B;
-    --text: #E7EAEE;
-    --muted: #8B93A1;
-    --accent: #3ED9C4;
-    --coral: #E8604C;
+    --bg: #4A1524;
+    --panel: #FFFFFF;
+    --panel-2: #F6EFE8;
+    --border: #E7DED4;
+    --text: #241318;
+    --muted: #8B7680;
+    --accent: #7A2039;
+    --accent-ink: #FFFFFF;
+    --coral: #C0392B;
     --mono: 'IBM Plex Mono', ui-monospace, monospace;
     --sans: 'IBM Plex Sans', system-ui, sans-serif;
+    color-scheme: light;
   }
   *{box-sizing:border-box;}
   body{
@@ -27,15 +29,20 @@
   }
   .card{
     width:100%; max-width:360px; margin:0 20px;
-    background:var(--panel); border:1px solid var(--border); border-radius:10px;
-    padding:28px;
+    background:var(--panel); border:1px solid var(--border); border-radius:12px;
+    padding:28px; box-shadow:0 8px 30px rgba(0,0,0,.25);
   }
+  .brand{ display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+  .logo-badge{
+    width:28px; height:28px; border-radius:8px; background:var(--coral);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+    color:#fff; font-family:var(--mono); font-weight:700; font-size:13px;
+  }
+  .brand-name{ font-family:var(--mono); font-weight:600; font-size:14px; letter-spacing:.06em; }
   h1{
-    display:flex; align-items:baseline; gap:8px;
-    font-family:var(--mono); font-size:15px; font-weight:600;
-    letter-spacing:.08em; text-transform:uppercase; margin:0 0 22px;
+    font-family:var(--sans); font-size:15px; font-weight:600; color:var(--muted);
+    margin:0 0 22px;
   }
-  .dot{ display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--accent); box-shadow:0 0 8px var(--accent); }
   label.field-label{
     display:block; font-family:var(--mono); font-size:11px; color:var(--muted);
     text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px;
@@ -47,18 +54,22 @@
   }
   input:focus{ outline:2px solid var(--accent); outline-offset:1px; }
   button{
-    width:100%; font-family:var(--mono); font-size:12px; letter-spacing:.04em; text-transform:uppercase;
-    background:var(--accent); color:#0B1411; border:none; border-radius:6px;
-    padding:11px 16px; cursor:pointer; font-weight:600; margin-top:6px;
+    width:100%; font-family:var(--sans); font-size:13px; font-weight:600;
+    background:var(--accent); color:var(--accent-ink); border:none; border-radius:6px;
+    padding:11px 16px; cursor:pointer; margin-top:6px;
   }
-  button:hover{ filter:brightness(1.08); }
+  button:hover{ filter:brightness(1.1); }
   button:disabled{ opacity:.5; cursor:not-allowed; }
   .error{ font-family:var(--mono); font-size:12px; color:var(--coral); min-height:16px; margin-top:12px; text-align:center; }
 </style>
 </head>
 <body>
 <div class="card">
-  <h1><span class="dot"></span>Ticket Router</h1>
+  <div class="brand">
+    <div class="logo-badge">N</div>
+    <span class="brand-name">NIAT</span>
+  </div>
+  <h1>Ticket Router</h1>
   <form id="loginForm">
     <div class="field">
       <label class="field-label">Username</label>

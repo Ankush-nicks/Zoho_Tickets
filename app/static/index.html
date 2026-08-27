@@ -5,21 +5,32 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Ticket Router</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg: #12151B;
-    --panel: #1A1E26;
-    --panel-2: #20242E;
-    --border: #2B303B;
-    --text: #E7EAEE;
-    --muted: #8B93A1;
-    --accent: #3ED9C4;
-    --amber: #F0A857;
-    --coral: #E8604C;
+    --bg: #FFFFFF;
+    --panel: #FFFFFF;
+    --panel-2: #F6EFE8;
+    --border: #E7DED4;
+    --text: #241318;
+    --muted: #8B7680;
+    --accent: #7A2039;
+    --accent-ink: #FFFFFF;
+    --amber: #B0700E;
+    --coral: #C0392B;
+
+    --sidebar-bg: #4A1524;
+    --sidebar-bg-2: #370F1B;
+    --sidebar-header-bg: #F3E9DE;
+    --sidebar-header-text: #2A1520;
+    --sidebar-muted: #DCAAB9;
+    --sidebar-hover-bg: rgba(255,255,255,.07);
+    --sidebar-active-bg: #6B2338;
+    --sidebar-border: rgba(255,255,255,.12);
+
     --mono: 'IBM Plex Mono', ui-monospace, monospace;
     --sans: 'IBM Plex Sans', system-ui, sans-serif;
-    color-scheme: dark; /* native controls (date picker popover, etc.) render dark to match */
+    color-scheme: light;
   }
   *{box-sizing:border-box;}
   body{
@@ -27,18 +38,61 @@
     font-family:var(--sans); line-height:1.5;
     min-height:100vh;
   }
-  .wrap{ max-width:760px; margin:0 auto; padding:40px 20px 80px; }
+  .app-shell{ display:flex; min-height:100vh; align-items:stretch; }
 
-  .masthead{
-    display:flex; align-items:flex-start; justify-content:space-between;
-    border-bottom:1px solid var(--border); padding-bottom:16px; margin-bottom:28px;
+  /* --- Sidebar --- */
+  .sidebar{
+    width:280px; flex:0 0 280px; background:var(--sidebar-bg);
+    display:flex; flex-direction:column;
   }
-  .masthead h1{
-    font-family:var(--mono); font-size:15px; font-weight:600;
-    letter-spacing:.08em; text-transform:uppercase; margin:0;
+  .sidebar-header{
+    display:flex; align-items:center; gap:10px; padding:16px 20px;
+    background:var(--sidebar-header-bg);
   }
-  .masthead .sub{ font-family:var(--mono); font-size:12px; color:var(--muted); }
-  .dot{ display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--accent); margin-right:6px; box-shadow:0 0 8px var(--accent); }
+  .logo-badge{
+    width:28px; height:28px; border-radius:8px; background:var(--coral);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+    color:#fff; font-family:var(--mono); font-weight:700; font-size:13px;
+  }
+  .app-name{ font-family:var(--mono); font-weight:600; font-size:14px; letter-spacing:.06em; color:var(--sidebar-header-text); }
+
+  .workspace-selector{
+    display:flex; align-items:center; justify-content:space-between; width:100%;
+    background:var(--sidebar-bg-2); color:#fff; border:none; border-radius:0;
+    padding:14px 20px; font-family:var(--sans); font-size:13px; font-weight:500;
+    text-transform:none; letter-spacing:normal; cursor:default;
+  }
+  .workspace-selector:hover{ filter:none; }
+  .workspace-selector .chevron{ color:var(--sidebar-muted); display:flex; flex-shrink:0; }
+
+  .sidebar-nav{ flex:1; overflow-y:auto; padding:20px 0; }
+  .nav-section{ padding:0 20px; margin-bottom:22px; }
+  .nav-section-title{
+    font-family:var(--mono); font-size:10px; color:var(--sidebar-muted);
+    text-transform:uppercase; letter-spacing:.08em; padding-bottom:9px;
+    margin-bottom:6px; border-bottom:1px solid var(--sidebar-border);
+  }
+  .nav-item{
+    display:flex; align-items:center; gap:10px; width:100%;
+    background:transparent; border:none; border-radius:6px;
+    color:#fff; font-family:var(--sans); font-size:13px; font-weight:500;
+    text-transform:none; letter-spacing:normal;
+    padding:9px 10px; margin:1px 0; cursor:pointer; text-align:left; text-decoration:none;
+  }
+  .nav-item .nav-icon{ display:flex; flex-shrink:0; opacity:.85; }
+  .nav-item .nav-chevron{ margin-left:auto; opacity:.5; display:flex; }
+  .nav-item:hover{ background:var(--sidebar-hover-bg); filter:none; }
+  .nav-item.active{ background:var(--sidebar-active-bg); font-weight:600; }
+  .nav-item.disabled{ color:var(--sidebar-muted); cursor:default; }
+  .nav-item.disabled:hover{ background:transparent; }
+
+  .sidebar-footer{ padding:14px 20px 20px; border-top:1px solid var(--sidebar-border); }
+
+  /* --- Main content --- */
+  .main-content{ flex:1; min-width:0; padding:32px 40px 80px; }
+  .wrap{ max-width:900px; }
+
+  .main-topbar{ display:flex; align-items:center; justify-content:flex-end; gap:10px; margin-bottom:24px; }
 
   .panel{
     background:var(--panel); border:1px solid var(--border); border-radius:10px;
@@ -56,34 +110,26 @@
   textarea:focus, input:focus, select:focus{ outline:2px solid var(--accent); outline-offset:1px; }
 
   button{
-    font-family:var(--mono); font-size:12px; letter-spacing:.04em; text-transform:uppercase;
-    background:var(--accent); color:#0B1411; border:none; border-radius:6px;
-    padding:10px 16px; cursor:pointer; font-weight:600;
+    font-family:var(--sans); font-size:13px; font-weight:600;
+    background:var(--accent); color:var(--accent-ink); border:none; border-radius:6px;
+    padding:10px 16px; cursor:pointer;
   }
-  button:hover{ filter:brightness(1.08); }
+  button:hover{ filter:brightness(1.1); }
   button:disabled{ opacity:.5; cursor:not-allowed; }
-  button.secondary{ background:transparent; border:1px solid var(--border); color:var(--text); }
+  button.secondary{ background:#fff; border:1px solid var(--border); color:var(--text); }
 
   .row{ display:flex; gap:10px; align-items:center; margin-top:12px; }
 
-  .tab-bar{ display:flex; gap:6px; margin-bottom:20px; }
-  .tab-btn{
-    background:transparent; border:1px solid var(--border); color:var(--muted);
-    padding:8px 16px; border-radius:6px;
-  }
-  .tab-btn.active{ background:var(--panel-2); color:var(--text); border-color:var(--accent); }
-  .tab-btn:hover{ filter:none; color:var(--text); }
-
-  .preset-btn.active{ background:var(--accent); color:#0B1411; border-color:var(--accent); }
+  .preset-btn.active{ background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
 
   .status-tag-bar{ display:flex; gap:8px; flex-wrap:wrap; margin:16px 0; }
   .status-tag{
     font-family:var(--mono); font-size:11px; letter-spacing:.03em;
-    background:var(--panel); border:1px solid var(--border); color:var(--muted);
-    padding:6px 12px; border-radius:20px; cursor:pointer;
+    background:#fff; border:1px solid var(--border); color:var(--muted);
+    padding:6px 12px; border-radius:20px; cursor:pointer; font-weight:400;
   }
-  .status-tag:hover{ color:var(--text); border-color:var(--muted); }
-  .status-tag.active{ background:var(--accent); color:#0B1411; border-color:var(--accent); font-weight:600; }
+  .status-tag:hover{ color:var(--text); border-color:var(--muted); filter:none; }
+  .status-tag.active{ background:var(--accent); color:var(--accent-ink); border-color:var(--accent); font-weight:600; }
 
   .stat-block{ margin-bottom:20px; }
   .stat-block:last-child{ margin-bottom:0; }
@@ -98,6 +144,7 @@
   .log{ display:flex; flex-direction:column; gap:14px; }
   .card{
     background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:18px;
+    box-shadow:0 1px 2px rgba(36,19,24,.04);
   }
   .card .ticket-id{ font-family:var(--mono); font-size:11px; color:var(--muted); }
   .card .ticket-text{ margin:6px 0 12px; font-size:14px; }
@@ -152,12 +199,10 @@
   a.download-link{
     font-family:var(--mono); font-size:11px; letter-spacing:.04em; text-transform:uppercase;
     color:var(--text); text-decoration:none; border:1px solid var(--border); border-radius:6px;
-    padding:8px 14px; background:var(--panel);
+    padding:8px 14px; background:#fff;
   }
   a.download-link:hover{ border-color:var(--accent); color:var(--accent); }
 
-  .masthead-right{ display:flex; flex-direction:column; align-items:flex-end; gap:10px; }
-  .masthead-tools{ display:flex; align-items:center; gap:10px; }
   #zohoStatusBadge{ cursor:help; }
 
   .daily-bar{
@@ -187,7 +232,7 @@
     font-family:var(--mono); font-size:10px; color:var(--muted);
     text-transform:uppercase; letter-spacing:.06em; cursor:pointer; text-align:left;
   }
-  .details-toggle:hover{ color:var(--text); }
+  .details-toggle:hover{ color:var(--text); filter:none; }
   .details-toggle .chevron{ font-size:9px; display:inline-block; transition:transform .15s ease; }
   .details-toggle.open .chevron{ transform:rotate(90deg); }
   .details-body{ margin-top:10px; }
@@ -204,70 +249,125 @@
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="masthead">
-    <h1><span class="dot"></span>Ticket Router</h1>
-    <div class="masthead-right">
-      <div class="sub">classify &rarr; clarify &rarr; route &rarr; learn &middot; <a href="#" id="logoutLink" onclick="logout(event)" style="color:var(--muted);text-decoration:underline;">log out</a></div>
-      <div class="masthead-tools">
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo-badge">N</div>
+      <span class="app-name">NIAT</span>
+    </div>
+    <button class="workspace-selector" type="button">
+      NIAT Campus Operations
+      <span class="chevron">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </span>
+    </button>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-section-title">Staff Obs &amp; Tickets</div>
+        <div class="nav-item disabled">
+          <span class="nav-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>
+          </span>
+          Observations
+          <span class="nav-chevron">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </span>
+        </div>
+        <div class="nav-item disabled">
+          <span class="nav-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </span>
+          Escalations
+          <span class="nav-chevron">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </span>
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-title">Instructors Ticketing System</div>
+        <button class="nav-item active" id="navBtn-tickets" onclick="switchTab('tickets')" type="button">
+          <span class="nav-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v3a2 2 0 0 1 0 4v3a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3a2 2 0 0 1 0-4V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2Z"/><path d="M13 5v2M13 17v2M13 11v2"/></svg>
+          </span>
+          Tickets
+        </button>
+        <button class="nav-item" id="navBtn-stats" onclick="switchTab('stats')" type="button">
+          <span class="nav-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>
+          </span>
+          Stats
+        </button>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <a href="#" class="nav-item" id="logoutLink" onclick="logout(event)">
+        <span class="nav-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </span>
+        Log out
+      </a>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <div class="wrap">
+      <div class="main-topbar">
         <a class="download-link" href="/api/taxonomy/export.csv" download="taxonomy.csv">&darr; Taxonomy CSV</a>
         <a class="download-link" href="/api/tickets/export.csv" download="tickets_all.csv">&darr; All Tickets CSV</a>
         <span id="zohoStatusBadge" class="badge" title="Zoho credentials live in .env on the server (ZOHO_INVOKE_URL / ZOHO_API_KEY) - there is no in-browser control for them, same as the admin password.">zoho: checking…</span>
       </div>
-    </div>
-  </div>
 
-  <div class="tab-bar">
-    <button class="tab-btn active" id="tabBtn-tickets" onclick="switchTab('tickets')">Tickets</button>
-    <button class="tab-btn" id="tabBtn-stats" onclick="switchTab('stats')">Stats</button>
-  </div>
-
-  <div id="ticketsView">
-  <div class="panel key-panel" id="keyPanel">
-    <label class="field-label">OpenAI API key</label>
-    <input type="password" id="apiKeyInput" placeholder="sk-..." autocomplete="off" />
-    <div class="row">
-      <button id="saveKeyBtn" onclick="saveApiKey()">Save key</button>
-      <button class="secondary" id="clearKeyBtn" onclick="clearApiKey()">Clear</button>
-      <span id="keyStatus" class="status-line"></span>
-    </div>
-    <div class="key-hint">Stored only in this browser's local storage, sent directly with each request - never written to the server.</div>
-  </div>
-
-  <div class="panel daily-bar">
-    <div class="left">
-      <button class="secondary day-nav-btn" onclick="shiftDate(-1)" title="Previous day">&lsaquo;</button>
-      <input type="date" id="dateInput" onchange="onDateChange()" />
-      <button class="secondary day-nav-btn" onclick="shiftDate(1)" title="Next day">&rsaquo;</button>
-      <button class="secondary" onclick="jumpToday()">Today</button>
-      <button class="secondary day-nav-btn" onclick="loadDailyTickets()" title="Refresh">&#8635;</button>
-      <a class="download-link" id="exportDayLink" href="/api/tickets/export.csv" download="tickets_day.csv">&darr; This Day CSV</a>
-    </div>
-    <div id="dailySummary" class="status-line"></div>
-  </div>
-
-  <div id="statusTagBar" class="status-tag-bar"></div>
-
-  <div id="log" class="log">
-    <div class="empty">Loading today's tickets…</div>
-  </div>
-  </div>
-
-  <div id="statsView" style="display:none;">
-    <div class="panel daily-bar">
-      <div class="left">
-        <button class="secondary preset-btn" id="presetBtn-today" onclick="setStatsPreset('today')">Today</button>
-        <button class="secondary preset-btn" id="presetBtn-7d" onclick="setStatsPreset('7d')">7 Days</button>
-        <button class="secondary preset-btn" id="presetBtn-30d" onclick="setStatsPreset('30d')">30 Days</button>
-        <button class="secondary preset-btn" id="presetBtn-all" onclick="setStatsPreset('all')">All Time</button>
-        <input type="date" id="statsFromInput" onchange="onStatsCustomChange()" />
-        <span class="status-line">to</span>
-        <input type="date" id="statsToInput" onchange="onStatsCustomChange()" />
+      <div id="ticketsView">
+      <div class="panel key-panel" id="keyPanel">
+        <label class="field-label">OpenAI API key</label>
+        <input type="password" id="apiKeyInput" placeholder="sk-..." autocomplete="off" />
+        <div class="row">
+          <button id="saveKeyBtn" onclick="saveApiKey()">Save key</button>
+          <button class="secondary" id="clearKeyBtn" onclick="clearApiKey()">Clear</button>
+          <span id="keyStatus" class="status-line"></span>
+        </div>
+        <div class="key-hint">Stored only in this browser's local storage, sent directly with each request - never written to the server.</div>
       </div>
-      <div id="statsSummary" class="status-line"></div>
+
+      <div class="panel daily-bar">
+        <div class="left">
+          <button class="secondary day-nav-btn" onclick="shiftDate(-1)" title="Previous day">&lsaquo;</button>
+          <input type="date" id="dateInput" onchange="onDateChange()" />
+          <button class="secondary day-nav-btn" onclick="shiftDate(1)" title="Next day">&rsaquo;</button>
+          <button class="secondary" onclick="jumpToday()">Today</button>
+          <button class="secondary day-nav-btn" onclick="loadDailyTickets()" title="Refresh">&#8635;</button>
+          <a class="download-link" id="exportDayLink" href="/api/tickets/export.csv" download="tickets_day.csv">&darr; This Day CSV</a>
+        </div>
+        <div id="dailySummary" class="status-line"></div>
+      </div>
+
+      <div id="statusTagBar" class="status-tag-bar"></div>
+
+      <div id="log" class="log">
+        <div class="empty">Loading today's tickets…</div>
+      </div>
+      </div>
+
+      <div id="statsView" style="display:none;">
+        <div class="panel daily-bar">
+          <div class="left">
+            <button class="secondary preset-btn" id="presetBtn-today" onclick="setStatsPreset('today')">Today</button>
+            <button class="secondary preset-btn" id="presetBtn-7d" onclick="setStatsPreset('7d')">7 Days</button>
+            <button class="secondary preset-btn" id="presetBtn-30d" onclick="setStatsPreset('30d')">30 Days</button>
+            <button class="secondary preset-btn" id="presetBtn-all" onclick="setStatsPreset('all')">All Time</button>
+            <input type="date" id="statsFromInput" onchange="onStatsCustomChange()" />
+            <span class="status-line">to</span>
+            <input type="date" id="statsToInput" onchange="onStatsCustomChange()" />
+          </div>
+          <div id="statsSummary" class="status-line"></div>
+        </div>
+        <div id="statsBlocks"></div>
+      </div>
     </div>
-    <div id="statsBlocks"></div>
-  </div>
+  </main>
 </div>
 
 <script>
@@ -713,8 +813,8 @@ let statsLoadedOnce = false;
 function switchTab(tab) {
   document.getElementById('ticketsView').style.display = tab === 'tickets' ? '' : 'none';
   document.getElementById('statsView').style.display = tab === 'stats' ? '' : 'none';
-  document.getElementById('tabBtn-tickets').classList.toggle('active', tab === 'tickets');
-  document.getElementById('tabBtn-stats').classList.toggle('active', tab === 'stats');
+  document.getElementById('navBtn-tickets').classList.toggle('active', tab === 'tickets');
+  document.getElementById('navBtn-stats').classList.toggle('active', tab === 'stats');
   if (tab === 'stats' && !statsLoadedOnce) {
     statsLoadedOnce = true;
     setStatsPreset('7d');
