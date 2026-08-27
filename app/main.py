@@ -172,10 +172,12 @@ def get_zoho_status(user: str = Depends(require_login)):
 def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_secret)):
     """
     PUSH counterpart to the pull-based /api/zoho endpoints above: Zoho
-    Creator's "On Add" workflow calls this directly with the new record's
-    fields (see zoho-invoke-url-setup.md for the Deluge script), so a new
-    ticket gets classified the moment it's created in Zoho - no polling,
-    no round trip back through ZOHO_INVOKE_URL.
+    Creator's "On Add/Edit" workflow calls this directly with the record's
+    fields (see zoho-invoke-url-setup.md for the Deluge script) - a new
+    ticket gets classified the moment it's created in Zoho, and every
+    subsequent edit (status change, POC acknowledgment, worklog, etc.)
+    refreshes the stored data - no polling, no round trip back through
+    ZOHO_INVOKE_URL.
 
     Auth is a shared secret (X-Webhook-Secret, see require_webhook_secret)
     rather than the session login the UI uses, since Deluge can't hold a
@@ -183,13 +185,15 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
     OPENAI_API_KEY (no UI operator is present to supply one per-request).
 
     Accepts a plain dict rather than a typed model on purpose: the real
-    "On Add" workflow sends dozens of fields (priority, assigned team, POC
-    history, session/evaluation ids, etc.), and the whole payload is kept
-    as-is (see raw_payload below) for later analytics without this endpoint
-    needing a code change every time Zoho's form gains a field. Only
-    zoho_ticket_id/issue_in_detail/category_of_the_issue/
+    "On Add/Edit" workflow sends dozens of fields (priority, assigned team,
+    POC/worklog history, session/evaluation ids, etc.), and the whole
+    payload is kept as-is (see raw_payload below) for later analytics
+    without this endpoint needing a code change every time Zoho's form
+    gains a field. Only zoho_ticket_id/issue_in_detail/category_of_the_issue/
     sub_category_of_the_issue are pulled out specifically, for classification
-    and the Zoho-tag comparison.
+    and the Zoho-tag comparison - everything else (ticket_status,
+    acknowledgement_from_the_poc, worklog_from_the_poc, etc.) just rides
+    along in raw_payload and shows up in the portal's "Ticket Details" table.
 
     Intentionally returns only a bare ack, not the classification result
     (category/team/confidence/etc.) - Zoho doesn't need to parse or display
@@ -197,10 +201,13 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
     the contract this thin means Zoho's side never has to change even if the
     result shape here does.
 
-    Deduplicates by zoho_ticket_id: if this ticket id was already stored
-    (e.g. Zoho retried the same "On Add" event after a slow/cold-start
-    response), this is a no-op rather than creating a second row and
-    re-spending an OpenAI call on identical text.
+    Upserts by zoho_ticket_id: the first time a ticket id is seen, it's
+    created and classified as before. Every call after that (an edit, or a
+    retried "On Add" after a slow/cold-start response) updates that same
+    row's raw_payload/zoho_category/zoho_subcategory/original_text in place
+    instead of creating a second row - and deliberately never touches
+    category_id/confidence/reasoning/status, so an unrelated status change
+    in Zoho can never silently undo a human's correction in this portal.
     """
     zoho_ticket_id = str(payload.get("zoho_ticket_id") or "").strip()
     if not zoho_ticket_id:
@@ -209,9 +216,21 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
     if not issue_text:
         raise HTTPException(400, "issue_in_detail is required")
 
+    zoho_category = str(payload.get("category_of_the_issue") or "").strip() or None
+    zoho_subcategory = str(payload.get("sub_category_of_the_issue") or "").strip() or None
+    raw_payload = json.dumps(payload)
+
     existing = db.get_ticket_by_zoho_id(zoho_ticket_id)
     if existing:
-        return {"ok": True, "duplicate": True, "ticket_id": existing["id"]}
+        db.update_ticket(
+            existing["id"],
+            original_text=issue_text,
+            full_context=issue_text,
+            zoho_category=zoho_category,
+            zoho_subcategory=zoho_subcategory,
+            raw_payload=raw_payload,
+        )
+        return {"ok": True, "updated": True, "ticket_id": existing["id"]}
 
     if not config.OPENAI_API_KEY:
         raise HTTPException(
@@ -224,9 +243,9 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
     ticket_id = db.create_ticket(
         issue_text,
         zoho_ticket_id=zoho_ticket_id,
-        zoho_category=str(payload.get("category_of_the_issue") or "").strip() or None,
-        zoho_subcategory=str(payload.get("sub_category_of_the_issue") or "").strip() or None,
-        raw_payload=json.dumps(payload),
+        zoho_category=zoho_category,
+        zoho_subcategory=zoho_subcategory,
+        raw_payload=raw_payload,
     )
     _run_classification_and_persist(ticket_id, issue_text, clarification_turns=0, api_key=config.OPENAI_API_KEY)
 

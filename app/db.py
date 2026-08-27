@@ -179,8 +179,9 @@ def get_ticket(ticket_id: str) -> dict | None:
 def get_ticket_by_zoho_id(zoho_ticket_id: str) -> dict | None:
     """
     Most recent ticket already stored for this Zoho ticket id, if any - lets
-    the webhook skip re-creating a duplicate when Zoho re-sends the same
-    "On Add" event (e.g. a retry after a slow/cold-start response).
+    the webhook upsert instead of creating a second row for the same Zoho
+    ticket, whether the call is a retried "On Add" or a genuine "On Edit"
+    (status change, POC acknowledgment, worklog, etc.).
     """
     with get_conn() as conn:
         row = _exec(
