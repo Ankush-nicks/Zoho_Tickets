@@ -342,6 +342,11 @@
         </div>
 
         <div id="statsBlocks"></div>
+
+        <div id="statsTicketsSection" style="display:none;">
+          <div class="section-title" style="margin:24px 0 12px;">Matching Tickets</div>
+          <div id="statsTicketsList" class="log"></div>
+        </div>
       </div>
     </div>
   </main>
@@ -826,8 +831,8 @@ function rawField(t, key) {
 // Every dimension a filter can pin and/or a breakdown block can group by.
 // `get` returns null for "no value" - callers normalize that to '(not set)'.
 const STATS_FACETS = [
-  { key: 'category', label: 'Category / Sub-category',
-    get: t => (t.category_group_name && t.category_name) ? `${t.category_group_name} / ${t.category_name}` : null },
+  { key: 'category_group', label: 'Category', get: t => t.category_group_name || null },
+  { key: 'subcategory', label: 'Sub-category', get: t => t.category_name || null },
   { key: 'university', label: 'University', get: t => rawField(t, 'university_boa') },
   { key: 'sla_status', label: 'SLA Status', get: t => rawField(t, 'sla_breach_status') },
   { key: 'classification_status', label: 'Classification Status', get: t => statusLabel(t.status) },
@@ -909,6 +914,30 @@ function statBlockHTML(title, entries, total) {
     </div>`;
 }
 
+// Read-only, always-expanded ticket card for the Stats tab's drill-down
+// list - deliberately not zohoCardHTML/cardHTML (those wire up correction/
+// clarify/toggle controls keyed by DOM id, which would collide if the same
+// ticket is also rendered in the Tickets tab's still-mounted-but-hidden DOM).
+function statsTicketCardHTML(state) {
+  const band = confBand(state.confidence);
+  return `
+    <div class="ticket-id-line">Ticket ID: <span class="mono">${esc(state.zoho_ticket_id || state.ticket_id)}</span> &middot; ${statusLabel(state.status)}</div>
+    ${state.category_id ? `
+      <div class="field-label">Category</div>
+      <div class="category-value">${esc(state.category_group_name || '—')}</div>
+      <div class="field-label" style="margin-top:12px;">Sub-category</div>
+      <span class="badge"><span class="swatch" style="background:${band.color}"></span>${esc(state.category_name || state.category_id)}</span>
+      ${renderMeter(state.confidence)}
+      ${state.reasoning ? `<div class="reasoning">${esc(state.reasoning)}</div>` : ''}
+    ` : '<div class="reasoning">Not yet classified.</div>'}
+    ${zohoAgreementHTML(state)}
+    <div class="ticket-details">
+      <div class="section-title">Ticket Details</div>
+      ${ticketDetailsHTML(state)}
+    </div>
+  `;
+}
+
 function renderStatsBreakdown() {
   const filtered = statsTickets.filter(ticketMatchesActiveFilters);
   document.getElementById('statsSummary').innerText =
@@ -918,6 +947,19 @@ function renderStatsBreakdown() {
   document.getElementById('statsBlocks').innerHTML = STATS_FACETS
     .map(f => statBlockHTML(f.label, countEntries(filtered, f), filtered.length))
     .join('');
+
+  const hasActiveFilter = Object.keys(activeFacetFilters).length > 0;
+  const section = document.getElementById('statsTicketsSection');
+  const list = document.getElementById('statsTicketsList');
+  if (!hasActiveFilter) {
+    section.style.display = 'none';
+    list.innerHTML = '';
+  } else {
+    section.style.display = '';
+    list.innerHTML = filtered.length
+      ? filtered.map(state => `<div class="card">${statsTicketCardHTML(state)}</div>`).join('')
+      : '<div class="empty">No tickets match this filter.</div>';
+  }
 }
 
 async function loadStats(dateFrom, dateTo) {
