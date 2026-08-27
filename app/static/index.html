@@ -78,11 +78,13 @@
 
   .stat-block{ margin-bottom:20px; }
   .stat-block:last-child{ margin-bottom:0; }
-  .stat-row{ display:flex; align-items:center; gap:12px; padding:5px 0; }
-  .stat-label{ font-size:13px; flex:0 0 220px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .stat-row{ padding:8px 0; border-bottom:1px solid var(--border); }
+  .stat-row:last-child{ border-bottom:none; }
+  .stat-label{ font-size:13px; margin-bottom:6px; word-break:break-word; }
+  .stat-bar-line{ display:flex; align-items:center; gap:10px; }
   .stat-bar-wrap{ flex:1; height:8px; background:var(--panel-2); border-radius:4px; overflow:hidden; }
   .stat-bar{ height:100%; background:var(--accent); border-radius:4px; }
-  .stat-count{ flex:0 0 auto; font-family:var(--mono); font-size:12px; color:var(--muted); min-width:28px; text-align:right; }
+  .stat-count{ flex:0 0 auto; font-family:var(--mono); font-size:11px; color:var(--muted); min-width:70px; text-align:right; }
 
   .log{ display:flex; flex-direction:column; gap:14px; }
   .card{
@@ -683,19 +685,21 @@ function onStatsCustomChange() {
   loadStats(from, to);
 }
 
-function statBlockHTML(title, entries, total) {
+function statBlockHTML(title, hint, entries, total) {
   const rows = entries.map(([label, count]) => {
     const pct = total ? Math.round((count / total) * 100) : 0;
     return `
       <div class="stat-row">
-        <div class="stat-label" title="${esc(label)}">${esc(label)}</div>
-        <div class="stat-bar-wrap"><div class="stat-bar" style="width:${pct}%"></div></div>
-        <div class="stat-count">${count}</div>
+        <div class="stat-label">${esc(label)}</div>
+        <div class="stat-bar-line">
+          <div class="stat-bar-wrap"><div class="stat-bar" style="width:${pct}%"></div></div>
+          <div class="stat-count">${count} (${pct}%)</div>
+        </div>
       </div>`;
   }).join('');
   return `
     <div class="panel stat-block">
-      <div class="section-title">${esc(title)}</div>
+      <div class="section-title">${esc(title)}${hint ? ` <span style="text-transform:none;letter-spacing:normal;">&mdash; ${esc(hint)}</span>` : ''}</div>
       ${rows || '<div class="empty" style="padding:10px 0;">No data for this period.</div>'}
     </div>`;
 }
@@ -715,15 +719,17 @@ async function loadStats(dateFrom, dateTo) {
 
     const statusEntries = Object.entries(data.by_status)
       .map(([k, v]) => [statusLabel(k), v]).sort((a, b) => b[1] - a[1]);
+    const zohoStatusEntries = Object.entries(data.by_zoho_status);
     const categoryEntries = data.by_category.map(c => [`${c.group} / ${c.subcategory}`, c.count]);
     const priorityEntries = Object.entries(data.by_priority);
     const teamEntries = Object.entries(data.by_assigned_team);
 
     blocks.innerHTML =
-      statBlockHTML('By Status', statusEntries, data.total_tickets) +
-      statBlockHTML('By Category', categoryEntries, data.total_tickets) +
-      statBlockHTML('By Priority', priorityEntries, data.total_tickets) +
-      statBlockHTML('By Assigned Team', teamEntries, data.total_tickets);
+      statBlockHTML('By Classification Status', 'this app\'s own routing state', statusEntries, data.total_tickets) +
+      statBlockHTML('By Zoho Ticket Status', 'whether it\'s been picked up / actioned in Zoho', zohoStatusEntries, data.total_tickets) +
+      statBlockHTML('By Category', null, categoryEntries, data.total_tickets) +
+      statBlockHTML('By Priority', null, priorityEntries, data.total_tickets) +
+      statBlockHTML('By Assigned Team', null, teamEntries, data.total_tickets);
   } catch (e) {
     summary.innerText = 'failed to load stats';
     console.error(e);

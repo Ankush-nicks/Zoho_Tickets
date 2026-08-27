@@ -152,9 +152,11 @@ def get_stats(date_from: str | None = None, date_to: str | None = None, user: st
     """
     Aggregated counts for the Stats tab: total tickets, by classification
     status, by app-predicted category/sub-category, by Zoho priority_level,
-    and by assigned_team (both from raw_payload) - for tickets created
-    within [date_from, date_to] (UTC calendar days, inclusive of both
-    ends), or all-time when either/both are omitted.
+    by assigned_team, and by Zoho's own ticket_status (all three from
+    raw_payload - ticket_status is whatever Zoho's workflow actually uses,
+    e.g. "Yet to Pick"/"Awaiting Instructor Response"/etc., not a fixed
+    list) - for tickets created within [date_from, date_to] (UTC calendar
+    days, inclusive of both ends), or all-time when either/both are omitted.
     """
     tickets = db.list_all_tickets()
     if date_from:
@@ -168,6 +170,7 @@ def get_stats(date_from: str | None = None, date_to: str | None = None, user: st
     by_category: dict[tuple[str, str], int] = {}
     by_priority: dict[str, int] = {}
     by_team: dict[str, int] = {}
+    by_zoho_status: dict[str, int] = {}
 
     for t in tickets:
         by_status[t["status"]] = by_status.get(t["status"], 0) + 1
@@ -183,12 +186,15 @@ def get_stats(date_from: str | None = None, date_to: str | None = None, user: st
         by_priority[priority] = by_priority.get(priority, 0) + 1
         team = str(raw.get("assigned_team") or "").strip() or "(not set)"
         by_team[team] = by_team.get(team, 0) + 1
+        zoho_status = str(raw.get("ticket_status") or "").strip() or "(not set)"
+        by_zoho_status[zoho_status] = by_zoho_status.get(zoho_status, 0) + 1
 
     return {
         "date_from": date_from,
         "date_to": date_to,
         "total_tickets": len(tickets),
         "by_status": by_status,
+        "by_zoho_status": dict(sorted(by_zoho_status.items(), key=lambda x: -x[1])),
         "by_category": [
             {"group": g, "subcategory": s, "count": c}
             for (g, s), c in sorted(by_category.items(), key=lambda x: -x[1])
