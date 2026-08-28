@@ -22,6 +22,11 @@ class CorrectionRequest(BaseModel):
 class TicketStateResponse(BaseModel):
     ticket_id: str
     status: str                     # awaiting_clarification | classified | needs_human_review | corrected
+    # Unix epoch seconds this ticket was created (backdated to the real Zoho
+    # "Added Time" for CSV-imported history) - the only reliable per-ticket
+    # timestamp, since raw_payload's own added_time is only ever present for
+    # CSV-imported tickets, not ones that arrived via the live webhook.
+    created_at: float
     category_id: str | None = None
     category_name: str | None = None
     category_group_id: str | None = None

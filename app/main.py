@@ -95,6 +95,13 @@ async def startup():
 def index(request: Request):
     if not request.session.get("user"):
         return RedirectResponse("/login")
+    return FileResponse(str(STATIC_DIR / "pulse.html"))
+
+
+@app.get("/tickets")
+def tickets_page(request: Request):
+    if not request.session.get("user"):
+        return RedirectResponse("/login")
     return FileResponse(str(STATIC_DIR / "index.html"))
 
 
@@ -342,6 +349,7 @@ def _to_state_response(ticket: dict) -> TicketStateResponse:
     return TicketStateResponse(
         ticket_id=ticket["id"],
         status=ticket["status"],
+        created_at=ticket["created_at"],
         category_id=ticket.get("category_id"),
         category_name=category_name,
         category_group_id=leaf["parent_id"] if leaf else None,
