@@ -196,6 +196,23 @@ def get_zoho_status(user: str = Depends(require_login)):
     }
 
 
+@app.get("/api/debug/db-info")
+def get_db_info(user: str = Depends(require_login)):
+    """
+    Non-secret diagnostic: whether this deployment picked up Firestore config
+    at all (vs. silently falling back to empty local SQLite), which database
+    ID it's using, and how many tickets it can actually see - to tell apart
+    "env vars didn't take effect" from "wrong database/project" from "date
+    filter hid real data" when the portal appears empty.
+    """
+    tickets = db.list_all_tickets()
+    return {
+        "use_firestore": db.USE_FIRESTORE,
+        "database_id": config.FIREBASE_DATABASE_ID if db.USE_FIRESTORE else None,
+        "ticket_count": len(tickets),
+    }
+
+
 @app.post("/api/webhooks/zoho/tickets")
 def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_secret)):
     """
