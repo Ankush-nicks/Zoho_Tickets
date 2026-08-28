@@ -95,13 +95,6 @@ async def startup():
 def index(request: Request):
     if not request.session.get("user"):
         return RedirectResponse("/login")
-    return FileResponse(str(STATIC_DIR / "pulse.html"))
-
-
-@app.get("/tickets")
-def tickets_page(request: Request):
-    if not request.session.get("user"):
-        return RedirectResponse("/login")
     return FileResponse(str(STATIC_DIR / "index.html"))
 
 

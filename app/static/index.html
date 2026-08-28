@@ -252,6 +252,162 @@
     border-color:var(--amber); background:#FCF3E7;
   }
   .pending-banner span{ font-size:13px; }
+
+  /* ---------- Pulse tab (scoped so its rules never leak to/from the rest of the app) ---------- */
+  #pulseView{
+    --p-surface-1: var(--panel);
+    --p-surface-2: var(--panel-2);
+    --p-surface-3: #EFE3D8;
+    --p-border: var(--border);
+    --p-border-strong: #D8CCC0;
+    --p-baseline: #D8CCC0;
+    --p-text-primary: var(--text);
+    --p-text-secondary: #6B5560;
+    --p-text-muted: var(--muted);
+    --p-accent: var(--accent);
+    --p-accent-soft: #F0DCE1;
+    --p-series-2: var(--coral);
+    --p-series-3: #1BAF7A;
+    --p-series-4: var(--amber);
+    --p-series-6: #4A8F3C;
+    --p-series-7: #6A4FA0;
+    --p-good: #1B8A3A;
+    --p-warning: #DB9A1F;
+    --p-serious: #D5764F;
+    --p-critical: #B0342E;
+    --p-critical-soft: #FBE4E1;
+    --p-warning-soft: #FBEFD8;
+    --p-good-soft: #E3F1E4;
+    --p-warning-text: #8A5C00;
+    max-width:1400px;
+  }
+  #pulseView .p-header{ display:flex; justify-content:space-between; align-items:flex-start; gap:24px; flex-wrap:wrap; margin-bottom:18px; }
+  #pulseView .p-eyebrow{ font-family:var(--mono); font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--p-accent); margin:0 0 6px; }
+  #pulseView h1{ font-size:24px; font-weight:700; letter-spacing:-.01em; margin:0; color:var(--p-text-primary); }
+  #pulseView .p-subtitle{ color:var(--p-text-secondary); font-size:13px; margin-top:6px; max-width:62ch; }
+  #pulseView .p-header-meta{ text-align:right; font-size:12px; color:var(--p-text-muted); font-variant-numeric:tabular-nums; }
+  #pulseView .p-header-meta strong{ color:var(--p-text-primary); font-weight:600; }
+
+  #pulseView .range-bar{
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    background:var(--p-surface-1); border:1px solid var(--p-border); border-radius:10px;
+    padding:10px 12px; margin-bottom:24px;
+  }
+  #pulseView .range-label{ font-family:var(--mono); font-size:10px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--p-text-muted); margin-right:2px; }
+  #pulseView .range-presets{ display:flex; gap:6px; flex-wrap:wrap; }
+  #pulseView .range-btn{
+    font-family:inherit; font-size:12.5px; font-weight:600; color:var(--p-text-secondary);
+    background:var(--p-surface-2); border:1px solid transparent; border-radius:7px;
+    padding:6px 11px; cursor:pointer; transition:background .12s, color .12s;
+  }
+  #pulseView .range-btn:hover{ background:var(--p-surface-3); }
+  #pulseView .range-btn.active{ background:var(--p-accent); color:#fff; }
+  #pulseView .range-divider{ width:1px; align-self:stretch; background:var(--p-border); margin:0 4px; }
+  #pulseView .range-custom{ display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--p-text-secondary); }
+  #pulseView .range-custom input[type="date"]{
+    font-family:inherit; font-size:12.5px; color:var(--p-text-primary); background:var(--p-surface-2);
+    border:1px solid var(--p-border); border-radius:6px; padding:5px 7px;
+  }
+  #pulseView .range-summary{ margin-left:auto; font-size:12.5px; color:var(--p-text-muted); font-variant-numeric:tabular-nums; }
+  #pulseView .range-summary strong{ color:var(--p-text-primary); }
+
+  #pulseView .action-section{ margin-bottom:30px; }
+  #pulseView .action-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:12px; }
+  #pulseView .action-card{ border-radius:12px; padding:15px 16px 16px; border:1px solid; display:flex; flex-direction:column; gap:8px; }
+  #pulseView .action-card.sev-critical{ background:var(--p-critical-soft); border-color:rgba(176,52,46,.35); }
+  #pulseView .action-card.sev-warning{ background:var(--p-warning-soft); border-color:rgba(219,154,31,.4); }
+  #pulseView .action-card.sev-info{ background:var(--p-surface-1); border-color:var(--p-border); }
+  #pulseView .action-tag{ display:inline-flex; align-self:flex-start; align-items:center; gap:5px; font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; padding:3px 8px; border-radius:100px; }
+  #pulseView .action-tag.sev-critical{ background:var(--p-critical); color:#fff; }
+  #pulseView .action-tag.sev-warning{ background:var(--p-warning); color:#241a00; }
+  #pulseView .action-tag.sev-info{ background:var(--p-accent-soft); color:var(--p-accent); }
+  #pulseView .action-title{ font-size:14px; font-weight:700; color:var(--p-text-primary); }
+  #pulseView .action-detail{ font-size:12.5px; color:var(--p-text-secondary); }
+  #pulseView .action-recommend{ font-size:12px; color:var(--p-text-primary); background:rgba(122,32,57,.06); border-radius:7px; padding:7px 9px; display:flex; gap:6px; }
+  #pulseView .action-recommend b{ font-weight:700; }
+
+  #pulseView .tiles{ display:grid; grid-template-columns:repeat(5, 1fr); gap:12px; margin-bottom:32px; }
+  #pulseView .tile{ background:var(--p-surface-1); border:1px solid var(--p-border); border-radius:10px; padding:16px 16px 14px; position:relative; }
+  #pulseView .tile.flag{ border-color:rgba(176,52,46,.35); }
+  #pulseView .tile-label{ font-family:var(--mono); font-size:10px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:var(--p-text-muted); margin:0 0 8px; }
+  #pulseView .tile-value{ font-size:27px; font-weight:700; letter-spacing:-.01em; font-variant-numeric:tabular-nums; line-height:1; color:var(--p-text-primary); }
+  #pulseView .tile-value.critical{ color:var(--p-critical); }
+  #pulseView .tile-sub{ font-size:12px; color:var(--p-text-secondary); margin-top:6px; }
+
+  #pulseView section{ margin-bottom:36px; }
+  #pulseView .section-head{ display:flex; justify-content:space-between; align-items:baseline; gap:16px; margin-bottom:4px; flex-wrap:wrap; }
+  #pulseView h2{ font-size:16px; font-weight:700; margin:0; color:var(--p-text-primary); }
+  #pulseView .section-note{ font-size:12px; color:var(--p-text-muted); }
+  #pulseView .section-desc{ font-size:13px; color:var(--p-text-secondary); margin:4px 0 16px; max-width:82ch; }
+  #pulseView .p-card{ background:var(--p-surface-1); border:1px solid var(--p-border); border-radius:12px; padding:20px; }
+  #pulseView .callout{ display:flex; gap:10px; align-items:flex-start; background:var(--p-warning-soft); border:1px solid rgba(219,154,31,.35); border-radius:10px; padding:12px 14px; font-size:13px; color:var(--p-text-primary); margin-bottom:16px; }
+  #pulseView .callout .dot{ width:7px; height:7px; border-radius:50%; background:var(--p-warning); margin-top:6px; flex-shrink:0; }
+  #pulseView .empty-state{ font-size:13px; color:var(--p-text-muted); padding:24px 0; text-align:center; }
+
+  #pulseView .trend-chart{ display:flex; align-items:flex-end; gap:14px; height:190px; padding:4px 4px 0; }
+  #pulseView .trend-col{ flex:1; display:flex; flex-direction:column; align-items:center; height:100%; max-width:90px; }
+  #pulseView .trend-bar-track{ flex:1; width:100%; max-width:46px; display:flex; flex-direction:column-reverse; justify-content:flex-start; border-bottom:1px solid var(--p-baseline); }
+  #pulseView .trend-seg{ width:100%; }
+  #pulseView .trend-seg.breached{ background:var(--p-critical); border-radius:3px 3px 0 0; }
+  #pulseView .trend-seg.within{ background:var(--p-good); }
+  #pulseView .trend-seg.within:first-child{ border-radius:3px 3px 0 0; }
+  #pulseView .trend-seg.pending{ background:var(--p-baseline); }
+  #pulseView .trend-seg.pending:first-child{ border-radius:3px 3px 0 0; }
+  #pulseView .trend-col-label{ font-size:11px; color:var(--p-text-muted); margin-top:8px; font-variant-numeric:tabular-nums; }
+  #pulseView .trend-col-total{ font-size:12px; font-weight:700; color:var(--p-text-primary); margin-top:1px; }
+  #pulseView .legend-row{ display:flex; gap:18px; margin-top:14px; padding-top:14px; border-top:1px solid var(--p-border); font-size:12px; color:var(--p-text-secondary); flex-wrap:wrap; }
+  #pulseView .legend-item{ display:flex; align-items:center; gap:6px; }
+  #pulseView .legend-swatch{ width:10px; height:10px; border-radius:3px; flex-shrink:0; }
+
+  #pulseView .uni-cards{ display:grid; grid-template-columns:repeat(5, 1fr); gap:12px; margin-bottom:18px; }
+  #pulseView .uni-card{ background:var(--p-surface-1); border:1px solid var(--p-border); border-radius:10px; padding:13px 14px; position:relative; overflow:hidden; }
+  #pulseView .uni-card::before{ content:""; position:absolute; left:0; top:0; bottom:0; width:3px; }
+  #pulseView .uni-card.r1::before{ background:var(--p-critical); }
+  #pulseView .uni-card.r2::before{ background:var(--p-serious); }
+  #pulseView .uni-card.r3::before, #pulseView .uni-card.r4::before, #pulseView .uni-card.r5::before{ background:var(--p-warning); }
+  #pulseView .uni-rank{ font-family:var(--mono); font-size:10px; font-weight:700; color:var(--p-text-muted); letter-spacing:.04em; }
+  #pulseView .uni-name{ font-size:12.5px; font-weight:600; color:var(--p-text-primary); margin:4px 0 8px; line-height:1.25; min-height:32px; }
+  #pulseView .uni-stats{ display:flex; justify-content:space-between; align-items:baseline; }
+  #pulseView .uni-open{ font-size:20px; font-weight:700; font-variant-numeric:tabular-nums; color:var(--p-text-primary); }
+  #pulseView .uni-open-label{ font-size:10px; color:var(--p-text-muted); }
+  #pulseView .uni-sub{ font-size:11px; color:var(--p-text-secondary); margin-top:6px; display:flex; justify-content:space-between; }
+
+  #pulseView .barlist{ display:flex; flex-direction:column; gap:10px; }
+  #pulseView .barlist-row{ display:grid; grid-template-columns:190px 1fr 40px 56px; align-items:center; gap:12px; }
+  #pulseView .barlist-name{ font-size:13px; color:var(--p-text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #pulseView .barlist-track{ position:relative; height:20px; background:var(--p-surface-2); border-radius:5px; overflow:hidden; }
+  #pulseView .barlist-fill{ position:absolute; left:0; top:0; bottom:0; border-radius:5px; transition:width .2s; }
+  #pulseView .barlist-count{ font-size:12.5px; font-weight:600; text-align:right; font-variant-numeric:tabular-nums; color:var(--p-text-primary); }
+  #pulseView .barlist-rate{ font-size:11.5px; text-align:right; font-variant-numeric:tabular-nums; }
+
+  #pulseView .p-select-row{ display:flex; align-items:center; gap:8px; }
+  #pulseView select{
+    font-family:inherit; font-size:12.5px; font-weight:600; color:var(--p-text-primary);
+    background:var(--p-surface-2); border:1px solid var(--p-border); border-radius:7px;
+    padding:6px 10px; cursor:pointer; max-width:260px;
+  }
+
+  #pulseView .table-scroll{ overflow-x:auto; }
+  #pulseView table{ border-collapse:collapse; width:100%; font-size:12.5px; }
+  #pulseView th{ text-align:left; font-family:var(--mono); font-size:10px; font-weight:600; letter-spacing:.03em; text-transform:uppercase; color:var(--p-text-muted); padding:0 12px 8px; border-bottom:1px solid var(--p-border); white-space:nowrap; }
+  #pulseView td{ padding:9px 12px; border-bottom:1px solid var(--p-border); white-space:nowrap; color:var(--p-text-primary); }
+  #pulseView tr:last-child td{ border-bottom:none; }
+  #pulseView td.num, #pulseView th.num{ text-align:right; font-variant-numeric:tabular-nums; }
+  #pulseView .rate-chip{ display:inline-block; padding:2px 7px; border-radius:5px; font-weight:600; font-size:11.5px; }
+  #pulseView .rate-chip.hi{ background:var(--p-critical-soft); color:var(--p-critical); }
+  #pulseView .rate-chip.mid{ background:var(--p-warning-soft); color:var(--p-warning-text); }
+  #pulseView .rate-chip.lo{ background:var(--p-good-soft); color:var(--p-good); }
+  #pulseView .p-subtext{ color:var(--p-text-muted); font-size:11.5px; }
+
+  #pulseView .grid-2{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+
+  @media (max-width: 1100px){
+    #pulseView .tiles{ grid-template-columns:repeat(2, 1fr); }
+    #pulseView .uni-cards{ grid-template-columns:repeat(2, 1fr); }
+    #pulseView .grid-2{ grid-template-columns:1fr; }
+    #pulseView .barlist-row{ grid-template-columns:120px 1fr 34px 46px; }
+    #pulseView .range-summary{ margin-left:0; width:100%; }
+  }
 </style>
 </head>
 <body>
@@ -271,12 +427,12 @@
     <nav class="sidebar-nav">
       <div class="nav-section">
         <div class="nav-section-title">Instructors Ticketing System</div>
-        <a class="nav-item" href="/">
+        <button class="nav-item" id="navBtn-pulse" onclick="switchTab('pulse')" type="button">
           <span class="nav-icon">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
           </span>
           Pulse
-        </a>
+        </button>
         <button class="nav-item active" id="navBtn-tickets" onclick="switchTab('tickets')" type="button">
           <span class="nav-icon">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v3a2 2 0 0 1 0 4v3a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3a2 2 0 0 1 0-4V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2Z"/><path d="M13 5v2M13 17v2M13 11v2"/></svg>
@@ -364,6 +520,130 @@
           <div class="section-title" style="margin:24px 0 12px;">Matching Tickets</div>
           <div id="statsTicketsList" class="log"></div>
         </div>
+      </div>
+
+      <div id="pulseView" style="display:none;">
+        <div class="p-header">
+          <div>
+            <p class="p-eyebrow">Instructors Ticketing System</p>
+            <h1>Ticket Pulse</h1>
+            <p class="p-subtitle">Where ticket volume is piling up, where SLAs are breaking, and what needs attention today &mdash; pick a window below to re-run every number on this page.</p>
+          </div>
+          <div class="p-header-meta">
+            <div>Data as of <strong id="pulseAsOfMeta">&ndash;</strong></div>
+            <div id="pulseUniCountMeta"></div>
+          </div>
+        </div>
+        <div class="empty-state" id="pulseLoadingState">Loading live ticket data&hellip;</div>
+
+        <div class="range-bar">
+          <span class="range-label">Window</span>
+          <div class="range-presets" id="pulseRangePresets"></div>
+          <div class="range-divider"></div>
+          <div class="range-custom">
+            from <input type="date" id="pulseRangeFrom"> to <input type="date" id="pulseRangeTo">
+          </div>
+          <div class="range-summary" id="pulseRangeSummary"></div>
+        </div>
+
+        <section class="action-section">
+          <div class="section-head">
+            <h2>What needs a decision today</h2>
+            <span class="section-note">auto-generated from the selected window</span>
+          </div>
+          <div class="action-grid" id="pulseActionGrid"></div>
+        </section>
+
+        <div class="tiles" id="pulseTiles"></div>
+
+        <section>
+          <div class="section-head">
+            <h2>Daily volume &amp; SLA outcome</h2>
+            <span class="section-note">by date raised, within selected window</span>
+          </div>
+          <div class="callout" id="pulseTrendCallout"><div class="dot"></div><div>Tickets raised in roughly the last day or two may show as "not yet due" rather than "on time" &mdash; they haven't crossed the SLA window yet.</div></div>
+          <div class="p-card">
+            <div class="trend-chart" id="pulseTrendChart"></div>
+            <div class="legend-row">
+              <div class="legend-item"><span class="legend-swatch" style="background:var(--p-critical)"></span>SLA breached</div>
+              <div class="legend-item"><span class="legend-swatch" style="background:var(--p-good)"></span>Within SLA</div>
+              <div class="legend-item"><span class="legend-swatch" style="background:var(--p-baseline)"></span>Not yet due / unknown</div>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <div class="section-head">
+            <h2>Universities to focus on first</h2>
+            <span class="section-note">ranked by open backlog</span>
+          </div>
+          <p class="section-desc">The five with the most unresolved tickets right now, for a quick read at the top of your day.</p>
+          <div class="uni-cards" id="pulseUniCards"></div>
+
+          <div class="section-head">
+            <h2 style="font-size:13px">All universities in this window</h2>
+          </div>
+          <div class="p-card table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th class="num">#</th>
+                  <th>University</th>
+                  <th class="num">Total</th>
+                  <th class="num">Open</th>
+                  <th class="num">Yet to pick</th>
+                  <th class="num">Unassigned</th>
+                  <th class="num">SLA breach rate</th>
+                </tr>
+              </thead>
+              <tbody id="pulseUniTable"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <div class="grid-2">
+          <section>
+            <div class="section-head"><h2>Issue category</h2></div>
+            <div class="p-select-row" style="margin-bottom:12px">
+              <select id="pulseCatUniSelect"></select>
+            </div>
+            <p class="section-desc" id="pulseCatDesc">Ticket count per category, with each category's SLA breach rate alongside.</p>
+            <div class="p-card">
+              <div class="barlist" id="pulseCatBars"></div>
+            </div>
+          </section>
+
+          <section>
+            <div class="section-head"><h2>Owning team</h2></div>
+            <p class="section-desc">How the same window splits across owning teams &mdash; an outsized "Unassigned" bar is a triage gap, not a workload one.</p>
+            <div class="p-card">
+              <div class="barlist" id="pulseTeamBars"></div>
+            </div>
+          </section>
+        </div>
+
+        <section>
+          <div class="section-head">
+            <h2>Oldest unresolved tickets</h2>
+            <span class="section-note">top 12 by age, within window</span>
+          </div>
+          <p class="section-desc">Still open, oldest first.</p>
+          <div class="p-card table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Ticket</th>
+                  <th>University</th>
+                  <th>Category</th>
+                  <th>Status</th>
+                  <th>Team</th>
+                  <th class="num">Age</th>
+                </tr>
+              </thead>
+              <tbody id="pulseOldestTable"></tbody>
+            </table>
+          </div>
+        </section>
       </div>
     </div>
   </main>
@@ -804,11 +1084,17 @@ let statsLoadedOnce = false;
 function switchTab(tab) {
   document.getElementById('ticketsView').style.display = tab === 'tickets' ? '' : 'none';
   document.getElementById('statsView').style.display = tab === 'stats' ? '' : 'none';
+  document.getElementById('pulseView').style.display = tab === 'pulse' ? '' : 'none';
   document.getElementById('navBtn-tickets').classList.toggle('active', tab === 'tickets');
   document.getElementById('navBtn-stats').classList.toggle('active', tab === 'stats');
+  document.getElementById('navBtn-pulse').classList.toggle('active', tab === 'pulse');
   if (tab === 'stats' && !statsLoadedOnce) {
     statsLoadedOnce = true;
     setStatsPreset('7d');
+  }
+  if (tab === 'pulse' && !pulseLoadedOnce) {
+    pulseLoadedOnce = true;
+    pulseBoot();
   }
 }
 
@@ -1048,6 +1334,450 @@ loadZohoStatus();
 loadPendingCount();
 document.getElementById('dateInput').value = currentDate;
 loadDailyTickets();
+
+// ============================================================
+// Pulse tab - analytics dashboard, loaded lazily on first visit.
+// Data comes from the same /api/tickets/range the Stats tab uses;
+// raw_payload field names (university_boa/assigned_team/sla_breach_
+// status/etc.) only exist for CSV-imported tickets today, since the
+// live Zoho webhook only forwards zoho_ticket_id/issue_in_detail/
+// category_of_the_issue/sub_category_of_the_issue (see
+// zoho-invoke-url-setup.md) - webhook-only tickets fall back to
+// Unknown/Unassigned here until that Deluge script forwards more.
+// ============================================================
+let pulseLoadedOnce = false;
+let pulseROWS = [];
+let pulseAS_OF = new Date();
+let pulseDATA_MIN = new Date();
+let pulseDATA_MAX = new Date();
+let pulseUNIVERSITIES = [];
+const PULSE_CLOSED_STATUSES = new Set(['Resolved By POC', 'Resolution Acknowledged', 'Closed']);
+
+function pulseFmtPct(n) { return Math.round(n) + '%'; }
+function pulseRateClass(r) { return r >= 65 ? 'hi' : r >= 35 ? 'mid' : 'lo'; }
+function pulseFmtDate(d) { return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }); }
+function pulseIsoDate(d) { return d.toISOString().slice(0,10); }
+
+const pulseState = { from: new Date(), to: new Date(), presetDays: 7, catUni: 'ALL' };
+
+function pulseInRange(row) {
+  const t = new Date(row.added);
+  return t >= pulseState.from && t <= pulseState.to;
+}
+function pulseFilteredRows() { return pulseROWS.filter(pulseInRange); }
+function pulseAgeHours(row) { return (pulseAS_OF - new Date(row.added)) / 3600000; }
+
+function pulseMapTicket(t) {
+  const rp = t.raw_payload || {};
+  const ticketStatus = rp.ticket_status || null;
+  return {
+    id: t.ticket_id,
+    uni: rp.university_boa || rp.university || 'Unknown',
+    cat: rp.category_of_the_issue || t.zoho_category || t.category_group_name || 'Uncategorized',
+    sub: rp.sub_category_of_the_issue || t.zoho_subcategory || t.category_name || 'Uncategorized',
+    status: ticketStatus || 'Unknown',
+    team: rp.assigned_team || 'Unassigned',
+    sla: rp.sla_breach_status || null,
+    recur: rp.is_it_a_recurring_issue || null,
+    dept: rp.department_name || 'Unknown',
+    added: new Date(t.created_at * 1000).toISOString(),
+    open: ticketStatus ? !PULSE_CLOSED_STATUSES.has(ticketStatus) : true,
+  };
+}
+
+// ---- Range control ----
+const PULSE_PRESETS = [
+  { label: '1D', days: 1 }, { label: '2D', days: 2 }, { label: '3D', days: 3 },
+  { label: '4D', days: 4 }, { label: '7D', days: 7 }, { label: '30D', days: 30 },
+];
+
+function pulseApplyPresetOnly(days) {
+  pulseState.to = pulseAS_OF;
+  const from = new Date(pulseAS_OF);
+  from.setDate(from.getDate() - days);
+  from.setHours(0,0,0,0);
+  pulseState.from = from < pulseDATA_MIN ? pulseDATA_MIN : from;
+}
+function pulseApplyPreset(days) {
+  pulseState.presetDays = days;
+  pulseApplyPresetOnly(days);
+  pulseSyncCustomInputs();
+  pulseRenderAll();
+}
+function pulseSyncCustomInputs() {
+  document.getElementById('pulseRangeFrom').value = pulseIsoDate(pulseState.from);
+  document.getElementById('pulseRangeTo').value = pulseIsoDate(pulseState.to);
+}
+function pulseHighlightActivePreset() {
+  document.querySelectorAll('#pulseRangePresets .range-btn').forEach(b => {
+    const d = b.dataset.days === 'all' ? 'all' : Number(b.dataset.days);
+    b.classList.toggle('active', d === pulseState.presetDays);
+  });
+}
+function pulseInitRangeBar() {
+  const presetsEl = document.getElementById('pulseRangePresets');
+  presetsEl.innerHTML = PULSE_PRESETS.map(p => `<button class="range-btn" data-days="${p.days}">${p.label}</button>`).join('')
+    + `<button class="range-btn" data-days="all">All</button>`;
+  presetsEl.querySelectorAll('.range-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const d = btn.dataset.days;
+      pulseState.presetDays = d === 'all' ? 'all' : Number(d);
+      if (d === 'all') { pulseState.from = pulseDATA_MIN; pulseState.to = pulseAS_OF; }
+      else pulseApplyPresetOnly(Number(d));
+      pulseSyncCustomInputs();
+      pulseHighlightActivePreset();
+      pulseRenderAll();
+    });
+  });
+
+  const fromEl = document.getElementById('pulseRangeFrom');
+  const toEl = document.getElementById('pulseRangeTo');
+  fromEl.min = pulseIsoDate(pulseDATA_MIN); fromEl.max = pulseIsoDate(pulseAS_OF);
+  toEl.min = pulseIsoDate(pulseDATA_MIN); toEl.max = pulseIsoDate(pulseAS_OF);
+  fromEl.addEventListener('change', () => {
+    pulseState.from = new Date(fromEl.value + 'T00:00:00');
+    pulseState.presetDays = 'custom';
+    pulseHighlightActivePreset();
+    pulseRenderAll();
+  });
+  toEl.addEventListener('change', () => {
+    pulseState.to = new Date(toEl.value + 'T23:59:59');
+    pulseState.presetDays = 'custom';
+    pulseHighlightActivePreset();
+    pulseRenderAll();
+  });
+
+  pulseApplyPreset(7);
+  pulseHighlightActivePreset();
+}
+
+// ---- Action items ----
+function pulseRenderActionItems(rows) {
+  const el = document.getElementById('pulseActionGrid');
+  if (rows.length === 0) {
+    el.innerHTML = '<div class="empty-state" style="grid-column:1/-1">No tickets raised in this window.</div>';
+    return;
+  }
+  const cards = [];
+  const total = rows.length;
+  const open = rows.filter(r => r.open);
+  const withSla = rows.filter(r => r.sla);
+  const breached = rows.filter(r => r.sla === 'Breached');
+  const breachRate = withSla.length ? breached.length / withSla.length * 100 : 0;
+  const unassigned = rows.filter(r => r.team === 'Unassigned');
+  const unassignedBreached = unassigned.filter(r => r.sla === 'Breached');
+  const unassignedWithSla = unassigned.filter(r => r.sla);
+  const stale = open.filter(r => pulseAgeHours(r) > 48);
+
+  const catMap = {};
+  rows.forEach(r => {
+    catMap[r.cat] = catMap[r.cat] || { total: 0, breached: 0, withSla: 0, subs: {} };
+    catMap[r.cat].total++;
+    if (r.sla) catMap[r.cat].withSla++;
+    if (r.sla === 'Breached') catMap[r.cat].breached++;
+    catMap[r.cat].subs[r.sub || 'Unspecified'] = (catMap[r.cat].subs[r.sub || 'Unspecified'] || 0) + 1;
+  });
+  const catList = Object.entries(catMap).map(([name, v]) => ({
+    name, ...v, breachRate: v.withSla ? v.breached / v.withSla * 100 : 0,
+  }));
+  const topBreachCat = [...catList].filter(c => c.breached > 0).sort((a,b) => b.breached - a.breached)[0];
+
+  if (topBreachCat) {
+    const topSub = Object.entries(topBreachCat.subs).sort((a,b) => b[1]-a[1])[0];
+    const shareOfAllBreaches = breached.length ? Math.round(topBreachCat.breached / breached.length * 100) : 0;
+    cards.push({
+      sev: topBreachCat.breachRate >= 65 ? 'critical' : 'warning',
+      tag: 'Root cause',
+      title: `${esc(topBreachCat.name)} is driving most SLA breaches`,
+      detail: `${topBreachCat.breached} of ${breached.length} breached tickets (${shareOfAllBreaches}%) sit in this category, breaching at ${pulseFmtPct(topBreachCat.breachRate)}. Leading sub-issue: "${esc(topSub[0])}" (${topSub[1]} tickets).`,
+      action: `Assign a dedicated owner to audit the ${esc(topBreachCat.name).toLowerCase()} pipeline this week — this single category is the biggest lever on the overall breach rate.`,
+    });
+  }
+
+  if (unassigned.length > 0) {
+    const uRate = unassignedWithSla.length ? unassignedBreached.length / unassignedWithSla.length * 100 : 0;
+    cards.push({
+      sev: uRate >= 60 || unassigned.length / total > 0.2 ? 'critical' : 'warning',
+      tag: 'Ownership gap',
+      title: `${unassigned.length} ticket${unassigned.length===1?'':'s'} with no owning team`,
+      detail: `That's ${pulseFmtPct(unassigned.length/total*100)} of tickets in this window, breaching SLA at ${pulseFmtPct(uRate)} — the highest rate of any group.`,
+      action: `Set a same-day auto-routing rule so tickets don't sit unassigned; review the queue at end of day.`,
+    });
+  }
+
+  const uniMap = {};
+  rows.forEach(r => {
+    uniMap[r.uni] = uniMap[r.uni] || { total: 0, open: 0, yetToPick: 0 };
+    uniMap[r.uni].total++;
+    if (r.open) uniMap[r.uni].open++;
+    if (r.status === 'Yet To Pick') uniMap[r.uni].yetToPick++;
+  });
+  const topUni = Object.entries(uniMap).map(([name,v]) => ({name, ...v})).sort((a,b) => b.open - a.open)[0];
+  if (topUni && topUni.open > 0) {
+    cards.push({
+      sev: topUni.open >= 10 ? 'critical' : 'warning',
+      tag: 'Top backlog',
+      title: `${esc(topUni.name)}`,
+      detail: `${topUni.open} tickets open right now, ${topUni.yetToPick} of them not even picked up yet.`,
+      action: `Escalate to the campus POC for a same-day sweep before it compounds further.`,
+    });
+  }
+
+  if (stale.length > 0) {
+    cards.push({
+      sev: stale.length / Math.max(open.length,1) > 0.5 ? 'critical' : 'warning',
+      tag: 'Aging',
+      title: `${stale.length} open ticket${stale.length===1?'':'s'} past 48 hours`,
+      detail: `${pulseFmtPct(stale.length / Math.max(open.length,1) * 100)} of everything still open has been sitting for more than two days.`,
+      action: `Add anything crossing 48h to the daily stand-up review — don't let it wait for the weekly cleanup.`,
+    });
+  }
+
+  el.innerHTML = cards.slice(0,4).map(c => `
+    <div class="action-card sev-${c.sev}">
+      <span class="action-tag sev-${c.sev}">${esc(c.tag)}</span>
+      <div class="action-title">${c.title}</div>
+      <div class="action-detail">${c.detail}</div>
+      <div class="action-recommend"><b>→</b><span>${c.action}</span></div>
+    </div>`).join('');
+}
+
+// ---- Stat tiles ----
+function pulseRenderTiles(rows) {
+  const el = document.getElementById('pulseTiles');
+  if (rows.length === 0) { el.innerHTML = ''; return; }
+  const total = rows.length;
+  const open = rows.filter(r => r.open).length;
+  const withSla = rows.filter(r => r.sla).length;
+  const breached = rows.filter(r => r.sla === 'Breached').length;
+  const unassigned = rows.filter(r => r.team === 'Unassigned').length;
+  const stale = rows.filter(r => r.open && pulseAgeHours(r) > 48).length;
+  const openPct = Math.round(open/total*100);
+  const breachPct = withSla ? Math.round(breached/withSla*100) : 0;
+  const unassignedPct = Math.round(unassigned/total*100);
+
+  const tiles = [
+    { label: 'Tickets in window', value: total, sub: `${new Set(rows.map(r=>r.uni)).size} universities`, critical: false },
+    { label: 'Still open', value: open, sub: `${openPct}% unresolved`, critical: openPct > 70 },
+    { label: 'SLA breached', value: pulseFmtPct(breachPct), sub: `${breached} of ${withSla} with known outcome`, critical: breachPct > 50 },
+    { label: 'Unassigned', value: unassigned, sub: `${unassignedPct}% with no owning team`, critical: unassignedPct > 20 },
+    { label: 'Open > 48 hours', value: stale, sub: open ? `${Math.round(stale/open*100)}% of open tickets` : '—', critical: stale > 0 },
+  ];
+  el.innerHTML = tiles.map(x => `
+    <div class="tile ${x.critical ? 'flag' : ''}">
+      <p class="tile-label">${x.label}</p>
+      <div class="tile-value ${x.critical ? 'critical' : ''}">${x.value}</div>
+      <div class="tile-sub">${x.sub}</div>
+    </div>`).join('');
+}
+
+// ---- Daily trend ----
+function pulseRenderTrend(rows) {
+  const el = document.getElementById('pulseTrendChart');
+  const callout = document.getElementById('pulseTrendCallout');
+  if (rows.length === 0) { el.innerHTML = '<div class="empty-state">No tickets raised in this window.</div>'; callout.style.display='none'; return; }
+  callout.style.display = 'flex';
+  const byDay = {};
+  rows.forEach(r => {
+    const day = r.added.slice(0,10);
+    byDay[day] = byDay[day] || { total: 0, breached: 0, within: 0, pending: 0 };
+    byDay[day].total++;
+    if (r.sla === 'Breached') byDay[day].breached++;
+    else if (r.sla === 'Within SLA') byDay[day].within++;
+    else byDay[day].pending++;
+  });
+  const days = Object.keys(byDay).sort();
+  const maxTotal = Math.max(...days.map(d => byDay[d].total));
+  const h = 150;
+  el.innerHTML = days.map(d => {
+    const v = byDay[d];
+    const bH = Math.round(v.breached / maxTotal * h);
+    const wH = Math.round(v.within / maxTotal * h);
+    const pH = Math.round(v.pending / maxTotal * h);
+    const label = pulseFmtDate(new Date(d + 'T00:00:00'));
+    return `
+      <div class="trend-col">
+        <div class="trend-col-total">${v.total}</div>
+        <div class="trend-bar-track" style="height:${h}px">
+          <div class="trend-seg pending" style="height:${pH}px"></div>
+          <div class="trend-seg within" style="height:${wH}px"></div>
+          <div class="trend-seg breached" style="height:${bH}px"></div>
+        </div>
+        <div class="trend-col-label">${label}</div>
+      </div>`;
+  }).join('');
+}
+
+// ---- Universities: top-5 focus cards + full table ----
+function pulseRenderUniversities(rows) {
+  const cardsEl = document.getElementById('pulseUniCards');
+  const tableEl = document.getElementById('pulseUniTable');
+  if (rows.length === 0) { cardsEl.innerHTML = ''; tableEl.innerHTML = '<tr><td colspan="7" class="empty-state">No tickets in this window.</td></tr>'; return; }
+
+  const map = {};
+  rows.forEach(r => {
+    map[r.uni] = map[r.uni] || { total: 0, open: 0, yetToPick: 0, breached: 0, withSla: 0, unassigned: 0 };
+    const m = map[r.uni];
+    m.total++;
+    if (r.open) m.open++;
+    if (r.status === 'Yet To Pick') m.yetToPick++;
+    if (r.sla) m.withSla++;
+    if (r.sla === 'Breached') m.breached++;
+    if (r.team === 'Unassigned') m.unassigned++;
+  });
+  const list = Object.entries(map).map(([name, v]) => ({
+    name, ...v, breachRate: v.withSla ? v.breached/v.withSla*100 : 0,
+  })).sort((a,b) => b.open - a.open);
+
+  const top5 = list.slice(0,5);
+  cardsEl.innerHTML = top5.map((u,i) => `
+    <div class="uni-card r${i+1}">
+      <div class="uni-rank">#${i+1}</div>
+      <div class="uni-name">${esc(u.name)}</div>
+      <div class="uni-stats">
+        <div><div class="uni-open">${u.open}</div><div class="uni-open-label">open</div></div>
+        <span class="rate-chip ${pulseRateClass(u.breachRate)}">${pulseFmtPct(u.breachRate)}</span>
+      </div>
+      <div class="uni-sub"><span>${u.yetToPick} not picked up</span><span>${u.unassigned || 0} unassigned</span></div>
+    </div>`).join('');
+
+  tableEl.innerHTML = list.map((u,i) => `
+    <tr>
+      <td class="rank">${i+1}</td>
+      <td>${esc(u.name)}</td>
+      <td class="num">${u.total}</td>
+      <td class="num">${u.open}</td>
+      <td class="num">${u.yetToPick}</td>
+      <td class="num">${u.unassigned || '—'}</td>
+      <td class="num"><span class="rate-chip ${pulseRateClass(u.breachRate)}">${pulseFmtPct(u.breachRate)}</span></td>
+    </tr>`).join('');
+}
+
+// ---- Category breakdown, filterable by university ----
+function pulseInitCatSelect() {
+  const sel = document.getElementById('pulseCatUniSelect');
+  sel.innerHTML = `<option value="ALL">All universities</option>` +
+    pulseUNIVERSITIES.map(u => `<option value="${esc(u)}">${esc(u)}</option>`).join('');
+  sel.addEventListener('change', () => { pulseState.catUni = sel.value; pulseRenderCategory(pulseFilteredRows()); });
+}
+
+function pulseRenderCategory(rows) {
+  const scoped = pulseState.catUni === 'ALL' ? rows : rows.filter(r => r.uni === pulseState.catUni);
+  const descEl = document.getElementById('pulseCatDesc');
+  descEl.textContent = pulseState.catUni === 'ALL'
+    ? 'Ticket count per category across all universities in this window, with each category\'s SLA breach rate alongside.'
+    : `Ticket count per category for ${pulseState.catUni}, with each category's SLA breach rate alongside.`;
+
+  const el = document.getElementById('pulseCatBars');
+  if (scoped.length === 0) { el.innerHTML = '<div class="empty-state">No tickets for this selection.</div>'; return; }
+
+  const map = {};
+  scoped.forEach(r => {
+    map[r.cat] = map[r.cat] || { total: 0, breached: 0, withSla: 0 };
+    map[r.cat].total++;
+    if (r.sla) map[r.cat].withSla++;
+    if (r.sla === 'Breached') map[r.cat].breached++;
+  });
+  const rows2 = Object.entries(map).map(([name, v]) => ({
+    name, ...v, breachRate: v.withSla ? v.breached/v.withSla*100 : 0,
+  })).sort((a,b) => b.total - a.total);
+
+  const max = Math.max(...rows2.map(r => r.total));
+  const colors = ['var(--p-accent)','var(--p-series-2)','var(--p-series-3)','var(--p-series-4)','var(--p-series-6)','var(--p-series-7)'];
+  el.innerHTML = rows2.map((r,i) => `
+    <div class="barlist-row">
+      <div class="barlist-name" title="${esc(r.name)}">${esc(r.name)}</div>
+      <div class="barlist-track"><div class="barlist-fill" style="width:${(r.total/max*100).toFixed(0)}%; background:${colors[i % colors.length]}"></div></div>
+      <div class="barlist-count">${r.total}</div>
+      <div class="barlist-rate"><span class="rate-chip ${pulseRateClass(r.breachRate)}" style="font-size:10.5px;padding:1px 5px">${pulseFmtPct(r.breachRate)}</span></div>
+    </div>`).join('');
+}
+
+// ---- Team breakdown ----
+function pulseRenderTeam(rows) {
+  const el = document.getElementById('pulseTeamBars');
+  if (rows.length === 0) { el.innerHTML = '<div class="empty-state">No tickets in this window.</div>'; return; }
+  const map = {};
+  rows.forEach(r => {
+    map[r.team] = map[r.team] || { total: 0, breached: 0, withSla: 0 };
+    map[r.team].total++;
+    if (r.sla) map[r.team].withSla++;
+    if (r.sla === 'Breached') map[r.team].breached++;
+  });
+  const list = Object.entries(map).map(([name, v]) => ({
+    name, ...v, breachRate: v.withSla ? v.breached/v.withSla*100 : 0,
+  })).sort((a,b) => b.total - a.total);
+  const max = Math.max(...list.map(r => r.total));
+  el.innerHTML = list.map(r => {
+    const isUnassigned = r.name === 'Unassigned';
+    return `
+    <div class="barlist-row">
+      <div class="barlist-name" style="${isUnassigned ? 'color:var(--p-critical);font-weight:600' : ''}" title="${esc(r.name)}">${esc(r.name)}</div>
+      <div class="barlist-track"><div class="barlist-fill" style="width:${(r.total/max*100).toFixed(0)}%; background:${isUnassigned ? 'var(--p-critical)' : 'var(--p-accent)'}"></div></div>
+      <div class="barlist-count">${r.total}</div>
+      <div class="barlist-rate"><span class="rate-chip ${pulseRateClass(r.breachRate)}" style="font-size:10.5px;padding:1px 5px">${pulseFmtPct(r.breachRate)}</span></div>
+    </div>`;
+  }).join('');
+}
+
+// ---- Oldest open tickets ----
+function pulseRenderOldest(rows) {
+  const el = document.getElementById('pulseOldestTable');
+  const open = rows.filter(r => r.open).sort((a,b) => pulseAgeHours(b) - pulseAgeHours(a)).slice(0,12);
+  if (open.length === 0) { el.innerHTML = '<tr><td colspan="6" class="empty-state">Nothing open in this window.</td></tr>'; return; }
+  el.innerHTML = open.map(r => {
+    const days = (pulseAgeHours(r)/24).toFixed(1);
+    return `
+    <tr>
+      <td>#${esc(r.id)}</td>
+      <td>${esc(r.uni)}</td>
+      <td>${esc(r.cat)}<div class="p-subtext">${esc(r.sub)}</div></td>
+      <td>${esc(r.status)}</td>
+      <td>${esc(r.team)}</td>
+      <td class="num">${days}d</td>
+    </tr>`;
+  }).join('');
+}
+
+// ---- Orchestration ----
+function pulseRenderAll() {
+  const rows = pulseFilteredRows();
+  document.getElementById('pulseRangeSummary').innerHTML = `<strong>${rows.length}</strong> tickets · ${pulseFmtDate(pulseState.from)} – ${pulseFmtDate(pulseState.to)}`;
+  document.getElementById('pulseUniCountMeta').textContent = `${pulseUNIVERSITIES.length} universities tracked`;
+  pulseRenderActionItems(rows);
+  pulseRenderTiles(rows);
+  pulseRenderTrend(rows);
+  pulseRenderUniversities(rows);
+  pulseRenderCategory(rows);
+  pulseRenderTeam(rows);
+  pulseRenderOldest(rows);
+}
+
+async function pulseBoot() {
+  const loadingEl = document.getElementById('pulseLoadingState');
+  try {
+    const res = await fetch('/api/tickets/range');
+    if (res.status === 401) { window.location = '/login'; return; }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const tickets = await res.json();
+
+    pulseROWS = tickets.map(pulseMapTicket);
+    const now = new Date();
+    pulseAS_OF = now;
+    pulseDATA_MIN = pulseROWS.length ? new Date(Math.min(...pulseROWS.map(r => new Date(r.added)))) : now;
+    pulseDATA_MAX = pulseROWS.length ? new Date(Math.max(...pulseROWS.map(r => new Date(r.added)))) : now;
+    pulseUNIVERSITIES = [...new Set(pulseROWS.map(r => r.uni))].sort();
+
+    document.getElementById('pulseAsOfMeta').textContent = now.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    loadingEl.style.display = 'none';
+
+    pulseInitRangeBar();
+    pulseInitCatSelect();
+    pulseRenderAll();
+  } catch (err) {
+    loadingEl.textContent = `Couldn't load live ticket data: ${err.message}`;
+  }
+}
 </script>
 </body>
 </html>

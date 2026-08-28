@@ -37,7 +37,7 @@ IST = timezone(timedelta(hours=5, minutes=30))
 # own field naming where an equivalent already exists).
 FIELD_MAP = {
     "zoho_id": "record_id",
-    "University": "university_boa",
+    "University": "university_boa",  # despite the key name, this is Zoho's "University" column - Zoho also has a separate, usually-empty "University BOA" field that this does NOT read from
     "Ticket ID": "zoho_ticket_id",
     "Ticket Status": "ticket_status",
     "Subject Name": "subject_name",
@@ -74,6 +74,8 @@ FIELD_MAP = {
     "Modified Time": "modified_time",
     "Department Name": "department_name",
     "Instructor ID": "instructor_id",
+    "Priority Level": "priority_level",
+    "Campus City": "campus_city",
 }
 
 

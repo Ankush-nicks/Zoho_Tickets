@@ -156,13 +156,16 @@ Response: {"ok": true}   (200) — classification runs server-side; the result
                             500 server misconfigured).
 ```
 
-The real "On Add" workflow sends many more fields than this (priority,
-assigned team, POC history, etc.) - only the four above are read, everything
-else is silently ignored. `category_of_the_issue` / `sub_category_of_the_issue`
-are optional: when present, they're kept alongside the ticket purely so the
-portal can show whether our model's prediction agrees with whatever category
-the ticket already carried on the Zoho side - a rough, automatic accuracy
-signal from real traffic, not something used in classification itself.
+The endpoint stores whatever the Deluge script above actually sends in
+`tickets.raw_payload`, so a field only shows up in the portal (Ticket
+Details, the Pulse dashboard) if it's in `paramMap` here - only
+`zoho_ticket_id`/`issue_in_detail` are required; everything else
+(`category_of_the_issue`/`sub_category_of_the_issue` and the analytics
+fields below them) is optional and just rides along unused by
+classification itself. `category_of_the_issue`/`sub_category_of_the_issue`
+specifically feed the portal's Zoho-agreement comparison (does our model's
+prediction match whatever category the ticket already carried in Zoho) -
+a rough, automatic accuracy signal from real traffic.
 
 It's authenticated by a shared secret instead of a session, and classifies
 using the server's own `OPENAI_API_KEY` (no UI operator involved). Changed/added:
@@ -204,6 +207,23 @@ paramMap.put("zoho_ticket_id", input.Ticket_ID);
 paramMap.put("issue_in_detail", input.Issue_in_Detail);
 paramMap.put("category_of_the_issue", input.Category_Of_The_Issue);       // optional - for the portal's Zoho-agreement comparison only
 paramMap.put("sub_category_of_the_issue", input.Sub_Category_Of_The_Issue); // optional - adjust link names if yours differ
+// Everything below is optional too - only used by the portal's "Pulse"
+// analytics dashboard (university/team/SLA/backlog breakdowns), never for
+// classification itself. Without these, tickets that arrive via this
+// webhook still get classified fine, but show as "Unknown"/"Unassigned"
+// on that dashboard until a field is filled in here. Link names below
+// follow Zoho's default space-to-underscore convention (matching
+// Category_Of_The_Issue/Sub_Category_Of_The_Issue above) - open this
+// form in Zoho Creator's builder and check each field's "Link Name" in
+// its properties panel if any of these don't resolve.
+paramMap.put("university_boa", input.University);        // the campus/university name - despite the key name, this reads Zoho's "University" field, not the separate (usually empty) "University BOA" field
+paramMap.put("ticket_status", input.Ticket_Status);
+paramMap.put("assigned_team", input.Assigned_Team);
+paramMap.put("sla_breach_status", input.SLA_Breach_Status);
+paramMap.put("is_it_a_recurring_issue", input.Is_it_a_recurring_issue);
+paramMap.put("department_name", input.Department_Name);
+paramMap.put("priority_level", input.Priority_Level);
+paramMap.put("campus_city", input.Campus_City);
 
 response = invokeurl
 [
@@ -218,8 +238,12 @@ info response;   // shows up in Zoho's Deluge execution log for this workflow ru
 
 Notes:
 
-- `input.Ticket_ID` / `input.Issue_in_Detail` refer to the field link names
-  on the form the workflow is attached to — adjust if yours differ.
+- `input.Ticket_ID` / `input.Issue_in_Detail` (and every other `input.*`
+  reference above) refer to the field link names on the form the workflow
+  is attached to — adjust any that don't match yours. A quick way to check:
+  add `info input;` right before the `invokeurl` block and look at the
+  Deluge execution log after a test record — it dumps every field's actual
+  link name and current value.
 - Never hardcode `secretKey` in a script you'll share or that other Zoho
   users can view — better practice once you're comfortable with Zoho is to
   store it in Creator's built-in **Secure Preference** store and read it
