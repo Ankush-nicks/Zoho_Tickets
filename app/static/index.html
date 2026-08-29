@@ -1390,7 +1390,24 @@ function pulseMapTicket(t) {
     dept: rp.department_name || 'Unknown',
     added: new Date(t.created_at * 1000).toISOString(),
     open: ticketStatus ? !PULSE_CLOSED_STATUSES.has(ticketStatus) : true,
+    issue: t.issue_in_detail || '',
+    priority: rp.priority_level || null,
   };
+}
+
+// Keyword flag on the free-text issue description - NOT a confirmed severity
+// call (no NLP/LLM involved, just a quick heuristic scan), so the card this
+// feeds always says so. A P1 priority tag from Zoho counts too, when present.
+const PULSE_URGENT_KEYWORDS = [
+  'urgent', 'immediately', 'immediate attention', 'asap', 'critical', 'emergency',
+  'not working', 'unable to', 'blocked', 'failed', 'escalate', 'high priority',
+  'severe', 'harassment', 'safety issue', 'security issue', 'data loss', 'unacceptable',
+];
+function pulseLooksUrgent(row) {
+  const text = (row.issue || '').toLowerCase();
+  const keywordHit = PULSE_URGENT_KEYWORDS.some(k => text.includes(k));
+  const isP1 = (row.priority || '').toUpperCase() === 'P1';
+  return keywordHit || isP1;
 }
 
 // ---- Range control ----
@@ -1545,7 +1562,20 @@ function pulseRenderActionItems(rows) {
     });
   }
 
-  el.innerHTML = cards.slice(0,4).map(c => `
+  const urgent = open.filter(pulseLooksUrgent);
+  if (urgent.length > 0) {
+    const p1Count = urgent.filter(r => (r.priority || '').toUpperCase() === 'P1').length;
+    cards.push({
+      sev: (urgent.length / Math.max(open.length,1) > 0.15 || p1Count > 0) ? 'critical' : 'warning',
+      tag: 'Needs immediate attention',
+      title: `${urgent.length} open ticket${urgent.length===1?'':'s'} read as urgent`,
+      detail: `Based on the issue description (words like "urgent", "not working", "escalate"${p1Count ? `, or a P1 priority tag (${p1Count})` : ''}), these look like same-day-response tickets — this is a keyword flag on the text, not a confirmed severity call.`,
+      action: `Read the actual issue text before assigning; verify it's really urgent and route accordingly.`,
+      ids: urgent.map(r => r.id),
+    });
+  }
+
+  el.innerHTML = cards.slice(0,5).map(c => `
     <div class="action-card sev-${c.sev}" onclick="pulseToggleFlipCard(this)">
       <div class="flip-face flip-face-front">
         <span class="action-tag sev-${c.sev}">${esc(c.tag)}</span>
