@@ -1379,7 +1379,7 @@ function pulseMapTicket(t) {
   const rp = t.raw_payload || {};
   const ticketStatus = rp.ticket_status || null;
   return {
-    id: t.ticket_id,
+    id: t.zoho_ticket_id || t.ticket_id,
     uni: rp.university_boa || rp.university || 'Unknown',
     cat: rp.category_of_the_issue || t.zoho_category || t.category_group_name || 'Uncategorized',
     sub: rp.sub_category_of_the_issue || t.zoho_subcategory || t.category_name || 'Uncategorized',
