@@ -325,6 +325,13 @@
   #pulseView .action-detail{ font-size:12.5px; color:var(--p-text-secondary); }
   #pulseView .action-recommend{ font-size:12px; color:var(--p-text-primary); background:rgba(122,32,57,.06); border-radius:7px; padding:7px 9px; display:flex; gap:6px; }
   #pulseView .action-recommend b{ font-weight:700; }
+  #pulseView .action-card{ cursor:pointer; }
+  #pulseView .action-card:hover{ border-color:var(--p-accent); }
+  #pulseView .flip-face{ display:flex; flex-direction:column; gap:8px; opacity:1; transition:opacity .18s ease; }
+  #pulseView .flip-face-back{ display:none; }
+  #pulseView .flip-hint{ font-size:11px; color:var(--p-text-muted); margin-top:2px; }
+  #pulseView .flip-ids-list{ display:flex; flex-wrap:wrap; gap:5px; }
+  #pulseView .flip-id-chip{ font-family:var(--mono); font-size:11px; color:var(--p-text-primary); background:var(--p-surface-2); border:1px solid var(--p-border); border-radius:5px; padding:2px 7px; }
 
   #pulseView .tiles{ display:grid; grid-template-columns:repeat(5, 1fr); gap:12px; margin-bottom:32px; }
   #pulseView .tile{ background:var(--p-surface-1); border:1px solid var(--p-border); border-radius:10px; padding:16px 16px 14px; position:relative; }
@@ -360,7 +367,8 @@
   #pulseView .legend-swatch{ width:10px; height:10px; border-radius:3px; flex-shrink:0; }
 
   #pulseView .uni-cards{ display:grid; grid-template-columns:repeat(5, 1fr); gap:12px; margin-bottom:18px; }
-  #pulseView .uni-card{ background:var(--p-surface-1); border:1px solid var(--p-border); border-radius:10px; padding:13px 14px; position:relative; overflow:hidden; }
+  #pulseView .uni-card{ background:var(--p-surface-1); border:1px solid var(--p-border); border-radius:10px; padding:13px 14px; position:relative; overflow:hidden; cursor:pointer; transition:border-color .12s; }
+  #pulseView .uni-card:hover{ border-color:var(--p-accent); }
   #pulseView .uni-card::before{ content:""; position:absolute; left:0; top:0; bottom:0; width:3px; }
   #pulseView .uni-card.r1::before{ background:var(--p-critical); }
   #pulseView .uni-card.r2::before{ background:var(--p-serious); }
@@ -1491,6 +1499,7 @@ function pulseRenderActionItems(rows) {
       title: `${esc(topBreachCat.name)} is driving most SLA breaches`,
       detail: `${topBreachCat.breached} of ${breached.length} breached tickets (${shareOfAllBreaches}%) sit in this category, breaching at ${pulseFmtPct(topBreachCat.breachRate)}. Leading sub-issue: "${esc(topSub[0])}" (${topSub[1]} tickets).`,
       action: `Assign a dedicated owner to audit the ${esc(topBreachCat.name).toLowerCase()} pipeline this week — this single category is the biggest lever on the overall breach rate.`,
+      ids: rows.filter(r => r.cat === topBreachCat.name && r.sla === 'Breached').map(r => r.id),
     });
   }
 
@@ -1502,6 +1511,7 @@ function pulseRenderActionItems(rows) {
       title: `${unassigned.length} ticket${unassigned.length===1?'':'s'} with no owning team`,
       detail: `That's ${pulseFmtPct(unassigned.length/total*100)} of tickets in this window, breaching SLA at ${pulseFmtPct(uRate)} — the highest rate of any group.`,
       action: `Set a same-day auto-routing rule so tickets don't sit unassigned; review the queue at end of day.`,
+      ids: unassigned.map(r => r.id),
     });
   }
 
@@ -1520,6 +1530,7 @@ function pulseRenderActionItems(rows) {
       title: `${esc(topUni.name)}`,
       detail: `${topUni.open} tickets open right now, ${topUni.yetToPick} of them not even picked up yet.`,
       action: `Escalate to the campus POC for a same-day sweep before it compounds further.`,
+      ids: rows.filter(r => r.uni === topUni.name && r.open).map(r => r.id),
     });
   }
 
@@ -1530,16 +1541,41 @@ function pulseRenderActionItems(rows) {
       title: `${stale.length} open ticket${stale.length===1?'':'s'} past 48 hours`,
       detail: `${pulseFmtPct(stale.length / Math.max(open.length,1) * 100)} of everything still open has been sitting for more than two days.`,
       action: `Add anything crossing 48h to the daily stand-up review — don't let it wait for the weekly cleanup.`,
+      ids: stale.map(r => r.id),
     });
   }
 
   el.innerHTML = cards.slice(0,4).map(c => `
-    <div class="action-card sev-${c.sev}">
-      <span class="action-tag sev-${c.sev}">${esc(c.tag)}</span>
-      <div class="action-title">${c.title}</div>
-      <div class="action-detail">${c.detail}</div>
-      <div class="action-recommend"><b>→</b><span>${c.action}</span></div>
+    <div class="action-card sev-${c.sev}" onclick="pulseToggleFlipCard(this)">
+      <div class="flip-face flip-face-front">
+        <span class="action-tag sev-${c.sev}">${esc(c.tag)}</span>
+        <div class="action-title">${c.title}</div>
+        <div class="action-detail">${c.detail}</div>
+        <div class="action-recommend"><b>→</b><span>${c.action}</span></div>
+        <div class="flip-hint">Click to see the ${c.ids.length} ticket ID${c.ids.length===1?'':'s'} behind this &#8594;</div>
+      </div>
+      <div class="flip-face flip-face-back">
+        <span class="action-tag sev-${c.sev}">${esc(c.tag)}</span>
+        <div class="action-title">${c.ids.length} ticket${c.ids.length===1?'':'s'}</div>
+        <div class="flip-ids-list">${c.ids.map(id => `<span class="flip-id-chip">#${esc(id)}</span>`).join('')}</div>
+        <div class="flip-hint">&#8592; Click to go back</div>
+      </div>
     </div>`).join('');
+}
+
+function pulseToggleFlipCard(card) {
+  const front = card.querySelector('.flip-face-front');
+  const back = card.querySelector('.flip-face-back');
+  const showingBack = back.style.display === 'flex';
+  const toHide = showingBack ? back : front;
+  const toShow = showingBack ? front : back;
+  toHide.style.opacity = '0';
+  setTimeout(() => {
+    toHide.style.display = 'none';
+    toShow.style.display = 'flex';
+    toShow.style.opacity = '0';
+    requestAnimationFrame(() => { toShow.style.opacity = '1'; });
+  }, 180);
 }
 
 // ---- Stat tiles ----
@@ -1630,16 +1666,28 @@ function pulseRenderUniversities(rows) {
   })).sort((a,b) => b.open - a.open);
 
   const top5 = list.slice(0,5);
-  cardsEl.innerHTML = top5.map((u,i) => `
-    <div class="uni-card r${i+1}">
-      <div class="uni-rank">#${i+1}</div>
-      <div class="uni-name">${esc(u.name)}</div>
-      <div class="uni-stats">
-        <div><div class="uni-open">${u.open}</div><div class="uni-open-label">open</div></div>
-        <span class="rate-chip ${pulseRateClass(u.breachRate)}">${pulseFmtPct(u.breachRate)}</span>
+  cardsEl.innerHTML = top5.map((u,i) => {
+    const ids = rows.filter(r => r.uni === u.name && r.open).map(r => r.id);
+    return `
+    <div class="uni-card r${i+1}" onclick="pulseToggleFlipCard(this)">
+      <div class="flip-face flip-face-front">
+        <div class="uni-rank">#${i+1}</div>
+        <div class="uni-name">${esc(u.name)}</div>
+        <div class="uni-stats">
+          <div><div class="uni-open">${u.open}</div><div class="uni-open-label">open</div></div>
+          <span class="rate-chip ${pulseRateClass(u.breachRate)}">${pulseFmtPct(u.breachRate)}</span>
+        </div>
+        <div class="uni-sub"><span>${u.yetToPick} not picked up</span><span>${u.unassigned || 0} unassigned</span></div>
+        <div class="flip-hint">${ids.length} open ticket ID${ids.length===1?'':'s'} &#8594;</div>
       </div>
-      <div class="uni-sub"><span>${u.yetToPick} not picked up</span><span>${u.unassigned || 0} unassigned</span></div>
-    </div>`).join('');
+      <div class="flip-face flip-face-back">
+        <div class="uni-rank">#${i+1}</div>
+        <div class="uni-name">${esc(u.name)}</div>
+        <div class="flip-ids-list">${ids.length ? ids.map(id => `<span class="flip-id-chip">#${esc(id)}</span>`).join('') : '<span class="flip-hint">No open tickets</span>'}</div>
+        <div class="flip-hint">&#8592; back</div>
+      </div>
+    </div>`;
+  }).join('');
 
   tableEl.innerHTML = list.map((u,i) => `
     <tr>
