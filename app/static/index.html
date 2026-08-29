@@ -381,7 +381,7 @@
   #pulseView .uni-sub{ font-size:11px; color:var(--p-text-secondary); margin-top:6px; display:flex; justify-content:space-between; }
 
   #pulseView .barlist{ display:flex; flex-direction:column; gap:10px; }
-  #pulseView .barlist-row{ display:grid; grid-template-columns:190px 1fr 40px 56px; align-items:center; gap:12px; }
+  #pulseView .barlist-row{ display:grid; grid-template-columns:190px 1fr 40px 130px; align-items:center; gap:12px; }
   #pulseView .barlist-name{ font-size:13px; color:var(--p-text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   #pulseView .barlist-track{ position:relative; height:20px; background:var(--p-surface-2); border-radius:5px; overflow:hidden; }
   #pulseView .barlist-fill{ position:absolute; left:0; top:0; bottom:0; border-radius:5px; transition:width .2s; }
@@ -401,11 +401,9 @@
   #pulseView td{ padding:9px 12px; border-bottom:1px solid var(--p-border); white-space:nowrap; color:var(--p-text-primary); }
   #pulseView tr:last-child td{ border-bottom:none; }
   #pulseView td.num, #pulseView th.num{ text-align:right; font-variant-numeric:tabular-nums; }
-  #pulseView .rate-chip{ display:inline-block; padding:2px 7px; border-radius:5px; font-weight:600; font-size:11.5px; }
-  #pulseView .rate-chip.hi{ background:var(--p-critical-soft); color:var(--p-critical); }
-  #pulseView .rate-chip.mid{ background:var(--p-warning-soft); color:var(--p-warning-text); }
-  #pulseView .rate-chip.lo{ background:var(--p-good-soft); color:var(--p-good); }
   #pulseView .p-subtext{ color:var(--p-text-muted); font-size:11.5px; }
+  #pulseView .status-count-group{ display:inline-flex; gap:4px; flex-wrap:wrap; justify-content:flex-end; }
+  #pulseView .status-count{ display:inline-block; padding:1px 5px; border-radius:4px; font-size:10.5px; font-weight:600; background:var(--p-surface-2); color:var(--p-text-secondary); white-space:nowrap; }
 
   #pulseView .grid-2{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
 
@@ -413,7 +411,7 @@
     #pulseView .tiles{ grid-template-columns:repeat(2, 1fr); }
     #pulseView .uni-cards{ grid-template-columns:repeat(2, 1fr); }
     #pulseView .grid-2{ grid-template-columns:1fr; }
-    #pulseView .barlist-row{ grid-template-columns:120px 1fr 34px 46px; }
+    #pulseView .barlist-row{ grid-template-columns:120px 1fr 34px 110px; }
     #pulseView .range-summary{ margin-left:0; width:100%; }
   }
 </style>
@@ -601,7 +599,7 @@
                   <th class="num">Open</th>
                   <th class="num">Yet to pick</th>
                   <th class="num">Unassigned</th>
-                  <th class="num">SLA breach rate</th>
+                  <th class="num">Status breakdown</th>
                 </tr>
               </thead>
               <tbody id="pulseUniTable"></tbody>
@@ -615,7 +613,7 @@
             <div class="p-select-row" style="margin-bottom:12px">
               <select id="pulseCatUniSelect"></select>
             </div>
-            <p class="section-desc" id="pulseCatDesc">Ticket count per category, with each category's SLA breach rate alongside.</p>
+            <p class="section-desc" id="pulseCatDesc">Ticket count per category, with each category's status breakdown alongside.</p>
             <div class="p-card">
               <div class="barlist" id="pulseCatBars"></div>
             </div>
@@ -1362,7 +1360,13 @@ let pulseUNIVERSITIES = [];
 const PULSE_CLOSED_STATUSES = new Set(['Resolved By POC', 'Resolution Acknowledged', 'Closed']);
 
 function pulseFmtPct(n) { return Math.round(n) + '%'; }
-function pulseRateClass(r) { return r >= 65 ? 'hi' : r >= 35 ? 'mid' : 'lo'; }
+function pulseStatusCountsHTML(v) {
+  return `<span class="status-count-group">` +
+    `<span class="status-count" title="Yet To Pick">${v.yetToPick || 0} YTP</span>` +
+    `<span class="status-count" title="In Progress">${v.inProgress || 0} IP</span>` +
+    `<span class="status-count" title="Awaiting Instructors Response">${v.awaiting || 0} AIR</span>` +
+    `</span>`;
+}
 function pulseFmtDate(d) { return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }); }
 function pulseIsoDate(d) { return d.toISOString().slice(0,10); }
 
@@ -1682,18 +1686,16 @@ function pulseRenderUniversities(rows) {
 
   const map = {};
   rows.forEach(r => {
-    map[r.uni] = map[r.uni] || { total: 0, open: 0, yetToPick: 0, breached: 0, withSla: 0, unassigned: 0 };
+    map[r.uni] = map[r.uni] || { total: 0, open: 0, yetToPick: 0, inProgress: 0, awaiting: 0, unassigned: 0 };
     const m = map[r.uni];
     m.total++;
     if (r.open) m.open++;
     if (r.status === 'Yet To Pick') m.yetToPick++;
-    if (r.sla) m.withSla++;
-    if (r.sla === 'Breached') m.breached++;
+    if (r.status === 'In Progress') m.inProgress++;
+    if (r.status === 'Awaiting Instructors Response') m.awaiting++;
     if (r.team === 'Unassigned') m.unassigned++;
   });
-  const list = Object.entries(map).map(([name, v]) => ({
-    name, ...v, breachRate: v.withSla ? v.breached/v.withSla*100 : 0,
-  })).sort((a,b) => b.open - a.open);
+  const list = Object.entries(map).map(([name, v]) => ({ name, ...v })).sort((a,b) => b.open - a.open);
 
   const top5 = list.slice(0,5);
   cardsEl.innerHTML = top5.map((u,i) => {
@@ -1705,7 +1707,7 @@ function pulseRenderUniversities(rows) {
         <div class="uni-name">${esc(u.name)}</div>
         <div class="uni-stats">
           <div><div class="uni-open">${u.open}</div><div class="uni-open-label">open</div></div>
-          <span class="rate-chip ${pulseRateClass(u.breachRate)}">${pulseFmtPct(u.breachRate)}</span>
+          ${pulseStatusCountsHTML(u)}
         </div>
         <div class="uni-sub"><span>${u.yetToPick} not picked up</span><span>${u.unassigned || 0} unassigned</span></div>
         <div class="flip-hint">${ids.length} open ticket ID${ids.length===1?'':'s'} &#8594;</div>
@@ -1727,7 +1729,7 @@ function pulseRenderUniversities(rows) {
       <td class="num">${u.open}</td>
       <td class="num">${u.yetToPick}</td>
       <td class="num">${u.unassigned || '—'}</td>
-      <td class="num"><span class="rate-chip ${pulseRateClass(u.breachRate)}">${pulseFmtPct(u.breachRate)}</span></td>
+      <td class="num">${pulseStatusCountsHTML(u)}</td>
     </tr>`).join('');
 }
 
@@ -1743,22 +1745,21 @@ function pulseRenderCategory(rows) {
   const scoped = pulseState.catUni === 'ALL' ? rows : rows.filter(r => r.uni === pulseState.catUni);
   const descEl = document.getElementById('pulseCatDesc');
   descEl.textContent = pulseState.catUni === 'ALL'
-    ? 'Ticket count per category across all universities in this window, with each category\'s SLA breach rate alongside.'
-    : `Ticket count per category for ${pulseState.catUni}, with each category's SLA breach rate alongside.`;
+    ? 'Ticket count per category across all universities in this window, with each category\'s status breakdown alongside.'
+    : `Ticket count per category for ${pulseState.catUni}, with each category's status breakdown alongside.`;
 
   const el = document.getElementById('pulseCatBars');
   if (scoped.length === 0) { el.innerHTML = '<div class="empty-state">No tickets for this selection.</div>'; return; }
 
   const map = {};
   scoped.forEach(r => {
-    map[r.cat] = map[r.cat] || { total: 0, breached: 0, withSla: 0 };
+    map[r.cat] = map[r.cat] || { total: 0, yetToPick: 0, inProgress: 0, awaiting: 0 };
     map[r.cat].total++;
-    if (r.sla) map[r.cat].withSla++;
-    if (r.sla === 'Breached') map[r.cat].breached++;
+    if (r.status === 'Yet To Pick') map[r.cat].yetToPick++;
+    if (r.status === 'In Progress') map[r.cat].inProgress++;
+    if (r.status === 'Awaiting Instructors Response') map[r.cat].awaiting++;
   });
-  const rows2 = Object.entries(map).map(([name, v]) => ({
-    name, ...v, breachRate: v.withSla ? v.breached/v.withSla*100 : 0,
-  })).sort((a,b) => b.total - a.total);
+  const rows2 = Object.entries(map).map(([name, v]) => ({ name, ...v })).sort((a,b) => b.total - a.total);
 
   const max = Math.max(...rows2.map(r => r.total));
   const colors = ['var(--p-accent)','var(--p-series-2)','var(--p-series-3)','var(--p-series-4)','var(--p-series-6)','var(--p-series-7)'];
@@ -1767,7 +1768,7 @@ function pulseRenderCategory(rows) {
       <div class="barlist-name" title="${esc(r.name)}">${esc(r.name)}</div>
       <div class="barlist-track"><div class="barlist-fill" style="width:${(r.total/max*100).toFixed(0)}%; background:${colors[i % colors.length]}"></div></div>
       <div class="barlist-count">${r.total}</div>
-      <div class="barlist-rate"><span class="rate-chip ${pulseRateClass(r.breachRate)}" style="font-size:10.5px;padding:1px 5px">${pulseFmtPct(r.breachRate)}</span></div>
+      <div class="barlist-rate">${pulseStatusCountsHTML(r)}</div>
     </div>`).join('');
 }
 
@@ -1777,14 +1778,13 @@ function pulseRenderTeam(rows) {
   if (rows.length === 0) { el.innerHTML = '<div class="empty-state">No tickets in this window.</div>'; return; }
   const map = {};
   rows.forEach(r => {
-    map[r.team] = map[r.team] || { total: 0, breached: 0, withSla: 0 };
+    map[r.team] = map[r.team] || { total: 0, yetToPick: 0, inProgress: 0, awaiting: 0 };
     map[r.team].total++;
-    if (r.sla) map[r.team].withSla++;
-    if (r.sla === 'Breached') map[r.team].breached++;
+    if (r.status === 'Yet To Pick') map[r.team].yetToPick++;
+    if (r.status === 'In Progress') map[r.team].inProgress++;
+    if (r.status === 'Awaiting Instructors Response') map[r.team].awaiting++;
   });
-  const list = Object.entries(map).map(([name, v]) => ({
-    name, ...v, breachRate: v.withSla ? v.breached/v.withSla*100 : 0,
-  })).sort((a,b) => b.total - a.total);
+  const list = Object.entries(map).map(([name, v]) => ({ name, ...v })).sort((a,b) => b.total - a.total);
   const max = Math.max(...list.map(r => r.total));
   el.innerHTML = list.map(r => {
     const isUnassigned = r.name === 'Unassigned';
@@ -1793,7 +1793,7 @@ function pulseRenderTeam(rows) {
       <div class="barlist-name" style="${isUnassigned ? 'color:var(--p-critical);font-weight:600' : ''}" title="${esc(r.name)}">${esc(r.name)}</div>
       <div class="barlist-track"><div class="barlist-fill" style="width:${(r.total/max*100).toFixed(0)}%; background:${isUnassigned ? 'var(--p-critical)' : 'var(--p-accent)'}"></div></div>
       <div class="barlist-count">${r.total}</div>
-      <div class="barlist-rate"><span class="rate-chip ${pulseRateClass(r.breachRate)}" style="font-size:10.5px;padding:1px 5px">${pulseFmtPct(r.breachRate)}</span></div>
+      <div class="barlist-rate">${pulseStatusCountsHTML(r)}</div>
     </div>`;
   }).join('');
 }
