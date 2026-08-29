@@ -380,14 +380,6 @@
   #pulseView .uni-open-label{ font-size:10px; color:var(--p-text-muted); }
   #pulseView .uni-sub{ font-size:11px; color:var(--p-text-secondary); margin-top:6px; display:flex; justify-content:space-between; }
 
-  #pulseView .barlist{ display:flex; flex-direction:column; gap:10px; }
-  #pulseView .barlist-row{ display:grid; grid-template-columns:190px 1fr 40px 130px; align-items:center; gap:12px; }
-  #pulseView .barlist-name{ font-size:13px; color:var(--p-text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  #pulseView .barlist-track{ position:relative; height:20px; background:var(--p-surface-2); border-radius:5px; overflow:hidden; }
-  #pulseView .barlist-fill{ position:absolute; left:0; top:0; bottom:0; border-radius:5px; transition:width .2s; }
-  #pulseView .barlist-count{ font-size:12.5px; font-weight:600; text-align:right; font-variant-numeric:tabular-nums; color:var(--p-text-primary); }
-  #pulseView .barlist-rate{ font-size:11.5px; text-align:right; font-variant-numeric:tabular-nums; }
-
   #pulseView .p-select-row{ display:flex; align-items:center; gap:8px; }
   #pulseView select{
     font-family:inherit; font-size:12.5px; font-weight:600; color:var(--p-text-primary);
@@ -411,7 +403,6 @@
     #pulseView .tiles{ grid-template-columns:repeat(2, 1fr); }
     #pulseView .uni-cards{ grid-template-columns:repeat(2, 1fr); }
     #pulseView .grid-2{ grid-template-columns:1fr; }
-    #pulseView .barlist-row{ grid-template-columns:120px 1fr 34px 110px; }
     #pulseView .range-summary{ margin-left:0; width:100%; }
   }
 </style>
@@ -614,16 +605,36 @@
               <select id="pulseCatUniSelect"></select>
             </div>
             <p class="section-desc" id="pulseCatDesc">Ticket count per category, with each category's status breakdown alongside.</p>
-            <div class="p-card">
-              <div class="barlist" id="pulseCatBars"></div>
+            <div class="p-card table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th class="num">#</th>
+                    <th>Category</th>
+                    <th class="num">Total</th>
+                    <th class="num">Status breakdown</th>
+                  </tr>
+                </thead>
+                <tbody id="pulseCatBars"></tbody>
+              </table>
             </div>
           </section>
 
           <section>
             <div class="section-head"><h2>Owning team</h2></div>
-            <p class="section-desc">How the same window splits across owning teams &mdash; an outsized "Unassigned" bar is a triage gap, not a workload one.</p>
-            <div class="p-card">
-              <div class="barlist" id="pulseTeamBars"></div>
+            <p class="section-desc">How the same window splits across owning teams &mdash; an outsized "Unassigned" row is a triage gap, not a workload one.</p>
+            <div class="p-card table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th class="num">#</th>
+                    <th>Team</th>
+                    <th class="num">Total</th>
+                    <th class="num">Status breakdown</th>
+                  </tr>
+                </thead>
+                <tbody id="pulseTeamBars"></tbody>
+              </table>
             </div>
           </section>
         </div>
@@ -1749,7 +1760,7 @@ function pulseRenderCategory(rows) {
     : `Ticket count per category for ${pulseState.catUni}, with each category's status breakdown alongside.`;
 
   const el = document.getElementById('pulseCatBars');
-  if (scoped.length === 0) { el.innerHTML = '<div class="empty-state">No tickets for this selection.</div>'; return; }
+  if (scoped.length === 0) { el.innerHTML = '<tr><td colspan="4" class="empty-state">No tickets for this selection.</td></tr>'; return; }
 
   const map = {};
   scoped.forEach(r => {
@@ -1761,21 +1772,19 @@ function pulseRenderCategory(rows) {
   });
   const rows2 = Object.entries(map).map(([name, v]) => ({ name, ...v })).sort((a,b) => b.total - a.total);
 
-  const max = Math.max(...rows2.map(r => r.total));
-  const colors = ['var(--p-accent)','var(--p-series-2)','var(--p-series-3)','var(--p-series-4)','var(--p-series-6)','var(--p-series-7)'];
   el.innerHTML = rows2.map((r,i) => `
-    <div class="barlist-row">
-      <div class="barlist-name" title="${esc(r.name)}">${esc(r.name)}</div>
-      <div class="barlist-track"><div class="barlist-fill" style="width:${(r.total/max*100).toFixed(0)}%; background:${colors[i % colors.length]}"></div></div>
-      <div class="barlist-count">${r.total}</div>
-      <div class="barlist-rate">${pulseStatusCountsHTML(r)}</div>
-    </div>`).join('');
+    <tr>
+      <td class="rank">${i+1}</td>
+      <td title="${esc(r.name)}">${esc(r.name)}</td>
+      <td class="num">${r.total}</td>
+      <td class="num">${pulseStatusCountsHTML(r)}</td>
+    </tr>`).join('');
 }
 
 // ---- Team breakdown ----
 function pulseRenderTeam(rows) {
   const el = document.getElementById('pulseTeamBars');
-  if (rows.length === 0) { el.innerHTML = '<div class="empty-state">No tickets in this window.</div>'; return; }
+  if (rows.length === 0) { el.innerHTML = '<tr><td colspan="4" class="empty-state">No tickets in this window.</td></tr>'; return; }
   const map = {};
   rows.forEach(r => {
     map[r.team] = map[r.team] || { total: 0, yetToPick: 0, inProgress: 0, awaiting: 0 };
@@ -1785,16 +1794,15 @@ function pulseRenderTeam(rows) {
     if (r.status === 'Awaiting Instructors Response') map[r.team].awaiting++;
   });
   const list = Object.entries(map).map(([name, v]) => ({ name, ...v })).sort((a,b) => b.total - a.total);
-  const max = Math.max(...list.map(r => r.total));
-  el.innerHTML = list.map(r => {
+  el.innerHTML = list.map((r,i) => {
     const isUnassigned = r.name === 'Unassigned';
     return `
-    <div class="barlist-row">
-      <div class="barlist-name" style="${isUnassigned ? 'color:var(--p-critical);font-weight:600' : ''}" title="${esc(r.name)}">${esc(r.name)}</div>
-      <div class="barlist-track"><div class="barlist-fill" style="width:${(r.total/max*100).toFixed(0)}%; background:${isUnassigned ? 'var(--p-critical)' : 'var(--p-accent)'}"></div></div>
-      <div class="barlist-count">${r.total}</div>
-      <div class="barlist-rate">${pulseStatusCountsHTML(r)}</div>
-    </div>`;
+    <tr>
+      <td class="rank">${i+1}</td>
+      <td style="${isUnassigned ? 'color:var(--p-critical);font-weight:600' : ''}" title="${esc(r.name)}">${esc(r.name)}</td>
+      <td class="num">${r.total}</td>
+      <td class="num">${pulseStatusCountsHTML(r)}</td>
+    </tr>`;
   }).join('');
 }
 
