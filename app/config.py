@@ -13,6 +13,14 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 CLASSIFY_MODEL = os.getenv("OPENAI_CLASSIFY_MODEL", "gpt-4o-mini")
 EMBED_MODEL = os.getenv("OPENAI_EMBED_MODEL", "text-embedding-3-small")
 
+# Only used by scripts/compare_classifiers.py (OpenAI vs Gemini accuracy
+# comparison) - never required for the app's normal classify path, which
+# stays OpenAI-only. Few-shot retrieval always uses OpenAI embeddings
+# (OPENAI_API_KEY above) even when comparing against Gemini, since that's
+# the only embedding backend this app has.
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+GEMINI_CLASSIFY_MODEL = os.getenv("GEMINI_CLASSIFY_MODEL", "gemini-2.5-flash")
+
 CONFIDENCE_THRESHOLD = float(os.getenv("CONFIDENCE_THRESHOLD", "0.65"))
 MAX_CLARIFICATION_TURNS = int(os.getenv("MAX_CLARIFICATION_TURNS", "2"))
 FEWSHOT_K = int(os.getenv("FEWSHOT_K", "5"))

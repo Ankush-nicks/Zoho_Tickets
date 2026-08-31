@@ -98,6 +98,72 @@ def classify(ticket_text: str, api_key: str) -> ClassificationResult:
     return ClassificationResult(**raw)
 
 
+def _gemini_response_schema() -> dict:
+    """
+    Same shape/constraints as _response_schema(), translated to Gemini's
+    schema dialect (a subset of OpenAPI 3.0 - uppercase type names, no
+    additionalProperties, nullable instead of a ["string","null"] union).
+    """
+    return {
+        "type": "OBJECT",
+        "properties": {
+            "category_id": {
+                "type": "STRING",
+                "enum": taxonomy.category_ids,
+                "description": "Best-matching taxonomy category id.",
+            },
+            "confidence": {
+                "type": "NUMBER",
+                "description": "0.0-1.0 confidence that category_id is correct given ONLY the information provided.",
+            },
+            "reasoning": {
+                "type": "STRING",
+                "description": "One or two sentences on why this category was chosen.",
+            },
+            "needs_clarification": {
+                "type": "BOOLEAN",
+                "description": "True if the ticket text is too vague/ambiguous to confidently route.",
+            },
+            "clarifying_question": {
+                "type": "STRING",
+                "nullable": True,
+                "description": "A single, specific question to ask the user if needs_clarification is true, else null.",
+            },
+        },
+        "required": ["category_id", "confidence", "reasoning", "needs_clarification", "clarifying_question"],
+    }
+
+
+def classify_gemini(ticket_text: str, gemini_api_key: str, embed_api_key: str) -> ClassificationResult:
+    """
+    Same taxonomy/prompt/few-shot pipeline as classify(), but the actual
+    classification call goes to Gemini instead of OpenAI - for side-by-side
+    accuracy comparison (see scripts/compare_classifiers.py). Few-shot
+    retrieval still uses OpenAI embeddings (embed_api_key) since that's the
+    only embedding backend this app has - only the classification model
+    itself is being compared, not the retrieval step.
+    """
+    from google import genai
+    from google.genai import types
+
+    memory.seed_if_empty(taxonomy.seed_examples(), embed_api_key)
+    fewshot = memory.retrieve_similar(ticket_text, embed_api_key, k=config.FEWSHOT_K)
+
+    client = genai.Client(api_key=gemini_api_key)
+    response = client.models.generate_content(
+        model=config.GEMINI_CLASSIFY_MODEL,
+        contents=f"Ticket:\n{ticket_text}",
+        config=types.GenerateContentConfig(
+            system_instruction=_build_system_prompt(fewshot),
+            response_mime_type="application/json",
+            response_schema=_gemini_response_schema(),
+            temperature=0,
+        ),
+    )
+    raw = json.loads(response.text)
+    return ClassificationResult(**raw)
+
+
 def should_finalize(result: ClassificationResult, clarification_turns: int) -> bool:
     """
     Decide whether to accept the classification or ask another clarifying

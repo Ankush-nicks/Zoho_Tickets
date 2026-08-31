@@ -146,6 +146,24 @@ Tune `CONFIDENCE_THRESHOLD` down if you're getting too many clarifying questions
 on tickets a human would consider obvious; tune it up if wrong-but-confident
 routes are getting through.
 
+### OpenAI vs Gemini accuracy comparison
+
+The app's own classify path is OpenAI-only, but `app/classifier.py` also has
+`classify_gemini()` - same taxonomy, prompt, and few-shot retrieval, just a
+Gemini call instead of OpenAI for the final decision. `scripts/compare_
+classifiers.py` runs both against existing tickets that already carry a Zoho
+category tag (used as a rough reference, not a hand-labeled eval set) and
+reports agreement rates:
+
+```bash
+OPENAI_API_KEY=sk-... GEMINI_API_KEY=... python scripts/compare_classifiers.py --limit 20
+```
+
+Needs `GEMINI_API_KEY` (and `GEMINI_CLASSIFY_MODEL`, default `gemini-2.5-flash`)
+set - see `.env.example`. Not wired into the running app in any way; it's a
+standalone script for deciding whether switching or dual-running models is
+worth pursuing further.
+
 ## API
 
 All routes below (and the UI itself) require an admin session — log in at

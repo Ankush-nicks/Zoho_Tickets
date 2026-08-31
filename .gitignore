@@ -13,6 +13,10 @@ app/data/
 # contains PII, never belongs in the repo
 *.csv
 
+# Accumulated results from scripts/compare_classifiers.py - contains real
+# ticket text, personal research artifact not a project asset
+scripts/.compare_results.jsonl
+
 # Python
 __pycache__/
 *.pyc
