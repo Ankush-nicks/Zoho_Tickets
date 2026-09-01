@@ -31,6 +31,16 @@ GEMINI_CLASSIFY_MODEL = os.getenv("GEMINI_CLASSIFY_MODEL", "gemini-2.5-flash")
 CLOUDFLARE_ACCOUNT_ID = os.getenv("CLOUDFLARE_ACCOUNT_ID", "")
 CLOUDFLARE_AI_GATEWAY_ID = os.getenv("CLOUDFLARE_AI_GATEWAY_ID", "")
 
+# Automatic classify() fallback when OpenAI hits its rate limit - a real
+# Cloudflare API token with "Workers AI" permission (separate from AI
+# Gateway's own permission group above). Few-shot retrieval still goes
+# through OpenAI embeddings first (usually unaffected, since OpenAI rate
+# limits are per-model and gpt-4o-mini's own limit is what actually gets
+# hit) - only the final classification call itself moves to Cloudflare.
+# Unset means classify() behaves exactly as before (raises on rate limit).
+CLOUDFLARE_API_TOKEN = os.getenv("CLOUDFLARE_API_TOKEN", "")
+CLOUDFLARE_WORKERS_AI_MODEL = os.getenv("CLOUDFLARE_WORKERS_AI_MODEL", "@cf/meta/llama-3.1-8b-instruct")
+
 
 def openai_base_url() -> str | None:
     if CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_AI_GATEWAY_ID:

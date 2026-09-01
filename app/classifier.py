@@ -1,5 +1,5 @@
 import json
-from openai import OpenAI
+from openai import OpenAI, RateLimitError
 
 from . import config
 from .taxonomy import taxonomy
@@ -80,22 +80,74 @@ def classify(ticket_text: str, api_key: str) -> ClassificationResult:
     Dynamic classification: retrieves the most similar known-good examples
     (seed + corrected) and injects them as few-shot context, then asks the
     model for a structured decision.
+
+    Falls back to Cloudflare Workers AI (see _classify_via_cloudflare) on an
+    OpenAI RateLimitError, when CLOUDFLARE_ACCOUNT_ID/CLOUDFLARE_API_TOKEN
+    are configured - a completely separate quota from OpenAI's, so a
+    classification still goes through instead of stalling until OpenAI's
+    own limit resets. Re-raises as before when Cloudflare isn't set up.
     """
     memory.seed_if_empty(taxonomy.seed_examples(), api_key)
     fewshot = memory.retrieve_similar(ticket_text, api_key, k=config.FEWSHOT_K)
 
     client = OpenAI(api_key=api_key, base_url=config.openai_base_url())
-    completion = client.chat.completions.create(
-        model=config.CLASSIFY_MODEL,
-        messages=[
-            {"role": "system", "content": _build_system_prompt(fewshot)},
-            {"role": "user", "content": f"Ticket:\n{ticket_text}"},
-        ],
-        response_format={"type": "json_schema", "json_schema": _response_schema()},
-        temperature=0,
-    )
+    try:
+        completion = client.chat.completions.create(
+            model=config.CLASSIFY_MODEL,
+            messages=[
+                {"role": "system", "content": _build_system_prompt(fewshot)},
+                {"role": "user", "content": f"Ticket:\n{ticket_text}"},
+            ],
+            response_format={"type": "json_schema", "json_schema": _response_schema()},
+            temperature=0,
+        )
+    except RateLimitError:
+        if not (config.CLOUDFLARE_ACCOUNT_ID and config.CLOUDFLARE_API_TOKEN):
+            raise
+        return _classify_via_cloudflare(ticket_text, fewshot)
     raw = json.loads(completion.choices[0].message.content)
     return ClassificationResult(**raw)
+
+
+def _cloudflare_response_schema() -> dict:
+    """Same shape as _response_schema(), in the plain-JSON-Schema dialect
+    Workers AI's response_format accepts (union-typed nullable field works
+    here, unlike Gemini's dialect - no translation needed beyond dropping
+    the OpenAI-specific "strict"/"name" wrapper)."""
+    return {
+        "type": "object",
+        "properties": {
+            "category_id": {"type": "string", "enum": taxonomy.category_ids},
+            "confidence": {"type": "number"},
+            "reasoning": {"type": "string"},
+            "needs_clarification": {"type": "boolean"},
+            "clarifying_question": {"type": ["string", "null"]},
+        },
+        "required": ["category_id", "confidence", "reasoning", "needs_clarification", "clarifying_question"],
+    }
+
+
+def _classify_via_cloudflare(ticket_text: str, fewshot: list[dict]) -> ClassificationResult:
+    import httpx
+
+    url = f"https://api.cloudflare.com/client/v4/accounts/{config.CLOUDFLARE_ACCOUNT_ID}/ai/run/{config.CLOUDFLARE_WORKERS_AI_MODEL}"
+    resp = httpx.post(
+        url,
+        headers={"Authorization": f"Bearer {config.CLOUDFLARE_API_TOKEN}"},
+        json={
+            "messages": [
+                {"role": "system", "content": _build_system_prompt(fewshot)},
+                {"role": "user", "content": f"Ticket:\n{ticket_text}"},
+            ],
+            "response_format": {"type": "json_schema", "json_schema": _cloudflare_response_schema()},
+        },
+        timeout=30,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    if not data.get("success"):
+        raise RuntimeError(f"Cloudflare Workers AI error: {data.get('errors')}")
+    return ClassificationResult(**data["result"]["response"])
 
 
 def _gemini_response_schema() -> dict:

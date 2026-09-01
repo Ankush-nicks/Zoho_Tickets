@@ -177,6 +177,15 @@ quota - it does **not** raise OpenAI's actual per-account rate limit, which
 only OpenAI controls. Unset means calls go straight to OpenAI, unchanged
 from before this existed.
 
+Separately, set `CLOUDFLARE_API_TOKEN` (a token with **Workers AI** permission
+specifically, not AI Gateway's) and `classify()` automatically falls back to
+Cloudflare Workers AI (`CLOUDFLARE_WORKERS_AI_MODEL`, default
+`@cf/meta/llama-3.1-8b-instruct`) whenever OpenAI raises a rate-limit error -
+a completely separate quota from OpenAI's, so classification keeps working
+instead of stalling until OpenAI's own limit resets. Same taxonomy/prompt/
+few-shot pipeline either way; only the final model call moves. Unset means
+`classify()` behaves exactly as before (raises on rate limit).
+
 ## API
 
 All routes below (and the UI itself) require an admin session — log in at
