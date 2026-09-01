@@ -115,19 +115,6 @@
   button:disabled{ opacity:.5; cursor:not-allowed; }
   button.secondary{ background:#fff; border:1px solid var(--border); color:var(--text); }
 
-  .preset-btn.active{ background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
-
-  .stats-filters-panel{ padding-bottom:16px; }
-  .stats-filters-header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
-  .stats-filters-header button{ padding:6px 12px; font-size:12px; }
-  .stats-filters{ display:flex; flex-wrap:wrap; gap:12px; }
-  .filter-field{ display:flex; flex-direction:column; gap:6px; min-width:170px; flex:1 1 170px; }
-  .filter-field select{
-    background:var(--panel-2); border:1px solid var(--border); border-radius:6px;
-    color:var(--text); font-family:var(--sans); font-size:13px; padding:8px 10px;
-  }
-  .filter-field select.filter-active{ border-color:var(--accent); }
-
   .status-tag-bar{ display:flex; gap:8px; flex-wrap:wrap; margin:16px 0; }
   .status-tag{
     font-family:var(--mono); font-size:11px; letter-spacing:.03em;
@@ -136,16 +123,6 @@
   }
   .status-tag:hover{ color:var(--text); border-color:var(--muted); filter:none; }
   .status-tag.active{ background:var(--accent); color:var(--accent-ink); border-color:var(--accent); font-weight:600; }
-
-  .stat-block{ margin-bottom:20px; }
-  .stat-block:last-child{ margin-bottom:0; }
-  .stat-row{ padding:8px 0; border-bottom:1px solid var(--border); }
-  .stat-row:last-child{ border-bottom:none; }
-  .stat-label{ font-size:13px; margin-bottom:6px; word-break:break-word; }
-  .stat-bar-line{ display:flex; align-items:center; gap:10px; }
-  .stat-bar-wrap{ flex:1; height:8px; background:var(--panel-2); border-radius:4px; overflow:hidden; }
-  .stat-bar{ height:100%; background:var(--accent); border-radius:4px; }
-  .stat-count{ flex:0 0 auto; font-family:var(--mono); font-size:11px; color:var(--muted); min-width:70px; text-align:right; }
 
   .log{ display:flex; flex-direction:column; gap:14px; }
   .card{
@@ -253,8 +230,8 @@
   }
   .pending-banner span{ font-size:13px; }
 
-  /* ---------- Pulse tab (scoped so its rules never leak to/from the rest of the app) ---------- */
-  #pulseView{
+  /* ---------- Pulse + Insights tabs (scoped so rules never leak to/from the rest of the app; shared token set + shared components between the two) ---------- */
+  #pulseView, #statsView{
     --p-surface-1: var(--panel);
     --p-surface-2: var(--panel-2);
     --p-surface-3: #EFE3D8;
@@ -281,35 +258,35 @@
     --p-warning-text: #8A5C00;
     max-width:1400px;
   }
-  #pulseView .p-header{ display:flex; justify-content:space-between; align-items:flex-start; gap:24px; flex-wrap:wrap; margin-bottom:18px; }
-  #pulseView .p-eyebrow{ font-family:var(--mono); font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--p-accent); margin:0 0 6px; }
-  #pulseView h1{ font-size:24px; font-weight:700; letter-spacing:-.01em; margin:0; color:var(--p-text-primary); }
-  #pulseView .p-subtitle{ color:var(--p-text-secondary); font-size:13px; margin-top:6px; max-width:62ch; }
-  #pulseView .p-header-meta{ text-align:right; font-size:12px; color:var(--p-text-muted); font-variant-numeric:tabular-nums; }
-  #pulseView .p-header-meta strong{ color:var(--p-text-primary); font-weight:600; }
+  #pulseView .p-header, #statsView .p-header{ display:flex; justify-content:space-between; align-items:flex-start; gap:24px; flex-wrap:wrap; margin-bottom:18px; }
+  #pulseView .p-eyebrow, #statsView .p-eyebrow{ font-family:var(--mono); font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--p-accent); margin:0 0 6px; }
+  #pulseView h1, #statsView h1{ font-size:24px; font-weight:700; letter-spacing:-.01em; margin:0; color:var(--p-text-primary); }
+  #pulseView .p-subtitle, #statsView .p-subtitle{ color:var(--p-text-secondary); font-size:13px; margin-top:6px; max-width:62ch; }
+  #pulseView .p-header-meta, #statsView .p-header-meta{ text-align:right; font-size:12px; color:var(--p-text-muted); font-variant-numeric:tabular-nums; }
+  #pulseView .p-header-meta strong, #statsView .p-header-meta strong{ color:var(--p-text-primary); font-weight:600; }
 
-  #pulseView .range-bar{
+  #pulseView .range-bar, #statsView .range-bar{
     display:flex; align-items:center; gap:10px; flex-wrap:wrap;
     background:var(--p-surface-1); border:1px solid var(--p-border); border-radius:10px;
     padding:10px 12px; margin-bottom:24px;
   }
-  #pulseView .range-label{ font-family:var(--mono); font-size:10px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--p-text-muted); margin-right:2px; }
-  #pulseView .range-presets{ display:flex; gap:6px; flex-wrap:wrap; }
-  #pulseView .range-btn{
+  #pulseView .range-label, #statsView .range-label{ font-family:var(--mono); font-size:10px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--p-text-muted); margin-right:2px; }
+  #pulseView .range-presets, #statsView .range-presets{ display:flex; gap:6px; flex-wrap:wrap; }
+  #pulseView .range-btn, #statsView .range-btn{
     font-family:inherit; font-size:12.5px; font-weight:600; color:var(--p-text-secondary);
     background:var(--p-surface-2); border:1px solid transparent; border-radius:7px;
     padding:6px 11px; cursor:pointer; transition:background .12s, color .12s;
   }
-  #pulseView .range-btn:hover{ background:var(--p-surface-3); }
-  #pulseView .range-btn.active{ background:var(--p-accent); color:#fff; }
-  #pulseView .range-divider{ width:1px; align-self:stretch; background:var(--p-border); margin:0 4px; }
+  #pulseView .range-btn:hover, #statsView .range-btn:hover{ background:var(--p-surface-3); }
+  #pulseView .range-btn.active, #statsView .range-btn.active{ background:var(--p-accent); color:#fff; }
+  #pulseView .range-divider, #statsView .range-divider{ width:1px; align-self:stretch; background:var(--p-border); margin:0 4px; }
   #pulseView .range-custom{ display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--p-text-secondary); }
   #pulseView .range-custom input[type="date"]{
     font-family:inherit; font-size:12.5px; color:var(--p-text-primary); background:var(--p-surface-2);
     border:1px solid var(--p-border); border-radius:6px; padding:5px 7px;
   }
-  #pulseView .range-summary{ margin-left:auto; font-size:12.5px; color:var(--p-text-muted); font-variant-numeric:tabular-nums; }
-  #pulseView .range-summary strong{ color:var(--p-text-primary); }
+  #pulseView .range-summary, #statsView .range-summary{ margin-left:auto; font-size:12.5px; color:var(--p-text-muted); font-variant-numeric:tabular-nums; }
+  #pulseView .range-summary strong, #statsView .range-summary strong{ color:var(--p-text-primary); }
 
   #pulseView .action-section{ margin-bottom:30px; }
   #pulseView .action-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:12px; }
@@ -333,23 +310,23 @@
   #pulseView .flip-ids-list{ display:flex; flex-wrap:wrap; gap:5px; }
   #pulseView .flip-id-chip{ font-family:var(--mono); font-size:11px; color:var(--p-text-primary); background:var(--p-surface-2); border:1px solid var(--p-border); border-radius:5px; padding:2px 7px; }
 
-  #pulseView .tiles{ display:grid; grid-template-columns:repeat(5, 1fr); gap:12px; margin-bottom:32px; }
-  #pulseView .tile{ background:var(--p-surface-1); border:1px solid var(--p-border); border-radius:10px; padding:16px 16px 14px; position:relative; }
-  #pulseView .tile.flag{ border-color:rgba(176,52,46,.35); }
-  #pulseView .tile-label{ font-family:var(--mono); font-size:10px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:var(--p-text-muted); margin:0 0 8px; }
-  #pulseView .tile-value{ font-size:27px; font-weight:700; letter-spacing:-.01em; font-variant-numeric:tabular-nums; line-height:1; color:var(--p-text-primary); }
-  #pulseView .tile-value.critical{ color:var(--p-critical); }
-  #pulseView .tile-sub{ font-size:12px; color:var(--p-text-secondary); margin-top:6px; }
+  #pulseView .tiles, #statsView .tiles{ display:grid; grid-template-columns:repeat(5, 1fr); gap:12px; margin-bottom:32px; }
+  #pulseView .tile, #statsView .tile{ background:var(--p-surface-1); border:1px solid var(--p-border); border-radius:10px; padding:16px 16px 14px; position:relative; }
+  #pulseView .tile.flag, #statsView .tile.flag{ border-color:rgba(176,52,46,.35); }
+  #pulseView .tile-label, #statsView .tile-label{ font-family:var(--mono); font-size:10px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:var(--p-text-muted); margin:0 0 8px; }
+  #pulseView .tile-value, #statsView .tile-value{ font-size:27px; font-weight:700; letter-spacing:-.01em; font-variant-numeric:tabular-nums; line-height:1; color:var(--p-text-primary); }
+  #pulseView .tile-value.critical, #statsView .tile-value.critical{ color:var(--p-critical); }
+  #pulseView .tile-sub, #statsView .tile-sub{ font-size:12px; color:var(--p-text-secondary); margin-top:6px; }
 
-  #pulseView section{ margin-bottom:36px; }
-  #pulseView .section-head{ display:flex; justify-content:space-between; align-items:baseline; gap:16px; margin-bottom:4px; flex-wrap:wrap; }
-  #pulseView h2{ font-size:16px; font-weight:700; margin:0; color:var(--p-text-primary); }
-  #pulseView .section-note{ font-size:12px; color:var(--p-text-muted); }
-  #pulseView .section-desc{ font-size:13px; color:var(--p-text-secondary); margin:4px 0 16px; max-width:82ch; }
-  #pulseView .p-card{ background:var(--p-surface-1); border:1px solid var(--p-border); border-radius:12px; padding:20px; }
-  #pulseView .callout{ display:flex; gap:10px; align-items:flex-start; background:var(--p-warning-soft); border:1px solid rgba(219,154,31,.35); border-radius:10px; padding:12px 14px; font-size:13px; color:var(--p-text-primary); margin-bottom:16px; }
-  #pulseView .callout .dot{ width:7px; height:7px; border-radius:50%; background:var(--p-warning); margin-top:6px; flex-shrink:0; }
-  #pulseView .empty-state{ font-size:13px; color:var(--p-text-muted); padding:24px 0; text-align:center; }
+  #pulseView section, #statsView section{ margin-bottom:36px; }
+  #pulseView .section-head, #statsView .section-head{ display:flex; justify-content:space-between; align-items:baseline; gap:16px; margin-bottom:4px; flex-wrap:wrap; }
+  #pulseView h2, #statsView h2{ font-size:16px; font-weight:700; margin:0; color:var(--p-text-primary); }
+  #pulseView .section-note, #statsView .section-note{ font-size:12px; color:var(--p-text-muted); }
+  #pulseView .section-desc, #statsView .section-desc{ font-size:13px; color:var(--p-text-secondary); margin:4px 0 16px; max-width:82ch; }
+  #pulseView .p-card, #statsView .p-card{ background:var(--p-surface-1); border:1px solid var(--p-border); border-radius:12px; padding:20px; }
+  #pulseView .callout, #statsView .callout{ display:flex; gap:10px; align-items:flex-start; background:var(--p-warning-soft); border:1px solid rgba(219,154,31,.35); border-radius:10px; padding:12px 14px; font-size:13px; color:var(--p-text-primary); margin-bottom:16px; }
+  #pulseView .callout .dot, #statsView .callout .dot{ width:7px; height:7px; border-radius:50%; background:var(--p-warning); margin-top:6px; flex-shrink:0; }
+  #pulseView .empty-state, #statsView .empty-state{ font-size:13px; color:var(--p-text-muted); padding:24px 0; text-align:center; }
 
   #pulseView .trend-chart{ display:flex; align-items:flex-end; gap:14px; height:190px; padding:4px 4px 0; }
   #pulseView .trend-col{ flex:1; display:flex; flex-direction:column; align-items:center; height:100%; max-width:90px; }
@@ -387,24 +364,69 @@
     padding:6px 10px; cursor:pointer; max-width:260px;
   }
 
-  #pulseView .table-scroll{ overflow-x:auto; }
-  #pulseView table{ border-collapse:collapse; width:100%; font-size:12.5px; }
-  #pulseView th{ text-align:left; font-family:var(--mono); font-size:10px; font-weight:600; letter-spacing:.03em; text-transform:uppercase; color:var(--p-text-muted); padding:0 12px 8px; border-bottom:1px solid var(--p-border); white-space:nowrap; }
-  #pulseView td{ padding:9px 12px; border-bottom:1px solid var(--p-border); white-space:nowrap; color:var(--p-text-primary); }
-  #pulseView tr:last-child td{ border-bottom:none; }
-  #pulseView td.num, #pulseView th.num{ text-align:right; font-variant-numeric:tabular-nums; }
-  #pulseView .p-subtext{ color:var(--p-text-muted); font-size:11.5px; }
-  #pulseView .status-count-group{ display:inline-flex; gap:4px; flex-wrap:wrap; justify-content:flex-end; }
-  #pulseView .status-count{ display:inline-block; padding:1px 5px; border-radius:4px; font-size:10.5px; font-weight:600; background:var(--p-surface-2); color:var(--p-text-secondary); white-space:nowrap; }
+  #pulseView .table-scroll, #statsView .table-scroll{ overflow-x:auto; }
+  #pulseView table, #statsView table{ border-collapse:collapse; width:100%; font-size:12.5px; }
+  #pulseView th, #statsView th{ text-align:left; font-family:var(--mono); font-size:10px; font-weight:600; letter-spacing:.03em; text-transform:uppercase; color:var(--p-text-muted); padding:0 12px 8px; border-bottom:1px solid var(--p-border); white-space:nowrap; }
+  #pulseView td, #statsView td{ padding:9px 12px; border-bottom:1px solid var(--p-border); white-space:nowrap; color:var(--p-text-primary); }
+  #pulseView tr:last-child td, #statsView tr:last-child td{ border-bottom:none; }
+  #pulseView td.num, #pulseView th.num, #statsView td.num, #statsView th.num{ text-align:right; font-variant-numeric:tabular-nums; }
+  #pulseView .p-subtext, #statsView .p-subtext{ color:var(--p-text-muted); font-size:11.5px; }
+  #pulseView .status-count-group, #statsView .status-count-group{ display:inline-flex; gap:4px; flex-wrap:wrap; justify-content:flex-end; }
+  #pulseView .status-count, #statsView .status-count{ display:inline-block; padding:1px 5px; border-radius:4px; font-size:10.5px; font-weight:600; background:var(--p-surface-2); color:var(--p-text-secondary); white-space:nowrap; }
 
-  #pulseView .grid-2{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  #pulseView .grid-2, #statsView .grid-2{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
 
   @media (max-width: 1100px){
-    #pulseView .tiles{ grid-template-columns:repeat(2, 1fr); }
+    #pulseView .tiles, #statsView .tiles{ grid-template-columns:repeat(2, 1fr); }
     #pulseView .uni-cards{ grid-template-columns:repeat(2, 1fr); }
-    #pulseView .grid-2{ grid-template-columns:1fr; }
-    #pulseView .range-summary{ margin-left:0; width:100%; }
+    #pulseView .grid-2, #statsView .grid-2{ grid-template-columns:1fr; }
+    #pulseView .range-summary, #statsView .range-summary{ margin-left:0; width:100%; }
+    #statsView .perf-grid{ grid-template-columns:1fr; }
   }
+
+  /* ---------- Insights tab (Weekly Resolution Insights) - own components on top of the shared tokens above ---------- */
+  #statsView .delta-chip{ font-family:var(--mono); font-size:11px; padding:2px 7px; border-radius:999px; display:inline-block; white-space:nowrap; }
+  #statsView .delta-chip.good{ background:var(--p-good-soft); color:var(--p-good); }
+  #statsView .delta-chip.critical{ background:var(--p-critical-soft); color:var(--p-critical); }
+  #statsView .delta-chip.neutral{ background:var(--p-surface-2); color:var(--p-text-secondary); }
+
+  #statsView .perf-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:14px; }
+  #statsView .perf-card{ background:var(--p-surface-1); border:1px solid var(--p-border); border-radius:12px; padding:18px 20px; }
+  #statsView .perf-head{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:14px; }
+  #statsView .perf-name{ font-weight:700; font-size:14.5px; color:var(--p-text-primary); }
+  #statsView .perf-count{ font-size:11.5px; color:var(--p-text-muted); margin-top:2px; }
+  #statsView .perf-score-block{ display:flex; flex-direction:column; align-items:flex-end; gap:5px; flex-shrink:0; }
+  #statsView .perf-score{ font-weight:700; font-size:19px; border-radius:8px; padding:2px 10px; }
+  #statsView .sc-good{ background:var(--p-good-soft); color:var(--p-good); }
+  #statsView .sc-warning{ background:var(--p-warning-soft); color:var(--p-warning-text); }
+  #statsView .sc-critical{ background:var(--p-critical-soft); color:var(--p-critical); }
+  #statsView .sc-neutral{ background:var(--p-surface-2); color:var(--p-text-secondary); }
+
+  #statsView .cbar-group{ display:flex; flex-direction:column; gap:6px; margin-bottom:10px; }
+  #statsView .cbar-row{ display:grid; grid-template-columns:96px 1fr 30px; align-items:center; gap:8px; }
+  #statsView .cbar-row.weak .cbar-label{ color:var(--p-critical); font-weight:600; }
+  #statsView .cbar-label{ font-size:11px; color:var(--p-text-muted); }
+  #statsView .cbar-track{ height:6px; background:var(--p-surface-2); border-radius:3px; overflow:hidden; }
+  #statsView .cbar-fill{ height:100%; border-radius:3px; }
+  #statsView .fill-good{ background:var(--p-good); }
+  #statsView .fill-warning{ background:var(--p-warning); }
+  #statsView .fill-critical{ background:var(--p-critical); }
+  #statsView .cbar-val{ font-family:var(--mono); font-size:11px; color:var(--p-text-secondary); text-align:right; }
+
+  #statsView .evidence{ display:flex; gap:10px; padding:9px 0 0; border-top:1px solid var(--p-border); align-items:flex-start; }
+  #statsView .evidence-score{ font-family:var(--mono); font-weight:700; font-size:12px; border-radius:6px; padding:2px 7px; flex-shrink:0; margin-top:1px; }
+  #statsView .evidence-text{ font-size:12.5px; color:var(--p-text-primary); line-height:1.5; }
+  #statsView .evidence-meta{ font-size:10.5px; color:var(--p-text-muted); font-family:var(--mono); margin-top:3px; }
+
+  #statsView .table-score{ font-family:var(--mono); font-weight:700; font-size:12.5px; border-radius:6px; padding:2px 8px; }
+  #statsView .mini-crit-row{ display:flex; gap:4px; }
+  #statsView .mini-crit{ font-family:var(--mono); font-size:10px; background:var(--p-surface-2); border-radius:4px; padding:2px 5px; color:var(--p-text-secondary); }
+  #statsView .mini-crit.weak{ background:var(--p-critical-soft); color:var(--p-critical); font-weight:600; }
+  #statsView tr.low-n{ opacity:.72; }
+  #statsView .n-flag{ font-size:9.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--p-text-muted); border:1px solid var(--p-border); border-radius:999px; padding:1px 6px; margin-left:6px; }
+
+  #statsView .insight-footer{ margin-top:16px; padding-top:16px; border-top:1px solid var(--p-border); font-size:11.5px; color:var(--p-text-muted); line-height:1.6; }
+  #statsView .insight-footer b{ color:var(--p-text-secondary); }
 </style>
 </head>
 <body>
@@ -490,33 +512,62 @@
       </div>
 
       <div id="statsView" style="display:none;">
-        <div class="panel daily-bar">
-          <div class="left">
-            <button class="secondary preset-btn" id="presetBtn-today" onclick="setStatsPreset('today')">Today</button>
-            <button class="secondary preset-btn" id="presetBtn-7d" onclick="setStatsPreset('7d')">7 Days</button>
-            <button class="secondary preset-btn" id="presetBtn-30d" onclick="setStatsPreset('30d')">30 Days</button>
-            <button class="secondary preset-btn" id="presetBtn-all" onclick="setStatsPreset('all')">All Time</button>
-            <input type="date" id="statsFromInput" onchange="onStatsCustomChange()" />
-            <span class="status-line">to</span>
-            <input type="date" id="statsToInput" onchange="onStatsCustomChange()" />
+        <div class="p-header">
+          <div>
+            <p class="p-eyebrow">Instructors Ticketing System</p>
+            <h1>Weekly Resolution Insights</h1>
+            <p class="p-subtitle">Every resolution closed in the window below, AI-graded against a 4-criterion rubric (accuracy, completeness, tone, timeliness) &mdash; rolled up per team and per person, with the specific evidence driving each score.</p>
           </div>
-          <div id="statsSummary" class="status-line"></div>
         </div>
 
-        <div class="panel stats-filters-panel">
-          <div class="stats-filters-header">
-            <div class="field-label" style="margin:0;">Filters &mdash; combine any to drill down</div>
-            <button class="secondary" onclick="clearStatsFilters()">Clear filters</button>
+        <div id="insightScoreBanner" class="panel pending-banner" style="display:none;">
+          <span id="insightScoreBannerText"></span>
+          <button class="secondary" id="insightScoreNowBtn" onclick="scoreResolutionsNow()">Score Now</button>
+        </div>
+
+        <div class="empty-state" id="insightLoadingState">Loading live resolution data&hellip;</div>
+
+        <div class="range-bar">
+          <span class="range-label">Window</span>
+          <div class="range-presets" id="insightWindowToggle">
+            <button class="range-btn active" data-win="7">Last 7 days</button>
+            <button class="range-btn" data-win="14">Last 14 days</button>
           </div>
-          <div id="statsFilters" class="stats-filters"></div>
         </div>
 
-        <div id="statsBlocks"></div>
+        <div class="tiles" id="insightKpiRow"></div>
 
-        <div id="statsTicketsSection" style="display:none;">
-          <div class="section-title" style="margin:24px 0 12px;">Matching Tickets</div>
-          <div id="statsTicketsList" class="log"></div>
-        </div>
+        <section>
+          <div class="section-head"><h2>Team performance</h2></div>
+          <div class="perf-grid" id="insightTeamPerf"></div>
+        </section>
+
+        <section>
+          <div class="section-head">
+            <h2>Individual performance</h2>
+            <span class="section-note">Everyone who closed at least one graded ticket this window.</span>
+          </div>
+          <p class="section-desc">Scores from 1-2 tickets are noise, not signal &mdash; "low n" rows are anecdotal.</p>
+          <div class="p-card table-scroll">
+            <table>
+              <thead>
+                <tr><th>Person</th><th>Team</th><th class="num">Resolved</th><th class="num">Score</th><th>vs prior</th><th>Accuracy / Completeness / Tone / Timeliness</th></tr>
+              </thead>
+              <tbody id="insightIndividualTable"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section>
+          <div class="section-head">
+            <h2>Lowest-scoring resolutions</h2>
+            <span class="section-note">concrete coaching examples, not a full pattern-mining pass</span>
+          </div>
+          <p class="section-desc">The weakest graded resolutions in this window, oldest concerns first.</p>
+          <div class="p-card" id="insightWorstList"></div>
+        </section>
+
+        <div class="insight-footer" id="insightFooter"></div>
       </div>
 
       <div id="pulseView" style="display:none;">
@@ -1096,7 +1147,7 @@ function onDateChange() {
   loadDailyTickets();
 }
 
-let statsLoadedOnce = false;
+let insightLoadedOnce = false;
 
 function switchTab(tab) {
   document.getElementById('ticketsView').style.display = tab === 'tickets' ? '' : 'none';
@@ -1105,9 +1156,9 @@ function switchTab(tab) {
   document.getElementById('navBtn-tickets').classList.toggle('active', tab === 'tickets');
   document.getElementById('navBtn-stats').classList.toggle('active', tab === 'stats');
   document.getElementById('navBtn-pulse').classList.toggle('active', tab === 'pulse');
-  if (tab === 'stats' && !statsLoadedOnce) {
-    statsLoadedOnce = true;
-    setStatsPreset('7d');
+  if (tab === 'stats' && !insightLoadedOnce) {
+    insightLoadedOnce = true;
+    insightBoot();
   }
   if (tab === 'pulse' && !pulseLoadedOnce) {
     pulseLoadedOnce = true;
@@ -1115,189 +1166,305 @@ function switchTab(tab) {
   }
 }
 
-function highlightStatsPreset(active) {
-  ['today', '7d', '30d', 'all'].forEach(p =>
-    document.getElementById('presetBtn-' + p).classList.toggle('active', p === active)
-  );
+// ============================================================
+// Insights tab (Weekly Resolution Insights) - loaded lazily on first
+// visit to Stats. Every number here comes from app/quality_scorer.py's
+// real AI grading of each closed ticket's resolution text (accuracy/
+// completeness/tone/timeliness, 1-5 each), cached on the ticket the first
+// time it's graded. Nothing here is computed client-side beyond grouping/
+// averaging the scores the server already produced.
+// ============================================================
+let insightROWS = [];
+let insightState = { windowDays: 7 };
+const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000;
+
+// Mirrors app/quality_scorer.py's _parse_zoho_datetime - same format,
+// same "unparseable -> null" fallback (never throws on bad input).
+function insightParseZohoDate(s) {
+  if (!s) return null;
+  const m = /^(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2}):(\d{2})$/.exec(s.trim());
+  if (!m) return null;
+  const [, dd, mm, yyyy, hh, min, ss] = m.map(Number);
+  // Treat the parsed components as IST wall-clock time, then shift to UTC.
+  const utcMs = Date.UTC(yyyy, mm - 1, dd, hh, min, ss) - IST_OFFSET_MS;
+  return new Date(utcMs);
 }
 
-function setStatsPreset(preset) {
-  const today = todayStr();
-  let from = null, to = null;
-  if (preset === 'today') { from = today; to = today; }
-  else if (preset === '7d') { from = addDaysUTC(today, -6); to = today; }
-  else if (preset === '30d') { from = addDaysUTC(today, -29); to = today; }
-  document.getElementById('statsFromInput').value = from || '';
-  document.getElementById('statsToInput').value = to || '';
-  highlightStatsPreset(preset);
-  loadStats(from, to);
+function insightFormatPerson(raw) {
+  if (!raw) return 'Unknown';
+  if (!raw.includes('@')) return raw; // e.g. a raw Zoho record id, shown as-is
+  const local = raw.split('@')[0];
+  return local.split('.').map(w => w ? w[0].toUpperCase() + w.slice(1) : w).join(' ');
 }
 
-function onStatsCustomChange() {
-  const from = document.getElementById('statsFromInput').value || null;
-  const to = document.getElementById('statsToInput').value || null;
-  highlightStatsPreset(null);
-  loadStats(from, to);
+function insightMapTicket(t) {
+  const rp = t.raw_payload || {};
+  // Falls back to when it was graded if Zoho's own closure timestamp
+  // didn't parse - keeps a ticket in the window view rather than
+  // silently dropping it.
+  const closedAt = insightParseZohoDate(rp.ticket_closure_date_time)
+    || (t.resolution_scored_at ? new Date(t.resolution_scored_at * 1000) : null);
+  return {
+    id: t.zoho_ticket_id || t.ticket_id,
+    cat: rp.category_of_the_issue || t.zoho_category || t.category_group_name || 'Uncategorized',
+    team: rp.assigned_team || 'Unassigned',
+    closedBy: insightFormatPerson(rp.ticket_closed_by),
+    closedAt,
+    score: t.resolution_score,
+    accuracy: t.resolution_accuracy,
+    completeness: t.resolution_completeness,
+    tone: t.resolution_tone,
+    timeliness: t.resolution_timeliness,
+    evidence: t.resolution_evidence,
+  };
 }
 
-// A field pulled from raw_payload, trimmed, or null if unset - shared by
-// every raw-payload-backed facet below.
-function rawField(t, key) {
-  const v = t.raw_payload && t.raw_payload[key];
-  const s = v === null || v === undefined ? '' : String(v).trim();
-  return s || null;
+function insightScoreClass(v) {
+  return v >= 3.5 ? 'sc-good' : v >= 2.5 ? 'sc-warning' : 'sc-critical';
+}
+function insightBarClass(v) {
+  const pct = v / 5;
+  return pct >= 0.7 ? 'fill-good' : pct >= 0.45 ? 'fill-warning' : 'fill-critical';
+}
+function insightDeltaChipHTML(current, prior) {
+  if (prior === null || prior === undefined) return `<span class="delta-chip neutral">new</span>`;
+  const diff = current - prior;
+  if (Math.abs(diff) < 0.05) return `<span class="delta-chip neutral">flat</span>`;
+  const cls = diff > 0 ? 'good' : 'critical';
+  const arrow = diff > 0 ? '▲' : '▼';
+  return `<span class="delta-chip ${cls}">${arrow} ${Math.abs(diff).toFixed(2)}</span>`;
+}
+function insightAvg(rows, key) {
+  return rows.length ? rows.reduce((s, r) => s + r[key], 0) / rows.length : null;
 }
 
-// Every dimension a filter can pin and/or a breakdown block can group by.
-// `get` returns null for "no value" - callers normalize that to '(not set)'.
-const STATS_FACETS = [
-  { key: 'category_group', label: 'Category', get: t => t.category_group_name || null },
-  { key: 'subcategory', label: 'Sub-category', get: t => t.category_name || null },
-  { key: 'university', label: 'University', get: t => rawField(t, 'university_boa') },
-  { key: 'sla_status', label: 'SLA Status', get: t => rawField(t, 'sla_breach_status') },
-  { key: 'classification_status', label: 'Classification Status', get: t => statusLabel(t.status) },
-  { key: 'zoho_status', label: 'Zoho Ticket Status', get: t => rawField(t, 'ticket_status') },
-  { key: 'priority', label: 'Priority', get: t => rawField(t, 'priority_level') },
-  { key: 'assigned_team', label: 'Assigned Team', get: t => rawField(t, 'assigned_team') },
-];
-
-let statsTickets = [];
-let activeFacetFilters = {}; // facet key -> selected value, absent = "All"
-
-function facetValue(facet, t) {
-  return facet.get(t) || '(not set)';
+function insightWindowRows(days) {
+  const now = new Date();
+  const from = new Date(now); from.setDate(from.getDate() - days);
+  const priorFrom = new Date(now); priorFrom.setDate(priorFrom.getDate() - days * 2);
+  const current = insightROWS.filter(r => r.closedAt && r.closedAt >= from && r.closedAt <= now);
+  const prior = insightROWS.filter(r => r.closedAt && r.closedAt >= priorFrom && r.closedAt < from);
+  return { current, prior };
 }
 
-function ticketMatchesActiveFilters(t) {
-  return STATS_FACETS.every(f => {
-    const active = activeFacetFilters[f.key];
-    return !active || facetValue(f, t) === active;
-  });
+function insightGroupBy(rows, key) {
+  const map = {};
+  rows.forEach(r => { (map[r[key]] = map[r[key]] || []).push(r); });
+  return map;
 }
 
-function countEntries(tickets, facet) {
-  const counts = {};
-  tickets.forEach(t => {
-    const k = facetValue(facet, t);
-    counts[k] = (counts[k] || 0) + 1;
-  });
-  return Object.entries(counts).sort((a, b) => b[1] - a[1]);
+function insightRenderKpis(current, prior) {
+  const el = document.getElementById('insightKpiRow');
+  if (current.length === 0) {
+    el.innerHTML = '<div class="empty-state" style="grid-column:1/-1">No graded resolutions closed in this window yet.</div>';
+    return;
+  }
+  const avgScore = insightAvg(current, 'score');
+  const priorAvg = insightAvg(prior, 'score');
+  const needsCoaching = current.filter(r => r.score < 3).length;
+  const criteria = ['accuracy', 'completeness', 'tone', 'timeliness'];
+  const criteriaAvgs = criteria.map(c => ({ name: c, avg: insightAvg(current, c) }));
+  const weakest = criteriaAvgs.sort((a, b) => a.avg - b.avg)[0];
+
+  const tiles = [
+    { label: 'Avg resolution score', value: avgScore.toFixed(1), unit: '/ 5', sub: prior.length ? insightDeltaChipHTML(avgScore, priorAvg) + ' vs prior period' : 'not enough prior-period data yet', cls: insightScoreClass(avgScore) === 'sc-good' ? '' : insightScoreClass(avgScore) === 'sc-critical' ? 'critical' : '' },
+    { label: 'Resolutions graded', value: current.length, unit: '', sub: 'closed in this window', cls: '' },
+    { label: 'Needs coaching (< 3.0)', value: `${needsCoaching}<span class="unit">/ ${current.length}</span>`, unit: '', sub: `${Math.round(needsCoaching / current.length * 100)}% of the window`, cls: needsCoaching / current.length > 0.3 ? 'critical' : '' },
+    { label: 'Weakest criterion org-wide', value: weakest.name[0].toUpperCase() + weakest.name.slice(1), unit: '', sub: `avg ${weakest.avg.toFixed(1)} / 5`, cls: '' },
+  ];
+  el.innerHTML = tiles.map(x => `
+    <div class="tile ${x.cls ? 'flag' : ''}">
+      <p class="tile-label">${x.label}</p>
+      <div class="tile-value ${x.cls}">${x.value}${x.unit ? `<span class="unit">${x.unit}</span>` : ''}</div>
+      <div class="tile-sub">${x.sub}</div>
+    </div>`).join('');
 }
 
-function renderStatsFilters() {
-  const container = document.getElementById('statsFilters');
-  container.innerHTML = STATS_FACETS.map(f => {
-    const values = Array.from(new Set(statsTickets.map(t => facetValue(f, t)))).sort();
-    const active = activeFacetFilters[f.key] || '';
-    const options = values.map(v =>
-      `<option value="${esc(v)}" ${v === active ? 'selected' : ''}>${esc(v)}</option>`
-    ).join('');
-    return `
-      <div class="filter-field">
-        <label class="field-label">${esc(f.label)}</label>
-        <select class="${active ? 'filter-active' : ''}" onchange="setFacetFilter('${f.key}', this.value)">
-          <option value="">All</option>
-          ${options}
-        </select>
-      </div>`;
-  }).join('');
+function insightCriterionBarsHTML(row) {
+  const criteria = [['Accuracy', row.accuracy], ['Completeness', row.completeness], ['Tone', row.tone], ['Timeliness', row.timeliness]];
+  const min = Math.min(...criteria.map(c => c[1]));
+  return `<div class="cbar-group">${criteria.map(([label, v]) => `
+    <div class="cbar-row ${v === min ? 'weak' : ''}">
+      <span class="cbar-label">${label}</span>
+      <div class="cbar-track"><div class="cbar-fill ${insightBarClass(v)}" style="width:${v / 5 * 100}%"></div></div>
+      <span class="cbar-val">${v.toFixed(1)}</span>
+    </div>`).join('')}</div>`;
 }
 
-function setFacetFilter(key, value) {
-  if (value) activeFacetFilters[key] = value; else delete activeFacetFilters[key];
-  renderStatsFilters();
-  renderStatsBreakdown();
-}
-
-function clearStatsFilters() {
-  activeFacetFilters = {};
-  renderStatsFilters();
-  renderStatsBreakdown();
-}
-
-function statBlockHTML(title, entries, total) {
-  const rows = entries.map(([label, count]) => {
-    const pct = total ? Math.round((count / total) * 100) : 0;
-    return `
-      <div class="stat-row">
-        <div class="stat-label">${esc(label)}</div>
-        <div class="stat-bar-line">
-          <div class="stat-bar-wrap"><div class="stat-bar" style="width:${pct}%"></div></div>
-          <div class="stat-count">${count} (${pct}%)</div>
-        </div>
-      </div>`;
-  }).join('');
-  return `
-    <div class="panel stat-block">
-      <div class="section-title">${esc(title)}</div>
-      ${rows || '<div class="empty" style="padding:10px 0;">No data for this selection.</div>'}
-    </div>`;
-}
-
-// Read-only, always-expanded ticket card for the Stats tab's drill-down
-// list - deliberately not zohoCardHTML/cardHTML (those wire up correction/
-// clarify/toggle controls keyed by DOM id, which would collide if the same
-// ticket is also rendered in the Tickets tab's still-mounted-but-hidden DOM).
-function statsTicketCardHTML(state) {
-  const band = confBand(state.confidence);
-  return `
-    <div class="ticket-id-line">Ticket ID: <span class="mono">${esc(state.zoho_ticket_id || state.ticket_id)}</span> &middot; ${statusLabel(state.status)}</div>
-    ${state.category_id ? `
-      <div class="field-label">Category</div>
-      <div class="category-value">${esc(state.category_group_name || '—')}</div>
-      <div class="field-label" style="margin-top:12px;">Sub-category</div>
-      <span class="badge"><span class="swatch" style="background:${band.color}"></span>${esc(state.category_name || state.category_id)}</span>
-      ${renderMeter(state.confidence)}
-      ${state.reasoning ? `<div class="reasoning">${esc(state.reasoning)}</div>` : ''}
-    ` : '<div class="reasoning">Not yet classified.</div>'}
-    ${zohoAgreementHTML(state)}
-    <div class="ticket-details">
-      <div class="section-title">Ticket Details</div>
-      ${ticketDetailsHTML(state)}
+function insightEvidenceHTML(row) {
+  return `<div class="evidence">
+    <span class="evidence-score ${insightScoreClass(row.score)}">${row.score.toFixed(1)}</span>
+    <div>
+      <div class="evidence-text">${esc(row.evidence || '')}</div>
+      <div class="evidence-meta">#${esc(row.id)} &middot; ${esc(row.closedBy)} &middot; ${esc(row.team)} &middot; ${esc(row.cat)}</div>
     </div>
-  `;
+  </div>`;
 }
 
-function renderStatsBreakdown() {
-  const filtered = statsTickets.filter(ticketMatchesActiveFilters);
-  document.getElementById('statsSummary').innerText =
-    `${filtered.length} ticket${filtered.length === 1 ? '' : 's'}` +
-    (filtered.length !== statsTickets.length ? ` of ${statsTickets.length}` : '');
+function insightRenderTeamPerf(current, prior) {
+  const el = document.getElementById('insightTeamPerf');
+  const byTeam = insightGroupBy(current, 'team');
+  const priorByTeam = insightGroupBy(prior, 'team');
+  const teams = Object.keys(byTeam).sort((a, b) => byTeam[b].length - byTeam[a].length);
+  if (teams.length === 0) { el.innerHTML = '<div class="empty-state">No graded resolutions in this window.</div>'; return; }
 
-  document.getElementById('statsBlocks').innerHTML = STATS_FACETS
-    .map(f => statBlockHTML(f.label, countEntries(filtered, f), filtered.length))
-    .join('');
+  el.innerHTML = teams.map(team => {
+    const rows = byTeam[team];
+    const priorRows = priorByTeam[team] || [];
+    const avgScore = insightAvg(rows, 'score');
+    const worst = [...rows].sort((a, b) => a.score - b.score)[0];
+    // Representative row for the criterion bars: same shape as a single
+    // row, but averaged across the team so the bars reflect the whole
+    // group rather than just the worst ticket.
+    const avgRow = {
+      accuracy: insightAvg(rows, 'accuracy'), completeness: insightAvg(rows, 'completeness'),
+      tone: insightAvg(rows, 'tone'), timeliness: insightAvg(rows, 'timeliness'),
+    };
+    return `
+    <div class="perf-card">
+      <div class="perf-head">
+        <div>
+          <div class="perf-name">${esc(team)}</div>
+          <div class="perf-count">${rows.length} resolved &middot; prior period ${priorRows.length}</div>
+        </div>
+        <div class="perf-score-block">
+          <span class="perf-score ${insightScoreClass(avgScore)}">${avgScore.toFixed(1)}</span>
+          ${insightDeltaChipHTML(avgScore, priorRows.length ? insightAvg(priorRows, 'score') : null)}
+        </div>
+      </div>
+      ${insightCriterionBarsHTML(avgRow)}
+      ${insightEvidenceHTML(worst)}
+    </div>`;
+  }).join('');
+}
 
-  const hasActiveFilter = Object.keys(activeFacetFilters).length > 0;
-  const section = document.getElementById('statsTicketsSection');
-  const list = document.getElementById('statsTicketsList');
-  if (!hasActiveFilter) {
-    section.style.display = 'none';
-    list.innerHTML = '';
-  } else {
-    section.style.display = '';
-    list.innerHTML = filtered.length
-      ? filtered.map(state => `<div class="card">${statsTicketCardHTML(state)}</div>`).join('')
-      : '<div class="empty">No tickets match this filter.</div>';
+function insightRenderIndividualTable(current, prior) {
+  const el = document.getElementById('insightIndividualTable');
+  const byPerson = insightGroupBy(current, 'closedBy');
+  const priorByPerson = insightGroupBy(prior, 'closedBy');
+  const people = Object.keys(byPerson).sort((a, b) => byPerson[b].length - byPerson[a].length);
+  if (people.length === 0) { el.innerHTML = '<tr><td colspan="6" class="empty-state">No graded resolutions in this window.</td></tr>'; return; }
+
+  el.innerHTML = people.map(person => {
+    const rows = byPerson[person];
+    const priorRows = priorByPerson[person] || [];
+    const avgScore = insightAvg(rows, 'score');
+    const lowN = rows.length < 3;
+    const team = rows[0].team;
+    const crit = ['accuracy', 'completeness', 'tone', 'timeliness'];
+    const avgs = crit.map(c => insightAvg(rows, c));
+    const min = Math.min(...avgs);
+    return `
+    <tr class="${lowN ? 'low-n' : ''}">
+      <td>${esc(person)}${lowN ? '<span class="n-flag" title="Fewer than 3 tickets this window - read the score as anecdotal, not a trend.">low n</span>' : ''}</td>
+      <td>${esc(team)}</td>
+      <td class="num">${rows.length}</td>
+      <td><span class="table-score ${insightScoreClass(avgScore)}">${avgScore.toFixed(1)}</span></td>
+      <td>${insightDeltaChipHTML(avgScore, priorRows.length ? insightAvg(priorRows, 'score') : null)}</td>
+      <td><div class="mini-crit-row">${crit.map((c, i) => `<span class="mini-crit ${avgs[i] === min ? 'weak' : ''}" title="${c[0].toUpperCase()+c.slice(1)}: ${avgs[i].toFixed(1)}">${avgs[i].toFixed(1)}</span>`).join('')}</div></td>
+    </tr>`;
+  }).join('');
+}
+
+function insightRenderWorstList(current) {
+  const el = document.getElementById('insightWorstList');
+  const worst = [...current].sort((a, b) => a.score - b.score).slice(0, 8);
+  el.innerHTML = worst.length
+    ? worst.map(insightEvidenceHTML).join('')
+    : '<div class="empty-state">No graded resolutions in this window.</div>';
+}
+
+function insightRenderFooter() {
+  const graded = insightROWS.length;
+  document.getElementById('insightFooter').innerHTML =
+    `<b>Methodology.</b> Every ticket closed as "Resolved By POC" or "Resolution Acknowledged" is graded once against its resolution text ` +
+    `(or worklog / acknowledgment text when no resolution was logged) on a 1-5 rubric - accuracy, completeness, tone, timeliness - by the ` +
+    `server's own OpenAI key, and the score is cached permanently. Tickets with nothing written down are auto-scored low rather than skipped. ` +
+    `${graded} resolution${graded === 1 ? '' : 's'} graded so far. "vs prior period" compares the current window to the equal-length period ` +
+    `immediately before it. Grading is AI-assisted, not human-reviewed line by line.`;
+}
+
+function insightRenderAll() {
+  const { current, prior } = insightWindowRows(insightState.windowDays);
+  insightRenderKpis(current, prior);
+  insightRenderTeamPerf(current, prior);
+  insightRenderIndividualTable(current, prior);
+  insightRenderWorstList(current);
+  insightRenderFooter();
+}
+
+// Delegated (attached once below, not per-boot) so repeated insightBoot()
+// calls - e.g. after "Score Now" - never stack up duplicate listeners.
+function insightInitToggle() {
+  document.getElementById('insightWindowToggle').addEventListener('click', e => {
+    const btn = e.target.closest('.range-btn');
+    if (!btn) return;
+    document.querySelectorAll('#insightWindowToggle .range-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    insightState.windowDays = Number(btn.dataset.win);
+    insightRenderAll();
+  });
+}
+
+async function insightLoadPendingCount() {
+  const banner = document.getElementById('insightScoreBanner');
+  try {
+    const res = await fetch('/api/resolutions/pending-count');
+    if (!res.ok) throw new Error(`failed (${res.status})`);
+    const data = await res.json();
+    if (data.count > 0) {
+      document.getElementById('insightScoreBannerText').innerText =
+        `${data.count} closed ticket${data.count === 1 ? '' : 's'} awaiting resolution grading`;
+      banner.style.display = '';
+    } else {
+      banner.style.display = 'none';
+    }
+  } catch (e) {
+    console.error(e);
   }
 }
 
-async function loadStats(dateFrom, dateTo) {
-  const summary = document.getElementById('statsSummary');
-  summary.innerText = 'loading…';
-  const params = new URLSearchParams();
-  if (dateFrom) params.set('date_from', dateFrom);
-  if (dateTo) params.set('date_to', dateTo);
+async function scoreResolutionsNow() {
+  const btn = document.getElementById('insightScoreNowBtn');
+  const text = document.getElementById('insightScoreBannerText');
+  btn.disabled = true;
+  text.innerText = 'grading…';
   try {
-    const res = await fetch(`/api/tickets/range?${params.toString()}`);
-    if (!res.ok) throw new Error(`failed (${res.status})`);
-    statsTickets = await res.json();
-    activeFacetFilters = {};
-    renderStatsFilters();
-    renderStatsBreakdown();
+    const res = await fetch('/api/resolutions/score-pending?limit=10', { method: 'POST' });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.detail || `failed (${res.status})`);
+    }
+    const data = await res.json();
+    let msg = `graded ${data.scored}`;
+    if (data.remaining) msg += `, ${data.remaining} still pending`;
+    if (data.stopped_early) msg += ' - stopped early (rate limited), will retry automatically';
+    text.innerText = msg;
+    if (data.scored) await insightBoot();
   } catch (e) {
-    summary.innerText = 'failed to load stats';
+    text.innerText = e.message;
     console.error(e);
+  }
+  btn.disabled = false;
+  insightLoadPendingCount();
+}
+
+async function insightBoot() {
+  const loadingEl = document.getElementById('insightLoadingState');
+  try {
+    insightLoadPendingCount();
+    const res = await fetch('/api/tickets/range');
+    if (res.status === 401) { window.location = '/login'; return; }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const tickets = await res.json();
+
+    insightROWS = tickets.filter(t => t.resolution_scored_at).map(insightMapTicket);
+    loadingEl.style.display = 'none';
+
+    insightRenderAll();
+  } catch (err) {
+    loadingEl.style.display = '';
+    loadingEl.textContent = `Couldn't load resolution data: ${err.message}`;
   }
 }
 
@@ -1337,7 +1504,7 @@ async function classifyPendingNow() {
     text.innerText = msg;
     // refresh whatever's currently visible so newly-classified tickets show up
     loadDailyTickets();
-    if (statsLoadedOnce) loadStats(document.getElementById('statsFromInput').value || null, document.getElementById('statsToInput').value || null);
+    if (insightLoadedOnce) insightBoot();
   } catch (e) {
     text.innerText = e.message;
     console.error(e);
@@ -1349,6 +1516,7 @@ async function classifyPendingNow() {
 loadTaxonomy();
 loadZohoStatus();
 loadPendingCount();
+insightInitToggle();
 document.getElementById('dateInput').value = currentDate;
 loadDailyTickets();
 

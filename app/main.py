@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from openai import RateLimitError
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import auth, config, db, memory, classifier
+from . import auth, config, db, memory, classifier, quality_scorer
 from .taxonomy import taxonomy
 from .auth import require_login
 from .models import (
@@ -89,6 +89,7 @@ async def startup():
     # don't have until a request carries one - seeding happens lazily on the
     # first classify() call instead (see classifier.classify).
     asyncio.create_task(_auto_classify_loop())
+    asyncio.create_task(_auto_score_loop())
 
 
 @app.get("/")
@@ -360,6 +361,13 @@ def _to_state_response(ticket: dict) -> TicketStateResponse:
         zoho_subcategory=zoho_subcategory,
         zoho_agrees=zoho_agrees,
         raw_payload=raw_payload,
+        resolution_score=ticket.get("resolution_score"),
+        resolution_accuracy=ticket.get("resolution_accuracy"),
+        resolution_completeness=ticket.get("resolution_completeness"),
+        resolution_tone=ticket.get("resolution_tone"),
+        resolution_timeliness=ticket.get("resolution_timeliness"),
+        resolution_evidence=ticket.get("resolution_evidence"),
+        resolution_scored_at=ticket.get("resolution_scored_at"),
     )
 
 
@@ -474,6 +482,62 @@ async def _auto_classify_loop():
             logger.error("auto-classify loop error: %s", e)
 
 
+def _score_pending_resolutions_batch(limit: int, api_key: str) -> dict:
+    """
+    Grades up to `limit` closed-but-ungraded tickets - same stop-on-
+    RateLimitError, keep-going-on-other-errors shape as _classify_pending_
+    batch above. Used by both the manual "Score Now" trigger and the
+    background auto-score loop below.
+    """
+    pending = [
+        t for t in db.list_all_tickets()
+        if quality_scorer.is_closed(t) and not t.get("resolution_scored_at")
+    ][:limit]
+    scored_count = 0
+    stopped_early = False
+    error = None
+
+    for t in pending:
+        try:
+            result = quality_scorer.score_ticket(t, api_key)
+        except RateLimitError as e:
+            stopped_early = True
+            error = str(e)
+            break
+        except Exception as e:
+            error = str(e)
+            continue
+        db.update_ticket(t["id"], **result)
+        scored_count += 1
+
+    remaining = sum(
+        1 for t in db.list_all_tickets()
+        if quality_scorer.is_closed(t) and not t.get("resolution_scored_at")
+    )
+    return {"scored": scored_count, "remaining": remaining, "stopped_early": stopped_early, "error": error}
+
+
+_AUTO_SCORE_INTERVAL_SECONDS = 1800  # 30 min
+_AUTO_SCORE_BATCH_SIZE = 5
+
+
+async def _auto_score_loop():
+    """Same self-healing shape as _auto_classify_loop, for resolution grading."""
+    while True:
+        await asyncio.sleep(_AUTO_SCORE_INTERVAL_SECONDS)
+        if not config.OPENAI_API_KEY:
+            continue
+        try:
+            result = _score_pending_resolutions_batch(_AUTO_SCORE_BATCH_SIZE, config.OPENAI_API_KEY)
+            if result["scored"]:
+                logger.info(
+                    "auto-score: graded %d resolution(s), %d remaining",
+                    result["scored"], result["remaining"],
+                )
+        except Exception as e:
+            logger.error("auto-score loop error: %s", e)
+
+
 @app.post("/api/tickets", response_model=TicketStateResponse)
 def create_ticket(req: NewTicketRequest, api_key: str = Depends(require_api_key), user: str = Depends(require_login)):
     if not req.text.strip():
@@ -584,6 +648,24 @@ def classify_pending_tickets(limit: int = 20, user: str = Depends(require_login)
     if not config.OPENAI_API_KEY:
         raise HTTPException(500, "OPENAI_API_KEY is not set in the server's environment.")
     return _classify_pending_batch(limit, config.OPENAI_API_KEY)
+
+
+@app.get("/api/resolutions/pending-count")
+def get_resolution_pending_count(user: str = Depends(require_login)):
+    """How many closed tickets haven't been quality-graded yet - powers the
+    Weekly Resolution Insights view's "Score Now" banner."""
+    count = sum(1 for t in db.list_all_tickets() if quality_scorer.is_closed(t) and not t.get("resolution_scored_at"))
+    return {"count": count}
+
+
+@app.post("/api/resolutions/score-pending")
+def score_pending_resolutions(limit: int = 10, user: str = Depends(require_login)):
+    """Manually trigger resolution grading for up to `limit` closed-but-
+    ungraded tickets - see _score_pending_resolutions_batch. The background
+    auto-score loop does this too, on its own schedule."""
+    if not config.OPENAI_API_KEY:
+        raise HTTPException(500, "OPENAI_API_KEY is not set in the server's environment.")
+    return _score_pending_resolutions_batch(limit, config.OPENAI_API_KEY)
 
 
 @app.get("/api/tickets/{ticket_id}", response_model=TicketStateResponse)

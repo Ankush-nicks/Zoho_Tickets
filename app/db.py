@@ -27,7 +27,14 @@ CREATE TABLE IF NOT EXISTS tickets (
     zoho_subcategory TEXT,             -- kept only to compare against our own prediction, never used to classify
     raw_payload TEXT,                  -- full JSON body Zoho's webhook sent (serialized - see _dump_raw_payload/_load_raw_payload)
     created_at REAL NOT NULL,
-    updated_at REAL NOT NULL
+    updated_at REAL NOT NULL,
+    resolution_score REAL,             -- avg of the 4 criteria below, set by app/quality_scorer.py once a ticket is closed
+    resolution_accuracy REAL,
+    resolution_completeness REAL,
+    resolution_tone REAL,
+    resolution_timeliness REAL,
+    resolution_evidence TEXT,          -- one-sentence AI critique quote, shown in the Insights tab
+    resolution_scored_at REAL          -- unset means not graded yet (or not closed yet)
 );
 
 CREATE TABLE IF NOT EXISTS turns (
@@ -138,6 +145,16 @@ def init_db():
                 conn.execute(f"ALTER TABLE tickets ADD COLUMN {col} TEXT")
             except Exception:
                 pass
+        for col in ("resolution_score", "resolution_accuracy", "resolution_completeness",
+                    "resolution_tone", "resolution_timeliness", "resolution_scored_at"):
+            try:
+                conn.execute(f"ALTER TABLE tickets ADD COLUMN {col} REAL")
+            except Exception:
+                pass
+        try:
+            conn.execute("ALTER TABLE tickets ADD COLUMN resolution_evidence TEXT")
+        except Exception:
+            pass
 
 
 def create_ticket(

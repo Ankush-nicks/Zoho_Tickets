@@ -1,0 +1,1110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Weekly Resolution Insights</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+  :root {
+    color-scheme: light;
+    --page:#f4f5f2; --surface:#ffffff; --surface-2:#f7f7f5; --surface-3:#eeefec;
+    --border:rgba(11,11,11,0.09); --border-soft:rgba(11,11,11,0.06);
+    --text-1:#14151a; --text-2:#52534d; --text-muted:#8b8c85;
+    --accent:#2a78d6; --accent-soft:rgba(42,120,214,0.12);
+    --good:#0ca30c; --good-soft:rgba(12,163,12,0.12);
+    --warning:#b7790a; --warning-soft:#fab219; --warning-bg:rgba(250,178,25,0.16);
+    --critical:#d03b3b; --critical-soft:rgba(208,59,59,0.12);
+    --neutral:#8b8c85; --neutral-soft:rgba(139,140,133,0.14);
+    --shadow: 0 1px 2px rgba(20,21,26,0.04), 0 8px 24px -12px rgba(20,21,26,0.10);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --page:#0e0f10; --surface:#17181a; --surface-2:#1c1d20; --surface-3:#222327;
+      --border:rgba(255,255,255,0.09); --border-soft:rgba(255,255,255,0.06);
+      --text-1:#f5f5f3; --text-2:#c3c2b7; --text-muted:#8b8c85;
+      --accent:#3987e5; --accent-soft:rgba(57,135,229,0.18);
+      --good:#1abc1a; --good-soft:rgba(26,188,26,0.16);
+      --warning:#fab219; --warning-soft:#fab219; --warning-bg:rgba(250,178,25,0.14);
+      --critical:#e66767; --critical-soft:rgba(230,103,103,0.16);
+      --neutral:#8b8c85; --neutral-soft:rgba(139,140,133,0.18);
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page:#0e0f10; --surface:#17181a; --surface-2:#1c1d20; --surface-3:#222327;
+    --border:rgba(255,255,255,0.09); --border-soft:rgba(255,255,255,0.06);
+    --text-1:#f5f5f3; --text-2:#c3c2b7; --text-muted:#8b8c85;
+    --accent:#3987e5; --accent-soft:rgba(57,135,229,0.18);
+    --good:#1abc1a; --good-soft:rgba(26,188,26,0.16);
+    --warning:#fab219; --warning-soft:#fab219; --warning-bg:rgba(250,178,25,0.14);
+    --critical:#e66767; --critical-soft:rgba(230,103,103,0.16);
+    --neutral:#8b8c85; --neutral-soft:rgba(139,140,133,0.18);
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
+  }
+
+  * { box-sizing:border-box; }
+  html { background:var(--page); }
+  body { margin:0; background:var(--page); color:var(--text-1); font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:1180px; margin:0 auto; padding:40px 24px 80px; }
+
+  header.top { display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:16px; margin-bottom:24px; padding-bottom:20px; border-bottom:1px solid var(--border); }
+  .eyebrow { font-family:"IBM Plex Mono",monospace; font-size:11.5px; letter-spacing:.09em; text-transform:uppercase; color:var(--accent); font-weight:500; margin:0 0 8px; display:flex; gap:10px; flex-wrap:wrap; }
+  .eyebrow a { color:var(--accent); text-decoration:none; border-bottom:1px dotted currentColor; }
+  .eyebrow a:hover { opacity:.75; }
+  h1 { font-family:"Sora",sans-serif; font-weight:700; font-size:clamp(24px,3vw,32px); line-height:1.15; margin:0 0 6px; letter-spacing:-.01em; text-wrap:balance; }
+  .sub { color:var(--text-2); font-size:14.5px; margin:0; max-width:64ch; }
+
+  .toggle-group { display:flex; gap:4px; background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:4px; }
+  .toggle-btn { font-family:"IBM Plex Mono",monospace; font-size:12.5px; padding:8px 16px; border-radius:7px; border:none; background:transparent; color:var(--text-2); cursor:pointer; font-weight:500; }
+  .toggle-btn.active { background:var(--surface); color:var(--text-1); box-shadow:var(--shadow); }
+
+  section { margin-top:32px; }
+  .section-head { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
+  h2 { font-family:"Sora",sans-serif; font-weight:600; font-size:17px; margin:0; }
+  .section-note { font-size:13px; color:var(--text-muted); margin:0; max-width:52ch; }
+
+  .kpi-row { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+  @media (max-width:860px) { .kpi-row { grid-template-columns:repeat(2,1fr); } }
+  .tile { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px; box-shadow:var(--shadow); position:relative; overflow:hidden; }
+  .tile::before { content:""; position:absolute; top:0; left:0; right:0; height:3px; background:var(--accent); }
+  .tile.sc-good::before { background:var(--good); } .tile.sc-warning::before { background:var(--warning-soft); } .tile.sc-critical::before { background:var(--critical); }
+  .tile-label { font-size:12px; color:var(--text-muted); margin:4px 0 8px; }
+  .tile-value { font-family:"Sora",sans-serif; font-weight:700; font-size:24px; }
+  .tile-value .unit { font-size:13px; font-weight:500; color:var(--text-2); margin-left:2px; }
+  .tile-sub { font-size:11.5px; color:var(--text-muted); margin-top:6px; font-family:"IBM Plex Mono",monospace; }
+
+  .delta-chip { font-family:"IBM Plex Mono",monospace; font-size:11.5px; padding:3px 8px; border-radius:999px; display:inline-block; }
+  .delta-chip.good { background:var(--good-soft); color:var(--good); }
+  .delta-chip.critical { background:var(--critical-soft); color:var(--critical); }
+  .delta-chip.neutral { background:var(--neutral-soft); color:var(--text-2); }
+
+  .pattern-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:14px; }
+  @media (max-width:860px) { .pattern-grid { grid-template-columns:1fr; } }
+  .pattern-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px 20px; box-shadow:var(--shadow); }
+  .pattern-head { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:8px; }
+  .pattern-title { font-family:"Sora",sans-serif; font-weight:600; font-size:14.5px; }
+  .pattern-freq { font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--text-muted); background:var(--surface-2); border-radius:999px; padding:3px 10px; white-space:nowrap; }
+  .pattern-fix { font-size:12.5px; color:var(--text-2); line-height:1.55; margin:10px 0 12px; }
+  .pattern-fix b { color:var(--text-1); }
+  .evidence { display:flex; gap:10px; padding:9px 0; border-top:1px solid var(--border-soft); align-items:flex-start; }
+  .evidence-score { font-family:"IBM Plex Mono",monospace; font-weight:600; font-size:12px; border-radius:6px; padding:2px 7px; flex:none; margin-top:1px; }
+  .sc-good { background:var(--good-soft); color:var(--good); } .sc-warning { background:var(--warning-bg); color:var(--warning); } .sc-critical { background:var(--critical-soft); color:var(--critical); } .sc-neutral { background:var(--neutral-soft); color:var(--text-2); }
+  .evidence-text { font-size:12.5px; color:var(--text-1); line-height:1.5; }
+  .evidence-meta { font-size:10.5px; color:var(--text-muted); font-family:"IBM Plex Mono",monospace; margin-top:3px; }
+
+  .perf-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:14px; }
+  @media (max-width:860px) { .perf-grid { grid-template-columns:1fr; } }
+  .perf-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px 20px; box-shadow:var(--shadow); }
+  .perf-head { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px; }
+  .perf-name { font-family:"Sora",sans-serif; font-weight:600; font-size:15px; }
+  .perf-count { font-size:11.5px; color:var(--text-muted); margin-top:2px; font-family:"IBM Plex Mono",monospace; }
+  .perf-score-block { display:flex; flex-direction:column; align-items:flex-end; gap:5px; }
+  .perf-score { font-family:"Sora",sans-serif; font-weight:700; font-size:20px; border-radius:8px; padding:2px 10px; }
+
+  .cbar-group { display:flex; flex-direction:column; gap:6px; margin-bottom:6px; }
+  .cbar-row { display:grid; grid-template-columns:88px 1fr 28px; align-items:center; gap:8px; }
+  .cbar-row.weak .cbar-label { color:var(--critical); font-weight:600; }
+  .cbar-label { font-size:11px; color:var(--text-muted); }
+  .cbar-track { height:6px; background:var(--surface-2); border-radius:3px; overflow:hidden; }
+  .cbar-fill { height:100%; border-radius:3px; }
+  .fill-good { background:var(--good); } .fill-warning { background:var(--warning-soft); } .fill-critical { background:var(--critical); }
+  .cbar-val { font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--text-2); text-align:right; }
+
+  .table-wrap { overflow-x:auto; border-radius:12px; border:1px solid var(--border); background:var(--surface); box-shadow:var(--shadow); }
+  table { width:100%; border-collapse:collapse; min-width:680px; }
+  thead th { text-align:left; font-size:10.5px; letter-spacing:.05em; text-transform:uppercase; color:var(--text-muted); font-weight:500; padding:11px 14px; border-bottom:1px solid var(--border); background:var(--surface-2); }
+  tbody td { padding:10px 14px; border-bottom:1px solid var(--border-soft); font-size:12.5px; vertical-align:middle; }
+  tbody tr:last-child td { border-bottom:none; }
+  tbody tr:hover td { background:var(--surface-2); }
+  tbody tr.low-n { opacity:.72; }
+  .td-name { font-weight:500; }
+  .td-num { font-family:"IBM Plex Mono",monospace; color:var(--text-2); }
+  .n-flag { font-size:9.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--text-muted); border:1px solid var(--border); border-radius:999px; padding:1px 6px; margin-left:6px; }
+  .table-score { font-family:"IBM Plex Mono",monospace; font-weight:600; font-size:12.5px; border-radius:6px; padding:2px 8px; }
+  .mini-crit-row { display:flex; gap:4px; }
+  .mini-crit { font-family:"IBM Plex Mono",monospace; font-size:10px; background:var(--surface-2); border-radius:4px; padding:2px 5px; color:var(--text-2); }
+  .mini-crit.weak { background:var(--critical-soft); color:var(--critical); font-weight:600; }
+
+  .callout { margin-top:16px; padding:14px 16px; border-radius:10px; background:var(--accent-soft); font-size:13px; color:var(--text-1); line-height:1.5; }
+  .callout b { font-family:"IBM Plex Mono",monospace; color:var(--accent); }
+
+  footer { margin-top:48px; padding-top:20px; border-top:1px solid var(--border); font-size:12px; color:var(--text-muted); line-height:1.7; }
+  footer b { color:var(--text-2); }
+
+  .win { display:none; }
+  .win.active { display:block; }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <p class="eyebrow">Instructor Ticketing System &middot;
+        <a href="https://claude.ai/code/artifact/e9b9c508-3891-4954-a56b-3049691f677b" target="_blank" rel="noopener">quality overview</a> &middot;
+        <a href="https://claude.ai/code/artifact/1521e7ed-073c-4d2f-8c51-131154baee13" target="_blank" rel="noopener">open ticket queue</a> &middot;
+        <a href="https://claude.ai/code/artifact/6bd25e75-83fa-4170-bd72-8b00c74f3278" target="_blank" rel="noopener">QA scorecard</a> &middot;
+        <a href="https://claude.ai/code/artifact/4d6fc8ec-b7f5-4b07-bf52-65a4dbb7b098" target="_blank" rel="noopener">quality trend</a>
+      </p>
+      <h1>Weekly Resolution Insights</h1>
+      <p class="sub">Every resolution closed in the window below, AI-graded against the same rubric as the QA scorecard (accuracy, completeness, tone, timeliness) &mdash; rolled up per team and per person, with the specific patterns driving the score.</p>
+    </div>
+    <div class="toggle-group" id="window-toggle">
+      <button class="toggle-btn active" data-win="7">Last 7 days</button>
+      <button class="toggle-btn" data-win="14">Last 14 days</button>
+    </div>
+  </header>
+
+  <div id="win-7" class="win active">
+    <section>
+      <div class="kpi-row">
+        <div class="tile sc-warning">
+          <div class="tile-label">Avg resolution score</div>
+          <div class="tile-value">2.9<span class="unit">/ 5</span></div>
+          <div class="tile-sub"><span class="delta-chip good">▲ 0.06</span> vs prior 7 days</div>
+        </div>
+        <div class="tile">
+          <div class="tile-label">Resolutions graded</div>
+          <div class="tile-value">33</div>
+          <div class="tile-sub">closed in this window</div>
+        </div>
+        <div class="tile sc-critical">
+          <div class="tile-label">Needs coaching (&lt; 3.0)</div>
+          <div class="tile-value">15<span class="unit">/ 33</span></div>
+          <div class="tile-sub">45% of the window</div>
+        </div>
+        <div class="tile sc-warning">
+          <div class="tile-label">Weakest criterion org-wide</div>
+          <div class="tile-value" style="font-size:19px;">Timeliness</div>
+          <div class="tile-sub">avg 2.6 / 5</div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head"><h2>Team performance</h2></div>
+      <div class="perf-grid"><div class="perf-card">
+      <div class="perf-head">
+        <div>
+          <div class="perf-name">Central Team</div>
+          <div class="perf-count">8 resolved &middot; prior period 5</div>
+        </div>
+        <div class="perf-score-block">
+          <span class="perf-score sc-warning">2.5</span>
+          <span class="delta-chip neutral">flat</span>
+        </div>
+      </div>
+      <div class="cbar-group"><div class="cbar-row">
+          <span class="cbar-label">Accuracy</span>
+          <div class="cbar-track"><div class="cbar-fill fill-warning" style="width:60%"></div></div>
+          <span class="cbar-val">3.0</span>
+        </div><div class="cbar-row">
+          <span class="cbar-label">Completeness</span>
+          <div class="cbar-track"><div class="cbar-fill fill-critical" style="width:48%"></div></div>
+          <span class="cbar-val">2.4</span>
+        </div><div class="cbar-row">
+          <span class="cbar-label">Tone</span>
+          <div class="cbar-track"><div class="cbar-fill fill-warning" style="width:58%"></div></div>
+          <span class="cbar-val">2.9</span>
+        </div><div class="cbar-row weak">
+          <span class="cbar-label">Timeliness</span>
+          <div class="cbar-track"><div class="cbar-fill fill-critical" style="width:38%"></div></div>
+          <span class="cbar-val">1.9</span>
+        </div></div>
+      <div class="evidence">
+      <span class="evidence-score sc-critical">1.5</span>
+      <div>
+        <div class="evidence-text">Closed for non-response after a 39-day delay, never actually solving the transcription problem.</div>
+        <div class="evidence-meta">#740 &middot; Catherine Joannamathews &middot; Central Team &middot; Product Issues-Teach OS</div>
+      </div>
+    </div>
+    </div><div class="perf-card">
+      <div class="perf-head">
+        <div>
+          <div class="perf-name">IAS/SET</div>
+          <div class="perf-count">8 resolved &middot; prior period 4</div>
+        </div>
+        <div class="perf-score-block">
+          <span class="perf-score sc-warning">3.0</span>
+          <span class="delta-chip critical">▼ 0.19</span>
+        </div>
+      </div>
+      <div class="cbar-group"><div class="cbar-row">
+          <span class="cbar-label">Accuracy</span>
+          <div class="cbar-track"><div class="cbar-fill fill-warning" style="width:62%"></div></div>
+          <span class="cbar-val">3.1</span>
+        </div><div class="cbar-row weak">
+          <span class="cbar-label">Completeness</span>
+          <div class="cbar-track"><div class="cbar-fill fill-warning" style="width:55%"></div></div>
+          <span class="cbar-val">2.8</span>
+        </div><div class="cbar-row">
+          <span class="cbar-label">Tone</span>
+          <div class="cbar-track"><div class="cbar-fill fill-warning" style="width:62%"></div></div>
+          <span class="cbar-val">3.1</span>
+        </div><div class="cbar-row">
+          <span class="cbar-label">Timeliness</span>
+          <div class="cbar-track"><div class="cbar-fill fill-warning" style="width:60%"></div></div>
+          <span class="cbar-val">3.0</span>
+        </div></div>
+      <div class="evidence">
+      <span class="evidence-score sc-warning">2.5</span>
+      <div>
+        <div class="evidence-text">Generic upload-process reply ignores the specific ask to review the phone recording.</div>
+        <div class="evidence-meta">#2271 &middot; Catherine Joannamathews &middot; IAS/SET &middot; QA report</div>
+      </div>
+    </div>
+    </div><div class="perf-card">
+      <div class="perf-head">
+        <div>
+          <div class="perf-name">Central POC</div>
+          <div class="perf-count">7 resolved &middot; prior period 4</div>
+        </div>
+        <div class="perf-score-block">
+          <span class="perf-score sc-warning">2.6</span>
+          <span class="delta-chip good">▲ 1.05</span>
+        </div>
+      </div>
+      <div class="cbar-group"><div class="cbar-row">
+          <span class="cbar-label">Accuracy</span>
+          <div class="cbar-track"><div class="cbar-fill fill-critical" style="width:49%"></div></div>
+          <span class="cbar-val">2.4</span>
+        </div><div class="cbar-row weak">
+          <span class="cbar-label">Completeness</span>
+          <div class="cbar-track"><div class="cbar-fill fill-critical" style="width:46%"></div></div>
+          <span class="cbar-val">2.3</span>
+        </div><div class="cbar-row">
+          <span class="cbar-label">Tone</span>
+          <div class="cbar-track"><div class="cbar-fill fill-warning" style="width:54%"></div></div>
+          <span class="cbar-val">2.7</span>
+        </div><div class="cbar-row">
+          <span class="cbar-label">Timeliness</span>
+          <div class="cbar-track"><div class="cbar-fill fill-warning" style="width:54%"></div></div>
+          <span class="cbar-val">2.7</span>
+        </div></div>
+      <div class="evidence">
+      <span class="evidence-score sc-critical">1.3</span>
+      <div>
+        <div class="evidence-text">Reply about mics is completely unrelated to the wifi/network/screen issue raised, and slow.</div>
+        <div class="evidence-meta">#2158 &middot; Manideepreddy Irupaka &middot; Central POC &middot; Facilities</div>
+      </div>
+    </div>
+    </div><div class="perf-card">
+      <div class="perf-head">
+        <div>
+          <div class="perf-name">Unassigned</div>
+          <div class="perf-count">5 resolved &middot; prior period 13</div>
+        </div>
+        <div class="perf-score-block">
+          <span class="perf-score sc-good">3.6</span>
+          <span class="delta-chip good">▲ 0.24</span>
+        </div>
+      </div>
+      <div class="cbar-group"><div class="cbar-row">
+          <span class="cbar-label">Accuracy</span>
+          <div class="cbar-track"><div class="cbar-fill fill-good" style="width:76%"></div></div>
+          <span class="cbar-val">3.8</span>
+        </div><div class="cbar-row">
+          <span class="cbar-label">Completeness</span>
+          <div class="cbar-track"><div class="cbar-fill fill-good" style="width:76%"></div></div>
+          <span class="cbar-val">3.8</span>
+        </div><div class="cbar-row">
+          <span class="cbar-label">Tone</span>
+          <div class="cbar-track"><div class="cbar-fill fill-good" style="width:80%"></div></div>
+          <span class="cbar-val">4.0</span>
+        </div><div class="cbar-row weak">
+          <span class="cbar-label">Timeliness</span>
+          <div class="cbar-track"><div class="cbar-fill fill-warning" style="width:52%"></div></div>
+          <span class="cbar-val">2.6</span>
+        </div></div>
+      <div class="evidence">
+      <span class="evidence-score sc-warning">3.3</span>
+      <div>
+        <div class="evidence-text">Thorough, personalized guidance on each QA point, but took nearly 12 days to answer.</div>
+        <div class="evidence-meta">#1290 &middot; Voppangi Saiprasanna &middot; Unassigned &middot; QA report</div>
+      </div>
+    </div>
+    </div><div class="perf-card">
+      <div class="perf-head">
+        <div>
+          <div class="perf-name">Central Operations</div>
+          <div class="perf-count">2 resolved &middot; prior period 3</div>
+        </div>
+        <div class="perf-score-block">
+          <span class="perf-score sc-warning">2.9</span>
+          <span class="delta-chip critical">▼ 0.30</span>
+        </div>
+      </div>
+      <div class="cbar-group"><div class="cbar-row">
+          <span class="cbar-label">Accuracy</span>
+          <div class="cbar-track"><div class="cbar-fill fill-warning" style="width:60%"></div></div>
+          <span class="cbar-val">3.0</span>
+        </div><div class="cbar-row">
+          <span class="cbar-label">Completeness</span>
+          <div class="cbar-track"><div class="cbar-fill fill-warning" style="width:60%"></div></div>
+          <span class="cbar-val">3.0</span>
+        </div><div class="cbar-row weak">
+          <span class="cbar-label">Tone</span>
+          <div class="cbar-track"><div class="cbar-fill fill-warning" style="width:50%"></div></div>
+          <span class="cbar-val">2.5</span>
+        </div><div class="cbar-row">
+          <span class="cbar-label">Timeliness</span>
+          <div class="cbar-track"><div class="cbar-fill fill-warning" style="width:60%"></div></div>
+          <span class="cbar-val">3.0</span>
+        </div></div>
+      <div class="evidence">
+      <span class="evidence-score sc-critical">1.8</span>
+      <div>
+        <div class="evidence-text">Vague &#x27;resolved before&#x27; claim with no explanation, five days to answer a blocking bug.</div>
+        <div class="evidence-meta">#1068 &middot; Vipparthi Angel &middot; Central Operations &middot; Access related issues (Learning Portal)</div>
+      </div>
+    </div>
+    </div><div class="perf-card">
+      <div class="perf-head">
+        <div>
+          <div class="perf-name">Content POC&#x27;s</div>
+          <div class="perf-count">2 resolved &middot; prior period 15</div>
+        </div>
+        <div class="perf-score-block">
+          <span class="perf-score sc-warning">3.0</span>
+          <span class="delta-chip good">▲ 0.07</span>
+        </div>
+      </div>
+      <div class="cbar-group"><div class="cbar-row weak">
+          <span class="cbar-label">Accuracy</span>
+          <div class="cbar-track"><div class="cbar-fill fill-warning" style="width:60%"></div></div>
+          <span class="cbar-val">3.0</span>
+        </div><div class="cbar-row">
+          <span class="cbar-label">Completeness</span>
+          <div class="cbar-track"><div class="cbar-fill fill-warning" style="width:60%"></div></div>
+          <span class="cbar-val">3.0</span>
+        </div><div class="cbar-row">
+          <span class="cbar-label">Tone</span>
+          <div class="cbar-track"><div class="cbar-fill fill-warning" style="width:60%"></div></div>
+          <span class="cbar-val">3.0</span>
+        </div><div class="cbar-row">
+          <span class="cbar-label">Timeliness</span>
+          <div class="cbar-track"><div class="cbar-fill fill-warning" style="width:60%"></div></div>
+          <span class="cbar-val">3.0</span>
+        </div></div>
+      <div class="evidence">
+      <span class="evidence-score sc-warning">2.5</span>
+      <div>
+        <div class="evidence-text">Copy-pasted AWS billing explanation doesn&#x27;t actually address the CloudFront access problem raised.</div>
+        <div class="evidence-meta">#2183 &middot; Mandala Umadevi &middot; Content POC&#x27;s &middot; Content</div>
+      </div>
+    </div>
+    </div><div class="perf-card">
+      <div class="perf-head">
+        <div>
+          <div class="perf-name">Central Managers</div>
+          <div class="perf-count">1 resolved &middot; prior period 6</div>
+        </div>
+        <div class="perf-score-block">
+          <span class="perf-score sc-warning">3.3</span>
+          <span class="delta-chip good">▲ 0.75</span>
+        </div>
+      </div>
+      <div class="cbar-group"><div class="cbar-row">
+          <span class="cbar-label">Accuracy</span>
+          <div class="cbar-track"><div class="cbar-fill fill-good" style="width:80%"></div></div>
+          <span class="cbar-val">4.0</span>
+        </div><div class="cbar-row weak">
+          <span class="cbar-label">Completeness</span>
+          <div class="cbar-track"><div class="cbar-fill fill-warning" style="width:60%"></div></div>
+          <span class="cbar-val">3.0</span>
+        </div><div class="cbar-row">
+          <span class="cbar-label">Tone</span>
+          <div class="cbar-track"><div class="cbar-fill fill-warning" style="width:60%"></div></div>
+          <span class="cbar-val">3.0</span>
+        </div><div class="cbar-row">
+          <span class="cbar-label">Timeliness</span>
+          <div class="cbar-track"><div class="cbar-fill fill-warning" style="width:60%"></div></div>
+          <span class="cbar-val">3.0</span>
+        </div></div>
+      <div class="evidence">
+      <span class="evidence-score sc-warning">3.3</span>
+      <div>
+        <div class="evidence-text">Gives a bonus/CTC update but stays vague with no concrete date or amount.</div>
+        <div class="evidence-meta">#1854 &middot; Voppangi Saiprasanna &middot; Central Managers &middot; Salary/Hike issues/Payroll</div>
+      </div>
+    </div>
+    </div></div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <h2>Individual performance</h2>
+        <p class="section-note">Everyone who closed at least one ticket this window. Scores from 1-2 tickets are noise, not signal &mdash; treat "low n" rows as anecdotal.</p>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Person</th><th>Team</th><th>Resolved</th><th>Score</th><th>vs prior</th><th>Accuracy / Completeness / Tone / Timeliness</th></tr></thead>
+          <tbody><tr class="">
+      <td class="td-name">Catherine Joannamathews</td>
+      <td class="td-num">Central Team</td>
+      <td class="td-num">10</td>
+      <td><span class="table-score sc-warning">2.9</span></td>
+      <td><span class="delta-chip critical">▼ 0.44</span></td>
+      <td><div class="mini-crit-row"><span class="mini-crit " title="Accuracy: 3.2">3.2</span><span class="mini-crit " title="Completeness: 2.7">2.7</span><span class="mini-crit " title="Tone: 2.9">2.9</span><span class="mini-crit weak" title="Timeliness: 2.6">2.6</span></div></td>
+    </tr><tr class="">
+      <td class="td-name">Voppangi Saiprasanna</td>
+      <td class="td-num">Unassigned</td>
+      <td class="td-num">8</td>
+      <td><span class="table-score sc-warning">3.5</span></td>
+      <td><span class="delta-chip good">▲ 1.32</span></td>
+      <td><div class="mini-crit-row"><span class="mini-crit " title="Accuracy: 3.6">3.6</span><span class="mini-crit " title="Completeness: 3.5">3.5</span><span class="mini-crit " title="Tone: 3.9">3.9</span><span class="mini-crit weak" title="Timeliness: 2.8">2.8</span></div></td>
+    </tr><tr class="">
+      <td class="td-name">Naga Nunna</td>
+      <td class="td-num">Central POC</td>
+      <td class="td-num">5</td>
+      <td><span class="table-score sc-warning">2.9</span></td>
+      <td><span class="delta-chip neutral">new</span></td>
+      <td><div class="mini-crit-row"><span class="mini-crit weak" title="Accuracy: 2.8">2.8</span><span class="mini-crit " title="Completeness: 2.8">2.8</span><span class="mini-crit " title="Tone: 3.0">3.0</span><span class="mini-crit " title="Timeliness: 3.0">3.0</span></div></td>
+    </tr><tr class="low-n">
+      <td class="td-name">Mandala Umadevi <span class="n-flag" title="Fewer than 3 tickets this window — read the score as anecdotal, not a trend.">low n</span></td>
+      <td class="td-num">Content POC&#x27;s</td>
+      <td class="td-num">2</td>
+      <td><span class="table-score sc-warning">3.0</span></td>
+      <td><span class="delta-chip neutral">new</span></td>
+      <td><div class="mini-crit-row"><span class="mini-crit weak" title="Accuracy: 3.0">3.0</span><span class="mini-crit " title="Completeness: 3.0">3.0</span><span class="mini-crit " title="Tone: 3.0">3.0</span><span class="mini-crit " title="Timeliness: 3.0">3.0</span></div></td>
+    </tr><tr class="low-n">
+      <td class="td-name">Manideepreddy Irupaka <span class="n-flag" title="Fewer than 3 tickets this window — read the score as anecdotal, not a trend.">low n</span></td>
+      <td class="td-num">Central POC</td>
+      <td class="td-num">2</td>
+      <td><span class="table-score sc-critical">1.6</span></td>
+      <td><span class="delta-chip good">▲ 0.12</span></td>
+      <td><div class="mini-crit-row"><span class="mini-crit weak" title="Accuracy: 1.0">1.0</span><span class="mini-crit " title="Completeness: 1.0">1.0</span><span class="mini-crit " title="Tone: 2.0">2.0</span><span class="mini-crit " title="Timeliness: 2.0">2.0</span></div></td>
+    </tr><tr class="low-n">
+      <td class="td-name">Kirankumar Budupula <span class="n-flag" title="Fewer than 3 tickets this window — read the score as anecdotal, not a trend.">low n</span></td>
+      <td class="td-num">Central Operations</td>
+      <td class="td-num">1</td>
+      <td><span class="table-score sc-good">4.0</span></td>
+      <td><span class="delta-chip good">▲ 0.55</span></td>
+      <td><div class="mini-crit-row"><span class="mini-crit " title="Accuracy: 4.0">4.0</span><span class="mini-crit " title="Completeness: 4.0">4.0</span><span class="mini-crit weak" title="Tone: 3.0">3.0</span><span class="mini-crit " title="Timeliness: 5.0">5.0</span></div></td>
+    </tr><tr class="low-n">
+      <td class="td-name">Rahul Kandikatla <span class="n-flag" title="Fewer than 3 tickets this window — read the score as anecdotal, not a trend.">low n</span></td>
+      <td class="td-num">Central Team</td>
+      <td class="td-num">1</td>
+      <td><span class="table-score sc-critical">2.3</span></td>
+      <td><span class="delta-chip critical">▼ 0.50</span></td>
+      <td><div class="mini-crit-row"><span class="mini-crit " title="Accuracy: 3.0">3.0</span><span class="mini-crit " title="Completeness: 2.0">2.0</span><span class="mini-crit " title="Tone: 3.0">3.0</span><span class="mini-crit weak" title="Timeliness: 1.0">1.0</span></div></td>
+    </tr><tr class="low-n">
+      <td class="td-name">Riya Rai <span class="n-flag" title="Fewer than 3 tickets this window — read the score as anecdotal, not a trend.">low n</span></td>
+      <td class="td-num">IAS/SET</td>
+      <td class="td-num">1</td>
+      <td><span class="table-score sc-warning">3.0</span></td>
+      <td><span class="delta-chip critical">▼ 0.25</span></td>
+      <td><div class="mini-crit-row"><span class="mini-crit " title="Accuracy: 4.0">4.0</span><span class="mini-crit " title="Completeness: 3.0">3.0</span><span class="mini-crit " title="Tone: 3.0">3.0</span><span class="mini-crit weak" title="Timeliness: 2.0">2.0</span></div></td>
+    </tr><tr class="low-n">
+      <td class="td-name">Shreyasi Biswas <span class="n-flag" title="Fewer than 3 tickets this window — read the score as anecdotal, not a trend.">low n</span></td>
+      <td class="td-num">Central POC</td>
+      <td class="td-num">1</td>
+      <td><span class="table-score sc-warning">2.8</span></td>
+      <td><span class="delta-chip good">▲ 0.80</span></td>
+      <td><div class="mini-crit-row"><span class="mini-crit " title="Accuracy: 3.0">3.0</span><span class="mini-crit weak" title="Completeness: 2.0">2.0</span><span class="mini-crit " title="Tone: 3.0">3.0</span><span class="mini-crit " title="Timeliness: 3.0">3.0</span></div></td>
+    </tr><tr class="low-n">
+      <td class="td-name">Vipparthi Angel <span class="n-flag" title="Fewer than 3 tickets this window — read the score as anecdotal, not a trend.">low n</span></td>
+      <td class="td-num">Central Operations</td>
+      <td class="td-num">1</td>
+      <td><span class="table-score sc-critical">1.8</span></td>
+      <td><span class="delta-chip critical">▼ 0.25</span></td>
+      <td><div class="mini-crit-row"><span class="mini-crit " title="Accuracy: 2.0">2.0</span><span class="mini-crit " title="Completeness: 2.0">2.0</span><span class="mini-crit " title="Tone: 2.0">2.0</span><span class="mini-crit weak" title="Timeliness: 1.0">1.0</span></div></td>
+    </tr><tr class="low-n">
+      <td class="td-name">Yerramilli Phaniyeshwanth <span class="n-flag" title="Fewer than 3 tickets this window — read the score as anecdotal, not a trend.">low n</span></td>
+      <td class="td-num">Central Team</td>
+      <td class="td-num">1</td>
+      <td><span class="table-score sc-critical">1.5</span></td>
+      <td><span class="delta-chip neutral">new</span></td>
+      <td><div class="mini-crit-row"><span class="mini-crit " title="Accuracy: 2.0">2.0</span><span class="mini-crit weak" title="Completeness: 1.0">1.0</span><span class="mini-crit " title="Tone: 2.0">2.0</span><span class="mini-crit " title="Timeliness: 1.0">1.0</span></div></td>
+    </tr></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <div id="win-14" class="win">
+    <section>
+      <div class="kpi-row">
+        <div class="tile sc-warning">
+          <div class="tile-label">Avg resolution score</div>
+          <div class="tile-value">2.9<span class="unit">/ 5</span></div>
+          <div class="tile-sub"><span class="delta-chip good">▲ 0.09</span> vs prior 14 days</div>
+        </div>
+        <div class="tile">
+          <div class="tile-label">Resolutions graded</div>
+          <div class="tile-value">86</div>
+          <div class="tile-sub">closed in this window</div>
+        </div>
+        <div class="tile sc-critical">
+          <div class="tile-label">Needs coaching (&lt; 3.0)</div>
+          <div class="tile-value">42<span class="unit">/ 86</span></div>
+          <div class="tile-sub">49% of the window</div>
+        </div>
+        <div class="tile sc-warning">
+          <div class="tile-label">Weakest criterion org-wide</div>
+          <div class="tile-value" style="font-size:19px;">Completeness</div>
+          <div class="tile-sub">avg 2.6 / 5</div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head"><h2>Team performance</h2></div>
+      <div class="perf-grid"><div class="perf-card">
+      <div class="perf-head">
+        <div>
+          <div class="perf-name">Unassigned</div>
+          <div class="perf-count">18 resolved &middot; prior period 8</div>
+        </div>
+        <div class="perf-score-block">
+          <span class="perf-score sc-warning">3.4</span>
+          <span class="delta-chip good">▲ 0.09</span>
+        </div>
+      </div>
+      <div class="cbar-group"><div class="cbar-row">
+          <span class="cbar-label">Accuracy</span>
+          <div class="cbar-track"><div class="cbar-fill fill-good" style="width:72%"></div></div>
+          <span class="cbar-val">3.6</span>
+        </div><div class="cbar-row">
+          <span class="cbar-label">Completeness</span>
+          <div class="cbar-track"><div class="cbar-fill fill-warning" style="width:69%"></div></div>
+          <span class="cbar-val">3.4</span>
+        </div><div class="cbar-row">
+          <span class="cbar-label">Tone</span>
+          <div class="cbar-track"><div class="cbar-fill fill-good" style="width:77%"></div></div>
+          <span class="cbar-val">3.8</span>
+        </div><div class="cbar-row weak">
+          <span class="cbar-label">Timeliness</span>
+          <div class="cbar-track"><div class="cbar-fill fill-warning" style="width:53%"></div></div>
+          <span class="cbar-val">2.7</span>
+        </div></div>
+      <div class="evidence">
+      <span class="evidence-score sc-critical">2.0</span>
+      <div>
+        <div class="evidence-text">Internal note to arrange mics never answers the request to exempt the eval score, and took 6+ days.</div>
+        <div class="evidence-meta">#2043 &middot; Voppangi Saiprasanna &middot; Unassigned &middot; QA report</div>
+      </div>
+    </div>
+    </div><div class="perf-card">
+      <div class="perf-head">
+        <div>
+          <div class="perf-name">Content POC&#x27;s</div>
+          <div class="perf-count">17 resolved &middot; prior period 27</div>
+        </div>
+        <div class="perf-score-block">
+          <span class="perf-score sc-warning">2.9</span>
+          <span class="delta-chip critical">▼ 0.15</span>
+        </div>
+      </div>
+      <div class="cbar-group"><div class="cbar-row">
+          <span class="cbar-label">Accuracy</span>
+          <div class="cbar-track"><div class="cbar-fill fill-warning" style="width:58%"></div></div>
+          <span class="cbar-val">2.9</span>
+        </div><div class="cbar-row">
+          <span class="cbar-label">Completeness</span>
+          <div class="cbar-track"><div class="cbar-fill fill-warning" style="width:54%"></div></div>
+          <span class="cbar-val">2.7</span>
+        </div><div class="cbar-row weak">
+          <span class="cbar-label">Tone</span>
+          <div class="cbar-track"><div class="cbar-fill fill-warning" style="width:53%"></div></div>
+          <span class="cbar-val">2.6</span>
+        </div><div class="cbar-row">
+          <span class="cbar-label">Timeliness</span>
+          <div class="cbar-track"><div class="cbar-fill fill-warning" style="width:68%"></div></div>
+          <span class="cbar-val">3.4</span>
+        </div></div>
+      <div class="evidence">
+      <span class="evidence-score sc-critical">1.8</span>
+      <div>
+        <div class="evidence-text">Single word &#x27;Resolved&#x27; provides zero detail on how the Python-file contamination issue was fixed.</div>
+        <div class="evidence-meta">#2137 &middot; Vipparthi Angel &middot; Content POC&#x27;s &middot; Content</div>
+      </div>
+    </div>
+    </div><div class="perf-card">
+      <div class="perf-head">
+        <div>
+          <div class="perf-name">Central Team</div>
+          <div class="perf-count">13 resolved &middot; prior period 15</div>
+        </div>
+        <div class="perf-score-block">
+          <span class="perf-score sc-warning">2.5</span>
+          <span class="delta-chip good">▲ 0.15</span>
+        </div>
+      </div>
+      <div class="cbar-group"><div class="cbar-row">
+          <span class="cbar-label">Accuracy</span>
+          <div class="cbar-track"><div class="cbar-fill fill-warning" style="width:58%"></div></div>
+          <span class="cbar-val">2.9</span>
+        </div><div class="cbar-row">
+          <span class="cbar-label">Completeness</span>
+          <div class="cbar-track"><div class="cbar-fill fill-critical" style="width:46%"></div></div>
+          <span class="cbar-val">2.3</span>
+        </div><div class="cbar-row">
+          <span class="cbar-label">Tone</span>
+          <div class="cbar-track"><div class="cbar-fill fill-warning" style="width:55%"></div></div>
+          <span class="cbar-val">2.8</span>
+        </div><div class="cbar-row weak">
+          <span class="cbar-label">Timeliness</span>
+          <div class="cbar-track"><div class="cbar-fill fill-critical" style="width:42%"></div></div>
+          <span class="cbar-val">2.1</span>
+        </div></div>
+      <div class="evidence">
+      <span class="evidence-score sc-critical">1.5</span>
+      <div>
+        <div class="evidence-text">Closes ticket asking for details already requested once, unresolved after a 20-day delay.</div>
+        <div class="evidence-meta">#1885 &middot; Yerramilli Phaniyeshwanth &middot; Central Team &middot; Content</div>
+      </div>
+    </div>
+    </div><div class="perf-card">
+      <div class="perf-head">
+        <div>
+          <div class="perf-name">IAS/SET</div>
+          <div class="perf-count">12 resolved &middot; prior period 21</div>
+        </div>
+        <div class="perf-score-block">
+          <span class="perf-score sc-warning">3.1</span>
+          <span class="delta-chip good">▲ 0.46</span>
+        </div>
+      </div>
+      <div class="cbar-group"><div class="cbar-row">
+          <span class="cbar-label">Accuracy</span>
+          <div class="cbar-track"><div class="cbar-fill fill-warning" style="width:65%"></div></div>
+          <span class="cbar-val">3.2</span>
+        </div><div class="cbar-row weak">
+          <span class="cbar-label">Completeness</span>
+          <div class="cbar-track"><div class="cbar-fill fill-warning" style="width:53%"></div></div>
+          <span class="cbar-val">2.7</span>
+        </div><div class="cbar-row">
+          <span class="cbar-label">Tone</span>
+          <div class="cbar-track"><div class="cbar-fill fill-warning" style="width:68%"></div></div>
+          <span class="cbar-val">3.4</span>
+        </div><div class="cbar-row">
+          <span class="cbar-label">Timeliness</span>
+          <div class="cbar-track"><div class="cbar-fill fill-warning" style="width:58%"></div></div>
+          <span class="cbar-val">2.9</span>
+        </div></div>
+      <div class="evidence">
+      <span class="evidence-score sc-warning">2.5</span>
+      <div>
+        <div class="evidence-text">Graded on ack_text: explains transcript issue after 15 days but closes without confirming any correction.</div>
+        <div class="evidence-meta">#1822 &middot; Shaik Abbas &middot; IAS/SET &middot; QA report</div>
+      </div>
+    </div>
+    </div><div class="perf-card">
+      <div class="perf-head">
+        <div>
+          <div class="perf-name">Central POC</div>
+          <div class="perf-count">11 resolved &middot; prior period 0</div>
+        </div>
+        <div class="perf-score-block">
+          <span class="perf-score sc-critical">2.2</span>
+          <span class="delta-chip neutral">new</span>
+        </div>
+      </div>
+      <div class="cbar-group"><div class="cbar-row">
+          <span class="cbar-label">Accuracy</span>
+          <div class="cbar-track"><div class="cbar-fill fill-critical" style="width:44%"></div></div>
+          <span class="cbar-val">2.2</span>
+        </div><div class="cbar-row weak">
+          <span class="cbar-label">Completeness</span>
+          <div class="cbar-track"><div class="cbar-fill fill-critical" style="width:38%"></div></div>
+          <span class="cbar-val">1.9</span>
+        </div><div class="cbar-row">
+          <span class="cbar-label">Tone</span>
+          <div class="cbar-track"><div class="cbar-fill fill-critical" style="width:49%"></div></div>
+          <span class="cbar-val">2.5</span>
+        </div><div class="cbar-row">
+          <span class="cbar-label">Timeliness</span>
+          <div class="cbar-track"><div class="cbar-fill fill-critical" style="width:42%"></div></div>
+          <span class="cbar-val">2.1</span>
+        </div></div>
+      <div class="evidence">
+      <span class="evidence-score sc-critical">1.3</span>
+      <div>
+        <div class="evidence-text">Graded on ack_text: addresses only wifi, ignoring digital boards, stylers, and washroom complaints, after 37 days.</div>
+        <div class="evidence-meta">#1559 &middot; Manideepreddy Irupaka &middot; Central POC &middot; Facilities</div>
+      </div>
+    </div>
+    </div><div class="perf-card">
+      <div class="perf-head">
+        <div>
+          <div class="perf-name">Central Managers</div>
+          <div class="perf-count">7 resolved &middot; prior period 4</div>
+        </div>
+        <div class="perf-score-block">
+          <span class="perf-score sc-warning">2.7</span>
+          <span class="delta-chip good">▲ 0.54</span>
+        </div>
+      </div>
+      <div class="cbar-group"><div class="cbar-row">
+          <span class="cbar-label">Accuracy</span>
+          <div class="cbar-track"><div class="cbar-fill fill-warning" style="width:51%"></div></div>
+          <span class="cbar-val">2.6</span>
+        </div><div class="cbar-row weak">
+          <span class="cbar-label">Completeness</span>
+          <div class="cbar-track"><div class="cbar-fill fill-critical" style="width:43%"></div></div>
+          <span class="cbar-val">2.1</span>
+        </div><div class="cbar-row">
+          <span class="cbar-label">Tone</span>
+          <div class="cbar-track"><div class="cbar-fill fill-warning" style="width:57%"></div></div>
+          <span class="cbar-val">2.9</span>
+        </div><div class="cbar-row">
+          <span class="cbar-label">Timeliness</span>
+          <div class="cbar-track"><div class="cbar-fill fill-warning" style="width:60%"></div></div>
+          <span class="cbar-val">3.0</span>
+        </div></div>
+      <div class="evidence">
+      <span class="evidence-score sc-critical">1.8</span>
+      <div>
+        <div class="evidence-text">No resolution, worklog, or acknowledgment text on record.</div>
+        <div class="evidence-meta">#2128 &middot; Akhilendarreddy Karri &middot; Central Managers &middot; Leave/WFH approvals</div>
+      </div>
+    </div>
+    </div><div class="perf-card">
+      <div class="perf-head">
+        <div>
+          <div class="perf-name">Central Operations</div>
+          <div class="perf-count">5 resolved &middot; prior period 0</div>
+        </div>
+        <div class="perf-score-block">
+          <span class="perf-score sc-warning">3.1</span>
+          <span class="delta-chip neutral">new</span>
+        </div>
+      </div>
+      <div class="cbar-group"><div class="cbar-row weak">
+          <span class="cbar-label">Accuracy</span>
+          <div class="cbar-track"><div class="cbar-fill fill-warning" style="width:60%"></div></div>
+          <span class="cbar-val">3.0</span>
+        </div><div class="cbar-row">
+          <span class="cbar-label">Completeness</span>
+          <div class="cbar-track"><div class="cbar-fill fill-warning" style="width:60%"></div></div>
+          <span class="cbar-val">3.0</span>
+        </div><div class="cbar-row">
+          <span class="cbar-label">Tone</span>
+          <div class="cbar-track"><div class="cbar-fill fill-warning" style="width:64%"></div></div>
+          <span class="cbar-val">3.2</span>
+        </div><div class="cbar-row">
+          <span class="cbar-label">Timeliness</span>
+          <div class="cbar-track"><div class="cbar-fill fill-warning" style="width:60%"></div></div>
+          <span class="cbar-val">3.0</span>
+        </div></div>
+      <div class="evidence">
+      <span class="evidence-score sc-critical">1.8</span>
+      <div>
+        <div class="evidence-text">Vague &#x27;resolved before&#x27; claim with no explanation, five days to answer a blocking bug.</div>
+        <div class="evidence-meta">#1068 &middot; Vipparthi Angel &middot; Central Operations &middot; Access related issues (Learning Portal)</div>
+      </div>
+    </div>
+    </div><div class="perf-card">
+      <div class="perf-head">
+        <div>
+          <div class="perf-name">Central Managers/HOD</div>
+          <div class="perf-count">2 resolved &middot; prior period 0</div>
+        </div>
+        <div class="perf-score-block">
+          <span class="perf-score sc-critical">2.0</span>
+          <span class="delta-chip neutral">new</span>
+        </div>
+      </div>
+      <div class="cbar-group"><div class="cbar-row">
+          <span class="cbar-label">Accuracy</span>
+          <div class="cbar-track"><div class="cbar-fill fill-critical" style="width:30%"></div></div>
+          <span class="cbar-val">1.5</span>
+        </div><div class="cbar-row weak">
+          <span class="cbar-label">Completeness</span>
+          <div class="cbar-track"><div class="cbar-fill fill-critical" style="width:20%"></div></div>
+          <span class="cbar-val">1.0</span>
+        </div><div class="cbar-row">
+          <span class="cbar-label">Tone</span>
+          <div class="cbar-track"><div class="cbar-fill fill-critical" style="width:40%"></div></div>
+          <span class="cbar-val">2.0</span>
+        </div><div class="cbar-row">
+          <span class="cbar-label">Timeliness</span>
+          <div class="cbar-track"><div class="cbar-fill fill-good" style="width:70%"></div></div>
+          <span class="cbar-val">3.5</span>
+        </div></div>
+      <div class="evidence">
+      <span class="evidence-score sc-critical">2.0</span>
+      <div>
+        <div class="evidence-text">Graded on worklog: internal note promising follow-up, ticket closed without confirming the designation update.</div>
+        <div class="evidence-meta">#2006 &middot; Prudhviraj Garlapati &middot; Central Managers/HOD &middot; Skip Level Escalation</div>
+      </div>
+    </div>
+    </div><div class="perf-card">
+      <div class="perf-head">
+        <div>
+          <div class="perf-name">Central Scheduling POC</div>
+          <div class="perf-count">1 resolved &middot; prior period 6</div>
+        </div>
+        <div class="perf-score-block">
+          <span class="perf-score sc-critical">1.8</span>
+          <span class="delta-chip critical">▼ 0.64</span>
+        </div>
+      </div>
+      <div class="cbar-group"><div class="cbar-row weak">
+          <span class="cbar-label">Accuracy</span>
+          <div class="cbar-track"><div class="cbar-fill fill-critical" style="width:20%"></div></div>
+          <span class="cbar-val">1.0</span>
+        </div><div class="cbar-row">
+          <span class="cbar-label">Completeness</span>
+          <div class="cbar-track"><div class="cbar-fill fill-critical" style="width:20%"></div></div>
+          <span class="cbar-val">1.0</span>
+        </div><div class="cbar-row">
+          <span class="cbar-label">Tone</span>
+          <div class="cbar-track"><div class="cbar-fill fill-critical" style="width:40%"></div></div>
+          <span class="cbar-val">2.0</span>
+        </div><div class="cbar-row">
+          <span class="cbar-label">Timeliness</span>
+          <div class="cbar-track"><div class="cbar-fill fill-warning" style="width:60%"></div></div>
+          <span class="cbar-val">3.0</span>
+        </div></div>
+      <div class="evidence">
+      <span class="evidence-score sc-critical">1.8</span>
+      <div>
+        <div class="evidence-text">No resolution, worklog, or acknowledgment text on record.</div>
+        <div class="evidence-meta">#2109 &middot; System / unattributed &middot; Central Scheduling POC &middot; Scheduling</div>
+      </div>
+    </div>
+    </div></div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <h2>Individual performance</h2>
+        <p class="section-note">Everyone who closed at least one ticket this window. Scores from 1-2 tickets are noise, not signal &mdash; treat "low n" rows as anecdotal.</p>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Person</th><th>Team</th><th>Resolved</th><th>Score</th><th>vs prior</th><th>Accuracy / Completeness / Tone / Timeliness</th></tr></thead>
+          <tbody><tr class="">
+      <td class="td-name">Catherine Joannamathews</td>
+      <td class="td-num">Central Team</td>
+      <td class="td-num">12</td>
+      <td><span class="table-score sc-warning">2.9</span></td>
+      <td><span class="delta-chip good">▲ 0.36</span></td>
+      <td><div class="mini-crit-row"><span class="mini-crit " title="Accuracy: 3.3">3.3</span><span class="mini-crit " title="Completeness: 2.8">2.8</span><span class="mini-crit " title="Tone: 2.9">2.9</span><span class="mini-crit weak" title="Timeliness: 2.7">2.7</span></div></td>
+    </tr><tr class="">
+      <td class="td-name">Ranjith Kumar</td>
+      <td class="td-num">Unassigned</td>
+      <td class="td-num">12</td>
+      <td><span class="table-score sc-good">3.7</span></td>
+      <td><span class="delta-chip critical">▼ 0.37</span></td>
+      <td><div class="mini-crit-row"><span class="mini-crit " title="Accuracy: 3.8">3.8</span><span class="mini-crit " title="Completeness: 3.6">3.6</span><span class="mini-crit " title="Tone: 4.0">4.0</span><span class="mini-crit weak" title="Timeliness: 3.2">3.2</span></div></td>
+    </tr><tr class="">
+      <td class="td-name">Voppangi Saiprasanna</td>
+      <td class="td-num">Unassigned</td>
+      <td class="td-num">10</td>
+      <td><span class="table-score sc-warning">3.2</span></td>
+      <td><span class="delta-chip good">▲ 0.41</span></td>
+      <td><div class="mini-crit-row"><span class="mini-crit " title="Accuracy: 3.4">3.4</span><span class="mini-crit " title="Completeness: 3.2">3.2</span><span class="mini-crit " title="Tone: 3.7">3.7</span><span class="mini-crit weak" title="Timeliness: 2.4">2.4</span></div></td>
+    </tr><tr class="">
+      <td class="td-name">Kirankumar Budupula</td>
+      <td class="td-num">Content POC&#x27;s</td>
+      <td class="td-num">5</td>
+      <td><span class="table-score sc-good">3.6</span></td>
+      <td><span class="delta-chip good">▲ 0.13</span></td>
+      <td><div class="mini-crit-row"><span class="mini-crit " title="Accuracy: 4.0">4.0</span><span class="mini-crit " title="Completeness: 3.8">3.8</span><span class="mini-crit weak" title="Tone: 3.0">3.0</span><span class="mini-crit " title="Timeliness: 3.4">3.4</span></div></td>
+    </tr><tr class="">
+      <td class="td-name">Manideepreddy Irupaka</td>
+      <td class="td-num">Central POC</td>
+      <td class="td-num">5</td>
+      <td><span class="table-score sc-critical">1.5</span></td>
+      <td><span class="delta-chip critical">▼ 2.52</span></td>
+      <td><div class="mini-crit-row"><span class="mini-crit " title="Accuracy: 1.4">1.4</span><span class="mini-crit weak" title="Completeness: 1.0">1.0</span><span class="mini-crit " title="Tone: 2.0">2.0</span><span class="mini-crit " title="Timeliness: 1.4">1.4</span></div></td>
+    </tr><tr class="">
+      <td class="td-name">Naga Nunna</td>
+      <td class="td-num">Central POC</td>
+      <td class="td-num">5</td>
+      <td><span class="table-score sc-warning">2.9</span></td>
+      <td><span class="delta-chip neutral">new</span></td>
+      <td><div class="mini-crit-row"><span class="mini-crit weak" title="Accuracy: 2.8">2.8</span><span class="mini-crit " title="Completeness: 2.8">2.8</span><span class="mini-crit " title="Tone: 3.0">3.0</span><span class="mini-crit " title="Timeliness: 3.0">3.0</span></div></td>
+    </tr><tr class="">
+      <td class="td-name">Jeevansravanth Parisa</td>
+      <td class="td-num">Content POC&#x27;s</td>
+      <td class="td-num">3</td>
+      <td><span class="table-score sc-warning">3.1</span></td>
+      <td><span class="delta-chip good">▲ 0.40</span></td>
+      <td><div class="mini-crit-row"><span class="mini-crit " title="Accuracy: 3.0">3.0</span><span class="mini-crit weak" title="Completeness: 2.7">2.7</span><span class="mini-crit " title="Tone: 3.0">3.0</span><span class="mini-crit " title="Timeliness: 3.7">3.7</span></div></td>
+    </tr><tr class="">
+      <td class="td-name">Narayana Dubbala</td>
+      <td class="td-num">Central Operations</td>
+      <td class="td-num">3</td>
+      <td><span class="table-score sc-warning">3.2</span></td>
+      <td><span class="delta-chip neutral">new</span></td>
+      <td><div class="mini-crit-row"><span class="mini-crit weak" title="Accuracy: 3.0">3.0</span><span class="mini-crit " title="Completeness: 3.0">3.0</span><span class="mini-crit " title="Tone: 3.7">3.7</span><span class="mini-crit " title="Timeliness: 3.0">3.0</span></div></td>
+    </tr><tr class="">
+      <td class="td-name">Poojitha Pachava</td>
+      <td class="td-num">Content POC&#x27;s</td>
+      <td class="td-num">3</td>
+      <td><span class="table-score sc-warning">2.9</span></td>
+      <td><span class="delta-chip neutral">flat</span></td>
+      <td><div class="mini-crit-row"><span class="mini-crit " title="Accuracy: 2.7">2.7</span><span class="mini-crit " title="Completeness: 2.3">2.3</span><span class="mini-crit weak" title="Tone: 2.0">2.0</span><span class="mini-crit " title="Timeliness: 4.7">4.7</span></div></td>
+    </tr><tr class="">
+      <td class="td-name">Riya Rai</td>
+      <td class="td-num">Central Managers</td>
+      <td class="td-num">3</td>
+      <td><span class="table-score sc-warning">3.2</span></td>
+      <td><span class="delta-chip good">▲ 0.67</span></td>
+      <td><div class="mini-crit-row"><span class="mini-crit " title="Accuracy: 3.7">3.7</span><span class="mini-crit " title="Completeness: 3.0">3.0</span><span class="mini-crit " title="Tone: 3.7">3.7</span><span class="mini-crit weak" title="Timeliness: 2.3">2.3</span></div></td>
+    </tr><tr class="">
+      <td class="td-name">Vipparthi Angel</td>
+      <td class="td-num">Content POC&#x27;s</td>
+      <td class="td-num">3</td>
+      <td><span class="table-score sc-critical">2.0</span></td>
+      <td><span class="delta-chip critical">▼ 0.95</span></td>
+      <td><div class="mini-crit-row"><span class="mini-crit weak" title="Accuracy: 1.7">1.7</span><span class="mini-crit " title="Completeness: 1.7">1.7</span><span class="mini-crit " title="Tone: 2.0">2.0</span><span class="mini-crit " title="Timeliness: 2.3">2.3</span></div></td>
+    </tr><tr class="low-n">
+      <td class="td-name">Alka Kumari <span class="n-flag" title="Fewer than 3 tickets this window — read the score as anecdotal, not a trend.">low n</span></td>
+      <td class="td-num">Content POC&#x27;s</td>
+      <td class="td-num">2</td>
+      <td><span class="table-score sc-critical">2.0</span></td>
+      <td><span class="delta-chip good">▲ 0.30</span></td>
+      <td><div class="mini-crit-row"><span class="mini-crit weak" title="Accuracy: 1.5">1.5</span><span class="mini-crit " title="Completeness: 1.5">1.5</span><span class="mini-crit " title="Tone: 2.0">2.0</span><span class="mini-crit " title="Timeliness: 3.0">3.0</span></div></td>
+    </tr><tr class="low-n">
+      <td class="td-name">Mandala Umadevi <span class="n-flag" title="Fewer than 3 tickets this window — read the score as anecdotal, not a trend.">low n</span></td>
+      <td class="td-num">Content POC&#x27;s</td>
+      <td class="td-num">2</td>
+      <td><span class="table-score sc-warning">3.0</span></td>
+      <td><span class="delta-chip critical">▼ 0.20</span></td>
+      <td><div class="mini-crit-row"><span class="mini-crit weak" title="Accuracy: 3.0">3.0</span><span class="mini-crit " title="Completeness: 3.0">3.0</span><span class="mini-crit " title="Tone: 3.0">3.0</span><span class="mini-crit " title="Timeliness: 3.0">3.0</span></div></td>
+    </tr><tr class="low-n">
+      <td class="td-name">Prudhviraj Garlapati <span class="n-flag" title="Fewer than 3 tickets this window — read the score as anecdotal, not a trend.">low n</span></td>
+      <td class="td-num">Central Managers/HOD</td>
+      <td class="td-num">2</td>
+      <td><span class="table-score sc-critical">2.0</span></td>
+      <td><span class="delta-chip neutral">new</span></td>
+      <td><div class="mini-crit-row"><span class="mini-crit " title="Accuracy: 1.5">1.5</span><span class="mini-crit weak" title="Completeness: 1.0">1.0</span><span class="mini-crit " title="Tone: 2.0">2.0</span><span class="mini-crit " title="Timeliness: 3.5">3.5</span></div></td>
+    </tr><tr class="low-n">
+      <td class="td-name">Rahul Kandikatla <span class="n-flag" title="Fewer than 3 tickets this window — read the score as anecdotal, not a trend.">low n</span></td>
+      <td class="td-num">Central Team</td>
+      <td class="td-num">2</td>
+      <td><span class="table-score sc-warning">2.5</span></td>
+      <td><span class="delta-chip good">▲ 0.25</span></td>
+      <td><div class="mini-crit-row"><span class="mini-crit " title="Accuracy: 3.0">3.0</span><span class="mini-crit weak" title="Completeness: 2.0">2.0</span><span class="mini-crit " title="Tone: 3.0">3.0</span><span class="mini-crit " title="Timeliness: 2.0">2.0</span></div></td>
+    </tr><tr class="low-n">
+      <td class="td-name">Shaik Abbas <span class="n-flag" title="Fewer than 3 tickets this window — read the score as anecdotal, not a trend.">low n</span></td>
+      <td class="td-num">IAS/SET</td>
+      <td class="td-num">2</td>
+      <td><span class="table-score sc-warning">2.5</span></td>
+      <td><span class="delta-chip neutral">new</span></td>
+      <td><div class="mini-crit-row"><span class="mini-crit " title="Accuracy: 3.0">3.0</span><span class="mini-crit weak" title="Completeness: 1.5">1.5</span><span class="mini-crit " title="Tone: 4.0">4.0</span><span class="mini-crit " title="Timeliness: 1.5">1.5</span></div></td>
+    </tr><tr class="low-n">
+      <td class="td-name">Shreyasi Biswas <span class="n-flag" title="Fewer than 3 tickets this window — read the score as anecdotal, not a trend.">low n</span></td>
+      <td class="td-num">Central Managers</td>
+      <td class="td-num">2</td>
+      <td><span class="table-score sc-critical">2.4</span></td>
+      <td><span class="delta-chip neutral">new</span></td>
+      <td><div class="mini-crit-row"><span class="mini-crit " title="Accuracy: 2.0">2.0</span><span class="mini-crit weak" title="Completeness: 1.5">1.5</span><span class="mini-crit " title="Tone: 3.0">3.0</span><span class="mini-crit " title="Timeliness: 3.0">3.0</span></div></td>
+    </tr><tr class="low-n">
+      <td class="td-name">Akhilendarreddy Karri <span class="n-flag" title="Fewer than 3 tickets this window — read the score as anecdotal, not a trend.">low n</span></td>
+      <td class="td-num">Central Managers</td>
+      <td class="td-num">1</td>
+      <td><span class="table-score sc-critical">1.8</span></td>
+      <td><span class="delta-chip neutral">flat</span></td>
+      <td><div class="mini-crit-row"><span class="mini-crit weak" title="Accuracy: 1.0">1.0</span><span class="mini-crit " title="Completeness: 1.0">1.0</span><span class="mini-crit " title="Tone: 2.0">2.0</span><span class="mini-crit " title="Timeliness: 3.0">3.0</span></div></td>
+    </tr><tr class="low-n">
+      <td class="td-name">Khushi Jain <span class="n-flag" title="Fewer than 3 tickets this window — read the score as anecdotal, not a trend.">low n</span></td>
+      <td class="td-num">Content POC&#x27;s</td>
+      <td class="td-num">1</td>
+      <td><span class="table-score sc-good">3.8</span></td>
+      <td><span class="delta-chip critical">▼ 0.50</span></td>
+      <td><div class="mini-crit-row"><span class="mini-crit " title="Accuracy: 4.0">4.0</span><span class="mini-crit " title="Completeness: 4.0">4.0</span><span class="mini-crit " title="Tone: 4.0">4.0</span><span class="mini-crit weak" title="Timeliness: 3.0">3.0</span></div></td>
+    </tr><tr class="low-n">
+      <td class="td-name">Murari Pilla <span class="n-flag" title="Fewer than 3 tickets this window — read the score as anecdotal, not a trend.">low n</span></td>
+      <td class="td-num">Central Team</td>
+      <td class="td-num">1</td>
+      <td><span class="table-score sc-warning">2.5</span></td>
+      <td><span class="delta-chip good">▲ 1.20</span></td>
+      <td><div class="mini-crit-row"><span class="mini-crit " title="Accuracy: 4.0">4.0</span><span class="mini-crit " title="Completeness: 3.0">3.0</span><span class="mini-crit " title="Tone: 2.0">2.0</span><span class="mini-crit weak" title="Timeliness: 1.0">1.0</span></div></td>
+    </tr><tr class="low-n">
+      <td class="td-name">Satish Jada <span class="n-flag" title="Fewer than 3 tickets this window — read the score as anecdotal, not a trend.">low n</span></td>
+      <td class="td-num">Central POC</td>
+      <td class="td-num">1</td>
+      <td><span class="table-score sc-critical">1.8</span></td>
+      <td><span class="delta-chip neutral">new</span></td>
+      <td><div class="mini-crit-row"><span class="mini-crit " title="Accuracy: 2.0">2.0</span><span class="mini-crit " title="Completeness: 2.0">2.0</span><span class="mini-crit " title="Tone: 2.0">2.0</span><span class="mini-crit weak" title="Timeliness: 1.0">1.0</span></div></td>
+    </tr><tr class="low-n">
+      <td class="td-name">Shaik Mohammedpasha <span class="n-flag" title="Fewer than 3 tickets this window — read the score as anecdotal, not a trend.">low n</span></td>
+      <td class="td-num">Central Team</td>
+      <td class="td-num">1</td>
+      <td><span class="table-score sc-critical">2.3</span></td>
+      <td><span class="delta-chip neutral">new</span></td>
+      <td><div class="mini-crit-row"><span class="mini-crit weak" title="Accuracy: 2.0">2.0</span><span class="mini-crit " title="Completeness: 2.0">2.0</span><span class="mini-crit " title="Tone: 3.0">3.0</span><span class="mini-crit " title="Timeliness: 2.0">2.0</span></div></td>
+    </tr><tr class="low-n">
+      <td class="td-name">Shivika Surendrashrivastava <span class="n-flag" title="Fewer than 3 tickets this window — read the score as anecdotal, not a trend.">low n</span></td>
+      <td class="td-num">Central Managers</td>
+      <td class="td-num">1</td>
+      <td><span class="table-score sc-warning">3.3</span></td>
+      <td><span class="delta-chip neutral">new</span></td>
+      <td><div class="mini-crit-row"><span class="mini-crit " title="Accuracy: 4.0">4.0</span><span class="mini-crit " title="Completeness: 3.0">3.0</span><span class="mini-crit weak" title="Tone: 2.0">2.0</span><span class="mini-crit " title="Timeliness: 4.0">4.0</span></div></td>
+    </tr><tr class="low-n">
+      <td class="td-name">Yerramilli Phaniyeshwanth <span class="n-flag" title="Fewer than 3 tickets this window — read the score as anecdotal, not a trend.">low n</span></td>
+      <td class="td-num">Central Team</td>
+      <td class="td-num">1</td>
+      <td><span class="table-score sc-critical">1.5</span></td>
+      <td><span class="delta-chip critical">▼ 1.52</span></td>
+      <td><div class="mini-crit-row"><span class="mini-crit " title="Accuracy: 2.0">2.0</span><span class="mini-crit weak" title="Completeness: 1.0">1.0</span><span class="mini-crit " title="Tone: 2.0">2.0</span><span class="mini-crit " title="Timeliness: 1.0">1.0</span></div></td>
+    </tr></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <section>
+    <div class="section-head">
+      <h2>What to change</h2>
+      <p class="section-note">The four recurring failure patterns across the last 45 days of graded resolutions (330 tickets), each with real examples.</p>
+    </div>
+    <div class="pattern-grid">
+      <div class="pattern-card">
+        <div class="pattern-head"><span class="pattern-title">Templated "transfer" notes stand in for resolutions</span><span class="pattern-freq">50 tickets &middot; 15%</span></div>
+        <div class="pattern-fix"><b>Fix:</b> a transfer to another team should never itself be logged as the resolution the instructor sees. Require a substantive follow-up once the receiving team actually acts, or give "transferred" its own status separate from "resolved."</div>
+        <div class="evidence"><span class="evidence-score sc-critical">1.5</span><div><div class="evidence-text">Same generic internal transfer note; doesn't address the audio submission failure at all.</div><div class="evidence-meta">#1429 &middot; Ankon Nandi &middot; IAS/SET</div></div></div>
+        <div class="evidence"><span class="evidence-score sc-critical">1.5</span><div><div class="evidence-text">Generic transfer note; evaluation-stuck issue never actually explained or fixed here.</div><div class="evidence-meta">#1473 &middot; Ankon Nandi &middot; IAS/SET</div></div></div>
+      </div>
+      <div class="pattern-card">
+        <div class="pattern-head"><span class="pattern-title">"Resolved" with zero explanation</span><span class="pattern-freq">42 tickets &middot; 13%</span></div>
+        <div class="pattern-fix"><b>Fix:</b> require every resolution note to name the fix, not just the outcome. A one-line template &mdash; "Root cause: ___. Fix: ___." &mdash; closes most of this gap for free.</div>
+        <div class="evidence"><span class="evidence-score sc-critical">1.8</span><div><div class="evidence-text">'This is resolved' gives zero detail on how the water supply issue was fixed.</div><div class="evidence-meta">#2267 &middot; Manideepreddy Irupaka &middot; Central POC</div></div></div>
+        <div class="evidence"><span class="evidence-score sc-critical">1.8</span><div><div class="evidence-text">Just says 'Resolved' with no explanation of the FLAT 80 slide fix.</div><div class="evidence-meta">#1737 &middot; Yerramilli Phaniyeshwanth &middot; Content POC's</div></div></div>
+      </div>
+      <div class="pattern-card">
+        <div class="pattern-head"><span class="pattern-title">Multi-part tickets answered only partially</span><span class="pattern-freq">36 tickets &middot; 11%</span></div>
+        <div class="pattern-fix"><b>Fix:</b> a simple closure checklist &mdash; "does this reply address every issue mentioned above?" &mdash; would catch this before the ticket closes, especially on the recurring mic-delivery-vs-everything-else pattern.</div>
+        <div class="evidence"><span class="evidence-score sc-critical">2.5</span><div><div class="evidence-text">Answers only the mic half of the complaint, ignoring the wifi/electricity outage issue.</div><div class="evidence-meta">#2023 &middot; Naga Nunna &middot; Central POC</div></div></div>
+        <div class="evidence"><span class="evidence-score sc-warning">3.8</span><div><div class="evidence-text">Addresses the mic complaint but ignores the file-upload problem also raised in the issue.</div><div class="evidence-meta">#1674 &middot; Voppangi Saiprasanna &middot; Unassigned</div></div></div>
+      </div>
+      <div class="pattern-card">
+        <div class="pattern-head"><span class="pattern-title">Long silent delays before closing</span><span class="pattern-freq">24 tickets &middot; 7%</span></div>
+        <div class="pattern-fix"><b>Fix:</b> the same fix as the open-queue backlog problem &mdash; an escalation trigger before day 7, not after day 30, so tickets don't quietly age until the instructor gives up.</div>
+        <div class="evidence"><span class="evidence-score sc-critical">1.5</span><div><div class="evidence-text">Closed for non-response after a 39-day delay, never actually solving the transcription problem.</div><div class="evidence-meta">#740 &middot; Catherine Joannamathews &middot; Central Team</div></div></div>
+        <div class="evidence"><span class="evidence-score sc-critical">1.3</span><div><div class="evidence-text">Closed with only a follow-up question to the instructor, never resolving the issue, after 34 days.</div><div class="evidence-meta">#270 &middot; Murari Pilla &middot; Central Scheduling POC</div></div></div>
+      </div>
+    </div>
+    <div class="callout">
+      <b>One name shows up consistently.</b> Manideepreddy Irupaka's Facilities resolutions score lowest across both windows (7-day avg 1.55) &mdash; vague, sometimes barely-legible "resolved" notes after 30-45 day delays, with no confirmation the fix actually worked. This reads as a specific, fixable coaching conversation rather than a systemic team issue, since the same team's other categories don't show the same pattern.
+    </div>
+  </section>
+
+  <footer>
+    <b>Methodology.</b> Every ticket closed as "Resolved By POC" or "Resolution Acknowledged" in the last 45 days (330 total) was graded against the resolution text (or worklog / acknowledgment text when no resolution was logged) using the same four-criterion rubric as the QA scorecard, each scored 1-5 by Claude. Grading was AI-assisted, not human-reviewed line by line &mdash; use the QA scorecard to spot-check agreement. Tickets with no resolution, worklog, or acknowledgment text on record are auto-scored low rather than skipped. "vs prior period" compares the current window to the equal-length period immediately before it (e.g., last 7 days vs the 7 days before that). Re-run this page on a fresh export to roll the window forward.
+  </footer>
+</div>
+
+<script>
+document.getElementById('window-toggle').addEventListener('click', e => {
+  const btn = e.target.closest('.toggle-btn');
+  if (!btn) return;
+  document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const win = btn.getAttribute('data-win');
+  document.querySelectorAll('.win').forEach(w => w.classList.remove('active'));
+  document.getElementById('win-' + win).classList.add('active');
+});
+</script>
+</body>
+</html>

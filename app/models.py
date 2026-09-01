@@ -50,11 +50,30 @@ class TicketStateResponse(BaseModel):
     # None when there's nothing to compare (no zoho_subcategory); otherwise
     # whether our predicted category loosely matches Zoho's own tag.
     zoho_agrees: bool | None = None
+    # Resolution quality grading (app/quality_scorer.py) - None until the
+    # ticket is closed AND graded. resolution_score is the avg of the 4
+    # criteria fields.
+    resolution_score: float | None = None
+    resolution_accuracy: float | None = None
+    resolution_completeness: float | None = None
+    resolution_tone: float | None = None
+    resolution_timeliness: float | None = None
+    resolution_evidence: str | None = None
+    resolution_scored_at: float | None = None
     # Every field Zoho's webhook sent for this ticket (priority, assigned
     # team, POC/worklog history, session ids, etc.) - None for manual/local
     # tickets that never came from a Zoho payload. Shown in full in the UI's
     # "Ticket Details" section so nothing Zoho sent is hidden from a reviewer.
     raw_payload: dict | None = None
+
+
+class ResolutionGrade(BaseModel):
+    """What the QA-grading structured-output call must return - see app/quality_scorer.py."""
+    accuracy: float
+    completeness: float
+    tone: float
+    timeliness: float
+    evidence: str
 
 
 class ClassificationResult(BaseModel):
