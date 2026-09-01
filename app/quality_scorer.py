@@ -117,7 +117,7 @@ CRITERIA:
 
 
 def grade_resolution(issue_text: str, resolution: str, duration_days: float | None, api_key: str) -> ResolutionGrade:
-    client = OpenAI(api_key=api_key)
+    client = OpenAI(api_key=api_key, base_url=config.openai_base_url())
     completion = client.chat.completions.create(
         model=config.CLASSIFY_MODEL,
         messages=[{"role": "user", "content": _build_prompt(issue_text, resolution, duration_days)}],

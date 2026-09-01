@@ -84,7 +84,7 @@ def classify(ticket_text: str, api_key: str) -> ClassificationResult:
     memory.seed_if_empty(taxonomy.seed_examples(), api_key)
     fewshot = memory.retrieve_similar(ticket_text, api_key, k=config.FEWSHOT_K)
 
-    client = OpenAI(api_key=api_key)
+    client = OpenAI(api_key=api_key, base_url=config.openai_base_url())
     completion = client.chat.completions.create(
         model=config.CLASSIFY_MODEL,
         messages=[

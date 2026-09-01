@@ -25,7 +25,7 @@ _collection = _chroma.get_or_create_collection(
 
 
 def _embed(texts: list[str], api_key: str) -> list[list[float]]:
-    client = OpenAI(api_key=api_key)
+    client = OpenAI(api_key=api_key, base_url=config.openai_base_url())
     resp = client.embeddings.create(model=config.EMBED_MODEL, input=texts)
     return [d.embedding for d in resp.data]
 

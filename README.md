@@ -164,6 +164,19 @@ set - see `.env.example`. Not wired into the running app in any way; it's a
 standalone script for deciding whether switching or dual-running models is
 worth pursuing further.
 
+### Cloudflare AI Gateway (optional)
+
+Set `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_AI_GATEWAY_ID` (see `.env.example`)
+to route every OpenAI call (classify, embeddings, resolution grading) through
+a Cloudflare AI Gateway instead of hitting OpenAI directly - same
+`OPENAI_API_KEY`, same models, but Cloudflare caches repeated identical
+requests (e.g. a Zoho webhook retry that fires before the first attempt
+finished) and gives a usage dashboard at `dash.cloudflare.com -> AI -> AI
+Gateway`. This reduces how often duplicate calls burn OpenAI's own request
+quota - it does **not** raise OpenAI's actual per-account rate limit, which
+only OpenAI controls. Unset means calls go straight to OpenAI, unchanged
+from before this existed.
+
 ## API
 
 All routes below (and the UI itself) require an admin session — log in at

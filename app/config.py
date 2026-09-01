@@ -21,6 +21,22 @@ EMBED_MODEL = os.getenv("OPENAI_EMBED_MODEL", "text-embedding-3-small")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_CLASSIFY_MODEL = os.getenv("GEMINI_CLASSIFY_MODEL", "gemini-2.5-flash")
 
+# When both are set, every OpenAI call (classify, embeddings, resolution
+# grading) routes through this Cloudflare AI Gateway instead of hitting
+# OpenAI directly - same OpenAI key, same models, but Cloudflare caches
+# repeated identical requests and logs usage at gateway.ai.cloudflare.com.
+# Reduces how often duplicate calls burn OpenAI's own request quota; does
+# NOT raise OpenAI's actual per-account rate limit (that's OpenAI-side,
+# billing-gated). Unset means calls go straight to OpenAI as before.
+CLOUDFLARE_ACCOUNT_ID = os.getenv("CLOUDFLARE_ACCOUNT_ID", "")
+CLOUDFLARE_AI_GATEWAY_ID = os.getenv("CLOUDFLARE_AI_GATEWAY_ID", "")
+
+
+def openai_base_url() -> str | None:
+    if CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_AI_GATEWAY_ID:
+        return f"https://gateway.ai.cloudflare.com/v1/{CLOUDFLARE_ACCOUNT_ID}/{CLOUDFLARE_AI_GATEWAY_ID}/openai"
+    return None
+
 CONFIDENCE_THRESHOLD = float(os.getenv("CONFIDENCE_THRESHOLD", "0.65"))
 MAX_CLARIFICATION_TURNS = int(os.getenv("MAX_CLARIFICATION_TURNS", "2"))
 FEWSHOT_K = int(os.getenv("FEWSHOT_K", "5"))
