@@ -192,6 +192,7 @@ def create_ticket(
             "created_at": now,
             "updated_at": now,
         })
+        _invalidate_list_all_cache()
         return ticket_id
 
     with _sqlite_conn() as conn:
@@ -204,6 +205,7 @@ def create_ticket(
             (ticket_id, original_text, original_text, zoho_ticket_id, zoho_category,
              zoho_subcategory, _dump_raw_payload(raw_payload), now, now),
         )
+    _invalidate_list_all_cache()
     return ticket_id
 
 
@@ -252,6 +254,7 @@ def update_ticket(ticket_id: str, **fields):
 
     if USE_FIRESTORE:
         _fs_client().collection("tickets").document(ticket_id).update(fields)
+        _invalidate_list_all_cache()
         return
 
     if "raw_payload" in fields:
@@ -260,6 +263,7 @@ def update_ticket(ticket_id: str, **fields):
     vals = list(fields.values()) + [ticket_id]
     with _sqlite_conn() as conn:
         _sqlite_exec(conn, f"UPDATE tickets SET {cols} WHERE id = ?", vals)
+    _invalidate_list_all_cache()
 
 
 def append_turn(ticket_id: str, role: str, content: str):
@@ -316,15 +320,40 @@ def log_correction(ticket_id: str, predicted_category_id: str | None, corrected_
         )
 
 
+_list_all_cache: dict = {"data": None, "at": 0.0}
+_LIST_ALL_CACHE_TTL_SECONDS = 20
+
+
+def _invalidate_list_all_cache():
+    _list_all_cache["data"] = None
+
+
 def list_all_tickets() -> list[dict]:
-    """Every ticket ever stored, oldest first - backs the full CSV export."""
+    """
+    Every ticket ever stored, oldest first - backs the full CSV export,
+    the Pulse/Insights dashboards, and the pending-count/pending-batch
+    endpoints. This is a full collection read on Firestore (one read per
+    document), so it's cached briefly and invalidated on every write:
+    a single page load fires several of these back-to-back (tickets/range
+    + both pending-count checks), which used to mean 3-4 full reads for
+    one page view. Short enough that nobody perceives stale data, long
+    enough to collapse those bursts into one real read.
+    """
+    now = time.time()
+    if _list_all_cache["data"] is not None and now - _list_all_cache["at"] < _LIST_ALL_CACHE_TTL_SECONDS:
+        return _list_all_cache["data"]
+
     if USE_FIRESTORE:
         docs = _fs_client().collection("tickets").order_by("created_at").stream()
-        return [_doc_to_dict(d) for d in docs]
+        result = [_doc_to_dict(d) for d in docs]
+    else:
+        with _sqlite_conn() as conn:
+            rows = _sqlite_exec(conn, "SELECT * FROM tickets ORDER BY created_at ASC").fetchall()
+            result = [_load_raw_payload(dict(r)) for r in rows]
 
-    with _sqlite_conn() as conn:
-        rows = _sqlite_exec(conn, "SELECT * FROM tickets ORDER BY created_at ASC").fetchall()
-        return [_load_raw_payload(dict(r)) for r in rows]
+    _list_all_cache["data"] = result
+    _list_all_cache["at"] = now
+    return result
 
 
 def list_tickets_for_date(date_str: str) -> list[dict]:

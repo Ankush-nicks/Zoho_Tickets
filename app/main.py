@@ -422,8 +422,18 @@ def _classify_pending_batch(limit: int, api_key: str) -> dict:
     just fail the same way) but keeps going past other per-ticket errors.
     Used by both the manual "Classify Now" button and the background
     auto-classify loop below.
+
+    Only calls db.list_all_tickets() once (a full collection read on
+    Firestore) and derives "remaining" from that same snapshot plus how
+    many were just processed, rather than re-fetching everything to
+    recount - halves this function's read cost, which matters because the
+    auto-classify loop calls it every 30 min regardless of any real
+    traffic. "remaining" is an estimate against that snapshot (a ticket
+    that arrived mid-batch won't be reflected until the next cycle).
     """
-    pending = [t for t in db.list_all_tickets() if t["status"] == "pending"][:limit]
+    all_tickets = db.list_all_tickets()
+    pending_all = [t for t in all_tickets if t["status"] == "pending"]
+    pending = pending_all[:limit]
     classified_count = 0
     stopped_early = False
     error = None
@@ -452,7 +462,7 @@ def _classify_pending_batch(limit: int, api_key: str) -> dict:
         )
         classified_count += 1
 
-    remaining = sum(1 for t in db.list_all_tickets() if t["status"] == "pending")
+    remaining = len(pending_all) - classified_count
     return {"classified": classified_count, "remaining": remaining, "stopped_early": stopped_early, "error": error}
 
 
@@ -489,11 +499,15 @@ def _score_pending_resolutions_batch(limit: int, api_key: str) -> dict:
     RateLimitError, keep-going-on-other-errors shape as _classify_pending_
     batch above. Used by both the manual "Score Now" trigger and the
     background auto-score loop below.
+
+    Only calls db.list_all_tickets() once and derives "remaining" from
+    that snapshot - see _classify_pending_batch's docstring for why (this
+    loop's own 30-min cadence makes the second full-collection read a
+    real, avoidable recurring cost independent of any actual traffic).
     """
-    pending = [
-        t for t in db.list_all_tickets()
-        if quality_scorer.is_closed(t) and not t.get("resolution_scored_at")
-    ][:limit]
+    all_tickets = db.list_all_tickets()
+    pending_all = [t for t in all_tickets if quality_scorer.is_closed(t) and not t.get("resolution_scored_at")]
+    pending = pending_all[:limit]
     scored_count = 0
     stopped_early = False
     error = None
@@ -511,10 +525,7 @@ def _score_pending_resolutions_batch(limit: int, api_key: str) -> dict:
         db.update_ticket(t["id"], **result)
         scored_count += 1
 
-    remaining = sum(
-        1 for t in db.list_all_tickets()
-        if quality_scorer.is_closed(t) and not t.get("resolution_scored_at")
-    )
+    remaining = len(pending_all) - scored_count
     return {"scored": scored_count, "remaining": remaining, "stopped_early": stopped_early, "error": error}
 
 
