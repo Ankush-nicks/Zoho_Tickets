@@ -51,13 +51,14 @@ class TicketStateResponse(BaseModel):
     # whether our predicted category loosely matches Zoho's own tag.
     zoho_agrees: bool | None = None
     # Resolution quality grading (app/quality_scorer.py) - None until the
-    # ticket is closed AND graded. resolution_score is the avg of the 4
-    # criteria fields.
+    # ticket is closed AND graded. resolution_score is the sum of the 5
+    # weighted criteria fields below, out of 10.
     resolution_score: float | None = None
-    resolution_accuracy: float | None = None
-    resolution_completeness: float | None = None
-    resolution_tone: float | None = None
-    resolution_timeliness: float | None = None
+    resolution_ack: float | None = None
+    resolution_investigation: float | None = None
+    resolution_root_cause: float | None = None
+    resolution_sla: float | None = None
+    resolution_detail: float | None = None
     resolution_evidence: str | None = None
     resolution_scored_at: float | None = None
     # Every field Zoho's webhook sent for this ticket (priority, assigned
@@ -68,11 +69,14 @@ class TicketStateResponse(BaseModel):
 
 
 class ResolutionGrade(BaseModel):
-    """What the QA-grading structured-output call must return - see app/quality_scorer.py."""
-    accuracy: float
-    completeness: float
-    tone: float
-    timeliness: float
+    """What the QA-grading structured-output call must return - see
+    app/quality_scorer.py. Each field is constrained to its own rubric's
+    exact band values (not a free scale) - weights sum to 10."""
+    acknowledgement: float    # 2 / 1 / 0
+    investigation: float      # 1.5 / 0.75 / 0
+    root_cause_fix: float     # 2.5 / 1.25 / 0
+    sla: float                # 2 / 1 / 0
+    resolution_detail: float  # 2 / 1 / 0
     evidence: str
 
 

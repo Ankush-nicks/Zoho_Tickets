@@ -516,7 +516,7 @@
           <div>
             <p class="p-eyebrow">Instructors Ticketing System</p>
             <h1>Weekly Resolution Insights</h1>
-            <p class="p-subtitle">Every resolution closed in the window below, AI-graded against a 4-criterion rubric (accuracy, completeness, tone, timeliness) &mdash; rolled up per team and per person, with the specific evidence driving each score.</p>
+            <p class="p-subtitle">Every resolution closed in the window below, AI-graded against a 5-parameter Ticket Quality-Check rubric out of 10 (acknowledgement, investigation, root cause fix, SLA, resolution detail) &mdash; rolled up per team and per person, with the specific evidence driving each score.</p>
           </div>
         </div>
 
@@ -551,7 +551,7 @@
           <div class="p-card table-scroll">
             <table>
               <thead>
-                <tr><th>Person</th><th>Team</th><th class="num">Resolved</th><th class="num">Score</th><th>vs prior</th><th>Accuracy / Completeness / Tone / Timeliness</th></tr>
+                <tr><th>Person</th><th>Team</th><th class="num">Resolved</th><th class="num">Score</th><th>vs prior</th><th>Ack / Investigation / Root Cause / SLA / Resolution</th></tr>
               </thead>
               <tbody id="insightIndividualTable"></tbody>
             </table>
@@ -1197,6 +1197,16 @@ function insightFormatPerson(raw) {
   return local.split('.').map(w => w ? w[0].toUpperCase() + w.slice(1) : w).join(' ');
 }
 
+// Ticket Quality-Check rubric: 5 parameters, each on its own max weight,
+// summing to 10 - mirrors app/quality_scorer.py's CRITERIA exactly.
+const INSIGHT_CRITERIA = [
+  ['ack', 'Acknowledgement', 2],
+  ['investigation', 'Investigation', 1.5],
+  ['root_cause', 'Root Cause Fix', 2.5],
+  ['sla', 'SLA', 2],
+  ['detail', 'Resolution', 2],
+];
+
 function insightMapTicket(t) {
   const rp = t.raw_payload || {};
   // Falls back to when it was graded if Zoho's own closure timestamp
@@ -1211,19 +1221,21 @@ function insightMapTicket(t) {
     closedBy: insightFormatPerson(rp.ticket_closed_by),
     closedAt,
     score: t.resolution_score,
-    accuracy: t.resolution_accuracy,
-    completeness: t.resolution_completeness,
-    tone: t.resolution_tone,
-    timeliness: t.resolution_timeliness,
+    ack: t.resolution_ack,
+    investigation: t.resolution_investigation,
+    root_cause: t.resolution_root_cause,
+    sla: t.resolution_sla,
+    detail: t.resolution_detail,
     evidence: t.resolution_evidence,
   };
 }
 
+// Score is out of 10 (sum of the 5 weighted criteria), not a 1-5 average.
 function insightScoreClass(v) {
-  return v >= 3.5 ? 'sc-good' : v >= 2.5 ? 'sc-warning' : 'sc-critical';
+  return v >= 7 ? 'sc-good' : v >= 5 ? 'sc-warning' : 'sc-critical';
 }
-function insightBarClass(v) {
-  const pct = v / 5;
+function insightBarClass(v, max) {
+  const pct = v / max;
   return pct >= 0.7 ? 'fill-good' : pct >= 0.45 ? 'fill-warning' : 'fill-critical';
 }
 function insightDeltaChipHTML(current, prior) {
@@ -1261,16 +1273,19 @@ function insightRenderKpis(current, prior) {
   }
   const avgScore = insightAvg(current, 'score');
   const priorAvg = insightAvg(prior, 'score');
-  const needsCoaching = current.filter(r => r.score < 3).length;
-  const criteria = ['accuracy', 'completeness', 'tone', 'timeliness'];
-  const criteriaAvgs = criteria.map(c => ({ name: c, avg: insightAvg(current, c) }));
-  const weakest = criteriaAvgs.sort((a, b) => a.avg - b.avg)[0];
+  const needsCoaching = current.filter(r => r.score < 6).length;
+  // Compare fraction-of-max, not raw value - the 5 criteria have
+  // different max weights (2 / 1.5 / 2.5 / 2 / 2), so raw averages would
+  // always flag the lowest-max criterion as "weakest" regardless of
+  // actual performance.
+  const criteriaAvgs = INSIGHT_CRITERIA.map(([key, label, max]) => ({ label, max, avg: insightAvg(current, key), ratio: insightAvg(current, key) / max }));
+  const weakest = criteriaAvgs.sort((a, b) => a.ratio - b.ratio)[0];
 
   const tiles = [
-    { label: 'Avg resolution score', value: avgScore.toFixed(1), unit: '/ 5', sub: prior.length ? insightDeltaChipHTML(avgScore, priorAvg) + ' vs prior period' : 'not enough prior-period data yet', cls: insightScoreClass(avgScore) === 'sc-good' ? '' : insightScoreClass(avgScore) === 'sc-critical' ? 'critical' : '' },
+    { label: 'Avg resolution score', value: avgScore.toFixed(1), unit: '/ 10', sub: prior.length ? insightDeltaChipHTML(avgScore, priorAvg) + ' vs prior period' : 'not enough prior-period data yet', cls: insightScoreClass(avgScore) === 'sc-good' ? '' : insightScoreClass(avgScore) === 'sc-critical' ? 'critical' : '' },
     { label: 'Resolutions graded', value: current.length, unit: '', sub: 'closed in this window', cls: '' },
-    { label: 'Needs coaching (< 3.0)', value: `${needsCoaching}<span class="unit">/ ${current.length}</span>`, unit: '', sub: `${Math.round(needsCoaching / current.length * 100)}% of the window`, cls: needsCoaching / current.length > 0.3 ? 'critical' : '' },
-    { label: 'Weakest criterion org-wide', value: weakest.name[0].toUpperCase() + weakest.name.slice(1), unit: '', sub: `avg ${weakest.avg.toFixed(1)} / 5`, cls: '' },
+    { label: 'Needs coaching (< 6.0)', value: `${needsCoaching}<span class="unit">/ ${current.length}</span>`, unit: '', sub: `${Math.round(needsCoaching / current.length * 100)}% of the window`, cls: needsCoaching / current.length > 0.3 ? 'critical' : '' },
+    { label: 'Weakest parameter org-wide', value: weakest.label, unit: '', sub: `avg ${weakest.avg.toFixed(2)} / ${weakest.max}`, cls: '' },
   ];
   el.innerHTML = tiles.map(x => `
     <div class="tile ${x.cls ? 'flag' : ''}">
@@ -1281,13 +1296,13 @@ function insightRenderKpis(current, prior) {
 }
 
 function insightCriterionBarsHTML(row) {
-  const criteria = [['Accuracy', row.accuracy], ['Completeness', row.completeness], ['Tone', row.tone], ['Timeliness', row.timeliness]];
-  const min = Math.min(...criteria.map(c => c[1]));
-  return `<div class="cbar-group">${criteria.map(([label, v]) => `
-    <div class="cbar-row ${v === min ? 'weak' : ''}">
+  const ratios = INSIGHT_CRITERIA.map(([key, , max]) => row[key] / max);
+  const minRatio = Math.min(...ratios);
+  return `<div class="cbar-group">${INSIGHT_CRITERIA.map(([key, label, max], i) => `
+    <div class="cbar-row ${ratios[i] === minRatio ? 'weak' : ''}">
       <span class="cbar-label">${label}</span>
-      <div class="cbar-track"><div class="cbar-fill ${insightBarClass(v)}" style="width:${v / 5 * 100}%"></div></div>
-      <span class="cbar-val">${v.toFixed(1)}</span>
+      <div class="cbar-track"><div class="cbar-fill ${insightBarClass(row[key], max)}" style="width:${ratios[i] * 100}%"></div></div>
+      <span class="cbar-val">${row[key].toFixed(2)}/${max}</span>
     </div>`).join('')}</div>`;
 }
 
@@ -1316,10 +1331,7 @@ function insightRenderTeamPerf(current, prior) {
     // Representative row for the criterion bars: same shape as a single
     // row, but averaged across the team so the bars reflect the whole
     // group rather than just the worst ticket.
-    const avgRow = {
-      accuracy: insightAvg(rows, 'accuracy'), completeness: insightAvg(rows, 'completeness'),
-      tone: insightAvg(rows, 'tone'), timeliness: insightAvg(rows, 'timeliness'),
-    };
+    const avgRow = Object.fromEntries(INSIGHT_CRITERIA.map(([key]) => [key, insightAvg(rows, key)]));
     return `
     <div class="perf-card">
       <div class="perf-head">
@@ -1351,9 +1363,9 @@ function insightRenderIndividualTable(current, prior) {
     const avgScore = insightAvg(rows, 'score');
     const lowN = rows.length < 3;
     const team = rows[0].team;
-    const crit = ['accuracy', 'completeness', 'tone', 'timeliness'];
-    const avgs = crit.map(c => insightAvg(rows, c));
-    const min = Math.min(...avgs);
+    const avgs = INSIGHT_CRITERIA.map(([key]) => insightAvg(rows, key));
+    const ratios = INSIGHT_CRITERIA.map(([key, , max]) => insightAvg(rows, key) / max);
+    const minRatio = Math.min(...ratios);
     return `
     <tr class="${lowN ? 'low-n' : ''}">
       <td>${esc(person)}${lowN ? '<span class="n-flag" title="Fewer than 3 tickets this window - read the score as anecdotal, not a trend.">low n</span>' : ''}</td>
@@ -1361,7 +1373,7 @@ function insightRenderIndividualTable(current, prior) {
       <td class="num">${rows.length}</td>
       <td><span class="table-score ${insightScoreClass(avgScore)}">${avgScore.toFixed(1)}</span></td>
       <td>${insightDeltaChipHTML(avgScore, priorRows.length ? insightAvg(priorRows, 'score') : null)}</td>
-      <td><div class="mini-crit-row">${crit.map((c, i) => `<span class="mini-crit ${avgs[i] === min ? 'weak' : ''}" title="${c[0].toUpperCase()+c.slice(1)}: ${avgs[i].toFixed(1)}">${avgs[i].toFixed(1)}</span>`).join('')}</div></td>
+      <td><div class="mini-crit-row">${INSIGHT_CRITERIA.map(([key, label], i) => `<span class="mini-crit ${ratios[i] === minRatio ? 'weak' : ''}" title="${label}: ${avgs[i].toFixed(2)}">${avgs[i].toFixed(2)}</span>`).join('')}</div></td>
     </tr>`;
   }).join('');
 }
@@ -1377,11 +1389,12 @@ function insightRenderWorstList(current) {
 function insightRenderFooter() {
   const graded = insightROWS.length;
   document.getElementById('insightFooter').innerHTML =
-    `<b>Methodology.</b> Every ticket closed as "Resolved By POC" or "Resolution Acknowledged" is graded once against its resolution text ` +
-    `(or worklog / acknowledgment text when no resolution was logged) on a 1-5 rubric - accuracy, completeness, tone, timeliness - by the ` +
-    `server's own OpenAI key, and the score is cached permanently. Tickets with nothing written down are auto-scored low rather than skipped. ` +
-    `${graded} resolution${graded === 1 ? '' : 's'} graded so far. "vs prior period" compares the current window to the equal-length period ` +
-    `immediately before it. Grading is AI-assisted, not human-reviewed line by line.`;
+    `<b>Methodology.</b> Every ticket closed as "Resolved By POC" or "Resolution Acknowledged" is graded once against a 5-parameter ` +
+    `Ticket Quality-Check rubric, scored out of 10: Acknowledgement within 4 hours (2), Investigation Done (1.5), Root Cause Fix (2.5), ` +
+    `SLA (2), and Resolution detail (2). Each parameter is judged against its own acknowledgement/worklog/resolution text and scored one ` +
+    `of exactly 3 band values, not a free scale. Tickets with nothing written down at all are auto-scored 0/10 rather than skipped. ` +
+    `${graded} resolution${graded === 1 ? '' : 's'} graded so far. "vs prior period" compares the current window to the equal-length ` +
+    `period immediately before it. Grading is AI-assisted, not human-reviewed line by line.`;
 }
 
 function insightRenderAll() {

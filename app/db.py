@@ -28,11 +28,12 @@ CREATE TABLE IF NOT EXISTS tickets (
     raw_payload TEXT,                  -- full JSON body Zoho's webhook sent (serialized - see _dump_raw_payload/_load_raw_payload)
     created_at REAL NOT NULL,
     updated_at REAL NOT NULL,
-    resolution_score REAL,             -- avg of the 4 criteria below, set by app/quality_scorer.py once a ticket is closed
-    resolution_accuracy REAL,
-    resolution_completeness REAL,
-    resolution_tone REAL,
-    resolution_timeliness REAL,
+    resolution_score REAL,             -- sum of the 5 weighted criteria below (out of 10), set by app/quality_scorer.py once a ticket is closed
+    resolution_ack REAL,               -- Acknowledgement within 4 hours, max 2
+    resolution_investigation REAL,     -- Investigation Done, max 1.5
+    resolution_root_cause REAL,        -- Root Cause Fix, max 2.5
+    resolution_sla REAL,               -- SLA, max 2
+    resolution_detail REAL,            -- Resolution (detail), max 2
     resolution_evidence TEXT,          -- one-sentence AI critique quote, shown in the Insights tab
     resolution_scored_at REAL          -- unset means not graded yet (or not closed yet)
 );
@@ -145,8 +146,8 @@ def init_db():
                 conn.execute(f"ALTER TABLE tickets ADD COLUMN {col} TEXT")
             except Exception:
                 pass
-        for col in ("resolution_score", "resolution_accuracy", "resolution_completeness",
-                    "resolution_tone", "resolution_timeliness", "resolution_scored_at"):
+        for col in ("resolution_score", "resolution_ack", "resolution_investigation",
+                    "resolution_root_cause", "resolution_sla", "resolution_detail", "resolution_scored_at"):
             try:
                 conn.execute(f"ALTER TABLE tickets ADD COLUMN {col} REAL")
             except Exception:
