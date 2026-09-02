@@ -154,6 +154,17 @@
   }
   .routing div b{ color:var(--muted); font-weight:500; font-family:var(--mono); font-size:10px; text-transform:uppercase; letter-spacing:.05em; display:block; margin-bottom:2px; }
 
+  .resolution-quality{
+    margin-top:10px; padding:10px 12px;
+    background:var(--panel-2); border:1px solid var(--border); border-radius:6px;
+  }
+  .rq-header{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .rq-criteria{ display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .rq-chip{
+    font-family:var(--mono); font-size:10.5px; color:var(--text);
+    background:var(--panel); border:1px solid var(--border); border-radius:4px; padding:2px 7px;
+  }
+
   .clarify{
     margin-top:14px; padding-top:14px; border-top:1px dashed var(--border);
   }
@@ -427,6 +438,28 @@
 
   #statsView .insight-footer{ margin-top:16px; padding-top:16px; border-top:1px solid var(--p-border); font-size:11.5px; color:var(--p-text-muted); line-height:1.6; }
   #statsView .insight-footer b{ color:var(--p-text-secondary); }
+
+  #statsView tbody tr.person-row{ cursor:pointer; }
+  #statsView tbody tr.person-row:hover{ background:var(--p-surface-2); }
+
+  #statsView .insight-modal{
+    position:fixed; inset:0; background:rgba(20,10,14,.55); z-index:1000;
+    display:flex; align-items:flex-start; justify-content:center; padding:40px 20px; overflow-y:auto;
+  }
+  #statsView .insight-modal-content{
+    position:relative; background:var(--p-surface-1); border-radius:14px; padding:28px 30px;
+    max-width:820px; width:100%; box-shadow:0 20px 60px rgba(0,0,0,.35);
+  }
+  #statsView .insight-modal-close{
+    position:absolute; top:14px; right:16px; background:none; border:none; cursor:pointer;
+    font-size:22px; line-height:1; color:var(--p-text-muted); padding:4px 8px;
+  }
+  #statsView .insight-modal-close:hover{ color:var(--p-text-primary); filter:none; }
+  #statsView .ipm-header{ margin-bottom:18px; padding-right:24px; }
+  #statsView .ipm-name{ font-size:20px; font-weight:700; color:var(--p-text-primary); }
+  #statsView .ipm-meta{ font-size:12.5px; color:var(--p-text-muted); margin-top:2px; }
+  #statsView .ipm-kpis{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:18px; }
+  #statsView .ipm-ticket-list{ display:flex; flex-direction:column; gap:0; }
 </style>
 </head>
 <body>
@@ -532,6 +565,7 @@
           <div class="range-presets" id="insightWindowToggle">
             <button class="range-btn active" data-win="7">Last 7 days</button>
             <button class="range-btn" data-win="14">Last 14 days</button>
+            <button class="range-btn" data-win="30">Last 30 days</button>
           </div>
         </div>
 
@@ -568,6 +602,13 @@
         </section>
 
         <div class="insight-footer" id="insightFooter"></div>
+
+        <div id="insightPersonModal" class="insight-modal" style="display:none;" onclick="if (event.target === this) insightClosePersonReport()">
+          <div class="insight-modal-content">
+            <button class="insight-modal-close" onclick="insightClosePersonReport()">&times;</button>
+            <div id="insightPersonModalBody"></div>
+          </div>
+        </div>
       </div>
 
       <div id="pulseView" style="display:none;">
@@ -841,6 +882,7 @@ function zohoCardHTML(state) {
       ` : ''}
     ` : '<div class="reasoning">Not yet classified.</div>'}
     ${zohoAgreementHTML(state)}
+    ${resolutionQualityHTML(state)}
     ${threadHTML ? `<div class="thread">${threadHTML}</div>` : ''}
     ${showClarify ? clarifyHTML(state) : ''}
     ${canCorrect ? correctionHTML(state) : ''}
@@ -913,6 +955,32 @@ function zohoAgreementHTML(state) {
   `;
 }
 
+// Resolution Quality-Check score (app/quality_scorer.py) for a closed,
+// graded ticket - blank for anything not yet closed/graded, so this is a
+// no-op on most open tickets.
+function resolutionQualityHTML(state) {
+  if (!state.resolution_scored_at) return '';
+  const score = state.resolution_score;
+  const color = score >= 7 ? 'var(--accent)' : score >= 5 ? 'var(--amber)' : 'var(--coral)';
+  const criteria = [
+    ['Ack', state.resolution_ack, 2],
+    ['Investigation', state.resolution_investigation, 1.5],
+    ['Root Cause', state.resolution_root_cause, 2.5],
+    ['SLA', state.resolution_sla, 2],
+    ['Resolution', state.resolution_detail, 2],
+  ];
+  return `
+    <div class="resolution-quality">
+      <div class="rq-header">
+        <span class="field-label" style="margin:0;">Resolution Quality</span>
+        <span class="badge"><span class="swatch" style="background:${color}"></span>${score.toFixed(1)} / 10</span>
+      </div>
+      <div class="rq-criteria">${criteria.map(([label, v, max]) => `<span class="rq-chip">${label} ${v.toFixed(1)}/${max}</span>`).join('')}</div>
+      ${state.resolution_evidence ? `<div class="reasoning">${esc(state.resolution_evidence)}</div>` : ''}
+    </div>
+  `;
+}
+
 function cardHTML(state) {
   if (state.zoho_ticket_id) return zohoCardHTML(state);
 
@@ -939,6 +1007,7 @@ function cardHTML(state) {
         </div>
       ` : ''}
     ` : ''}
+    ${resolutionQualityHTML(state)}
     ${threadHTML ? `<div class="thread">${threadHTML}</div>` : ''}
     ${showClarify ? `
       <div class="clarify">
@@ -1367,7 +1436,7 @@ function insightRenderIndividualTable(current, prior) {
     const ratios = INSIGHT_CRITERIA.map(([key, , max]) => insightAvg(rows, key) / max);
     const minRatio = Math.min(...ratios);
     return `
-    <tr class="${lowN ? 'low-n' : ''}">
+    <tr class="person-row ${lowN ? 'low-n' : ''}" data-person="${esc(person)}" title="Click for this person's full report">
       <td>${esc(person)}${lowN ? '<span class="n-flag" title="Fewer than 3 tickets this window - read the score as anecdotal, not a trend.">low n</span>' : ''}</td>
       <td>${esc(team)}</td>
       <td class="num">${rows.length}</td>
@@ -1376,6 +1445,59 @@ function insightRenderIndividualTable(current, prior) {
       <td><div class="mini-crit-row">${INSIGHT_CRITERIA.map(([key, label], i) => `<span class="mini-crit ${ratios[i] === minRatio ? 'weak' : ''}" title="${label}: ${avgs[i].toFixed(2)}">${avgs[i].toFixed(2)}</span>`).join('')}</div></td>
     </tr>`;
   }).join('');
+}
+
+const INSIGHT_WINDOW_LABELS = { 7: 'last 7 days', 14: 'last 14 days', 30: 'last 30 days' };
+
+// Delegated (attached once below) so re-renders of the table never stack
+// up duplicate listeners - same pattern as insightInitToggle.
+function insightInitPersonTable() {
+  document.getElementById('insightIndividualTable').addEventListener('click', e => {
+    const row = e.target.closest('tr.person-row');
+    if (!row) return;
+    insightOpenPersonReport(row.dataset.person);
+  });
+}
+
+// The "month-end report" for one person: their full graded-ticket history
+// within whichever window is currently selected (pick "Last 30 days" for
+// an actual monthly report), on-screen only - not a separate export.
+function insightOpenPersonReport(person) {
+  const { current } = insightWindowRows(insightState.windowDays);
+  const rows = current.filter(r => r.closedBy === person);
+  if (!rows.length) return;
+  const team = rows[0].team;
+  const avgScore = insightAvg(rows, 'score');
+  const avgRow = Object.fromEntries(INSIGHT_CRITERIA.map(([key]) => [key, insightAvg(rows, key)]));
+  const needsCoaching = rows.filter(r => r.score < 6).length;
+  const winLabel = INSIGHT_WINDOW_LABELS[insightState.windowDays] || `last ${insightState.windowDays} days`;
+  const sorted = [...rows].sort((a, b) => (b.closedAt || 0) - (a.closedAt || 0));
+
+  document.getElementById('insightPersonModalBody').innerHTML = `
+    <div class="ipm-header">
+      <div class="ipm-name">${esc(person)}</div>
+      <div class="ipm-meta">${esc(team)} &middot; ${winLabel} &middot; ${rows.length} resolution${rows.length === 1 ? '' : 's'} graded</div>
+    </div>
+    <div class="ipm-kpis">
+      <div class="tile ${insightScoreClass(avgScore) === 'sc-critical' ? 'flag' : ''}">
+        <p class="tile-label">Avg score</p>
+        <div class="tile-value ${insightScoreClass(avgScore) === 'sc-critical' ? 'critical' : ''}">${avgScore.toFixed(1)}<span class="unit">/ 10</span></div>
+      </div>
+      <div class="tile"><p class="tile-label">Resolved</p><div class="tile-value">${rows.length}</div></div>
+      <div class="tile ${needsCoaching > 0 ? 'flag' : ''}">
+        <p class="tile-label">Needs coaching</p>
+        <div class="tile-value ${needsCoaching > 0 ? 'critical' : ''}">${needsCoaching}<span class="unit">/ ${rows.length}</span></div>
+      </div>
+    </div>
+    ${insightCriterionBarsHTML(avgRow)}
+    <div class="section-head" style="margin-top:20px;"><h2 style="font-size:14px;">All graded resolutions this window</h2></div>
+    <div class="ipm-ticket-list">${sorted.map(insightEvidenceHTML).join('')}</div>
+  `;
+  document.getElementById('insightPersonModal').style.display = 'flex';
+}
+
+function insightClosePersonReport() {
+  document.getElementById('insightPersonModal').style.display = 'none';
 }
 
 function insightRenderWorstList(current) {
@@ -1530,6 +1652,7 @@ loadTaxonomy();
 loadZohoStatus();
 loadPendingCount();
 insightInitToggle();
+insightInitPersonTable();
 document.getElementById('dateInput').value = currentDate;
 loadDailyTickets();
 
