@@ -127,6 +127,28 @@ def _cloudflare_response_schema() -> dict:
     }
 
 
+def _extract_cloudflare_json(data: dict) -> dict:
+    """
+    Workers AI's structured output isn't 100% guaranteed to land as a
+    parsed object - on some inputs result.response comes back as a raw
+    JSON string that still needs a json.loads, or is missing entirely
+    with the JSON sitting in the plain chat message content instead.
+    """
+    result = data.get("result") or {}
+    response = result.get("response")
+    if isinstance(response, dict):
+        return response
+    if isinstance(response, str) and response.strip():
+        try:
+            return json.loads(response)
+        except json.JSONDecodeError:
+            pass
+    content = (((result.get("choices") or [{}])[0]).get("message") or {}).get("content")
+    if content:
+        return json.loads(content)
+    raise RuntimeError(f"Cloudflare Workers AI returned no parseable structured output: {data}")
+
+
 def _classify_via_cloudflare(ticket_text: str, fewshot: list[dict]) -> ClassificationResult:
     import httpx
 
@@ -147,7 +169,7 @@ def _classify_via_cloudflare(ticket_text: str, fewshot: list[dict]) -> Classific
     data = resp.json()
     if not data.get("success"):
         raise RuntimeError(f"Cloudflare Workers AI error: {data.get('errors')}")
-    return ClassificationResult(**data["result"]["response"])
+    return ClassificationResult(**_extract_cloudflare_json(data))
 
 
 def _gemini_response_schema() -> dict:

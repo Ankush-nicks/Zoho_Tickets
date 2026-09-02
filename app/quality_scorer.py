@@ -215,6 +215,28 @@ def grade_resolution(
     return ResolutionGrade(**raw)
 
 
+def _extract_cloudflare_json(data: dict) -> dict:
+    """
+    Workers AI's structured output isn't 100% guaranteed to land as a
+    parsed object - on some inputs result.response comes back as a raw
+    JSON string that still needs a json.loads, or is missing entirely
+    with the JSON sitting in the plain chat message content instead.
+    """
+    result = data.get("result") or {}
+    response = result.get("response")
+    if isinstance(response, dict):
+        return response
+    if isinstance(response, str) and response.strip():
+        try:
+            return json.loads(response)
+        except json.JSONDecodeError:
+            pass
+    content = (((result.get("choices") or [{}])[0]).get("message") or {}).get("content")
+    if content:
+        return json.loads(content)
+    raise RuntimeError(f"Cloudflare Workers AI returned no parseable structured output: {data}")
+
+
 def _grade_via_cloudflare(prompt: str) -> ResolutionGrade:
     import httpx
 
@@ -232,7 +254,7 @@ def _grade_via_cloudflare(prompt: str) -> ResolutionGrade:
     data = resp.json()
     if not data.get("success"):
         raise RuntimeError(f"Cloudflare Workers AI error: {data.get('errors')}")
-    return ResolutionGrade(**data["result"]["response"])
+    return ResolutionGrade(**_extract_cloudflare_json(data))
 
 
 def score_ticket(ticket: dict, api_key: str) -> dict:
