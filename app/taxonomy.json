@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "categories": [
     {
       "id": "G01",
@@ -38,22 +38,6 @@
         },
         {
           "id": "G01-S03",
-          "name": "AI / Automated Evaluation Accuracy Error",
-          "description": "The automated QA/evaluation tool got something factually wrong -- misheard/mis-transcribed audio, misread a classroom interaction, misjudged an instructor's example, raised a false grooming flag, or a recording problem that's explicitly reported as impacting the QA evaluation. An AI/tool accuracy issue, filed under QA Report since it's about evaluation correctness, but fixed by the Product team.",
-          "assigned_team": "IAS/SET",
-          "poc_primary": "ranjith.kumar@nxtwave.co.in",
-          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in, vamsitallam@nxtwave.co.in",
-          "ticket_volume": 175,
-          "data_coverage": "Likely Complete",
-          "examples": [
-            "The rubric - curriculum alignment and content accuracy is not evaluated",
-            "HTML & CSS Session 20, 30 July 2026 - language rubric is evaluated to flag the usage of Telugu",
-            "Two planned question types (man-days variation and contractor problem) were left unillustrated because you did not work out questions 09 and 10 during the session. This weakens the completeness of exa...",
-            "I would like to raise a concern regarding the Curriculum Alignment & Content Accuracy evaluation for the Filtering and Sorting session. This session contains approximately 115–120 slides, including co..."
-          ]
-        },
-        {
-          "id": "G01-S04",
           "name": "Scorecard / Rubric Discrepancy",
           "description": "The QA report WAS generated, but the instructor is disputing its content -- a specific rubric/category missing, scored zero, an unexpectedly low or dropped score, or a mismatch between the report and what actually happened in session. A content dispute, not a technical failure.",
           "assigned_team": "IAS/SET",
@@ -270,6 +254,22 @@
             "The audio is not being uploaded.",
             "Unable to upload recording. Same issue that was reported on Monday. It says the audio is unverified."
           ]
+        },
+        {
+          "id": "G03-S05",
+          "name": "AI / Automated Evaluation Accuracy Error",
+          "description": "The automated QA/evaluation tool got something factually wrong -- misheard/mis-transcribed audio, misread a classroom interaction, misjudged an instructor's example, raised a false grooming flag, or a recording problem that's explicitly reported as impacting the QA evaluation. An AI/tool accuracy issue, filed under QA Report since it's about evaluation correctness, but fixed by the Product team.",
+          "assigned_team": "Product Team",
+          "poc_primary": "catherine.joannamathews@nxtwave.co.in, gauthami.chandil@nxtwave.co.in, ankon.nandi@nxtwave.co.in",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in, vamsitallam@nxtwave.co.in",
+          "ticket_volume": 175,
+          "data_coverage": "Likely Complete",
+          "examples": [
+            "The rubric - curriculum alignment and content accuracy is not evaluated",
+            "HTML & CSS Session 20, 30 July 2026 - language rubric is evaluated to flag the usage of Telugu",
+            "Two planned question types (man-days variation and contractor problem) were left unillustrated because you did not work out questions 09 and 10 during the session. This weakens the completeness of exa...",
+            "I would like to raise a concern regarding the Curriculum Alignment & Content Accuracy evaluation for the Filtering and Sorting session. This session contains approximately 115–120 slides, including co..."
+          ]
         }
       ]
     },
@@ -283,7 +283,7 @@
           "description": "Any login, access, unlocking, expiry, or general technical problem with either the instructor Teach OS platform or the student Learning Portal -- both route to the same Central Operations team.",
           "assigned_team": "Central Operations",
           "poc_primary": "narayana.dubbala@nxtwave.co.in, gompa.mounica@nxtwave.co.in",
-          "poc_cc": "naga.nunna@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in",
           "ticket_volume": 70,
           "data_coverage": "Likely Complete",
           "examples": [
@@ -429,7 +429,7 @@
         {
           "id": "G05-S09",
           "name": "GRIT / BRAVE / MINT Related Concerns",
-          "description": "A regular class/session could not run, was delayed, or needs a makeup because it conflicted with a scheduled GRIT, BRAVE, or MINT programme event (e.g. an exam occupying the room/time). Use this for scheduling disruption caused by these programmes — NOT for issues with the exam/programme content itself, see G11-S05/S06/S07 for that.",
+          "description": "Scheduling issues specifically related to GRIT, BRAVE, or MINT programme sessions.",
           "assigned_team": "Program operations",
           "poc_primary": "manoj.panchothi@nxtwave.co.in",
           "poc_cc": "prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
@@ -443,8 +443,8 @@
           "id": "G05-S10",
           "name": "Any Issue Leading to Session Disruption",
           "description": "An active, real-time issue is preventing the session from running normally — raise during or within 10 minutes of session start.",
-          "assigned_team": "Central Managers",
-          "poc_primary": "ninitha.h@nxtwave.co.in",
+          "assigned_team": "Program operations",
+          "poc_primary": "manoj.panchothi@nxtwave.co.in",
           "poc_cc": "vamsitallam@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
           "ticket_volume": 23,
           "data_coverage": "Possibly Incomplete",
@@ -465,9 +465,9 @@
           "id": "G06-S01",
           "name": "Leave Approval",
           "description": "Request for planned leave (CL / SL / EL) requiring manager acknowledgement.",
-          "assigned_team": "Capability Managers",
+          "assigned_team": "Program Operations",
           "poc_primary": "Respective COS's > If chose 'Back up required' > arunkumar.naram@nxtwave.co.in",
-          "poc_cc": "manoj.panchothi@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "poc_cc": "Capability Manager & prudhviraj.garlapati@nxtwave.co.in",
           "ticket_volume": 46,
           "data_coverage": "Possibly Incomplete",
           "examples": [
@@ -481,9 +481,9 @@
           "id": "G06-S02",
           "name": "Long Leave Approval",
           "description": "Request for extended leave of 2+ consecutive days with supporting documents.",
-          "assigned_team": "Capability Managers",
+          "assigned_team": "Program Operations",
           "poc_primary": "Respective COS's > If chose 'Back up required' > arunkumar.naram@nxtwave.co.in",
-          "poc_cc": "manoj.panchothi@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "poc_cc": "Capability Manager & prudhviraj.garlapati@nxtwave.co.in",
           "ticket_volume": 40,
           "data_coverage": "Possibly Incomplete",
           "examples": [
@@ -497,9 +497,9 @@
           "id": "G06-S03",
           "name": "Comp-Off Request",
           "description": "Request for compensatory leave after working on a declared holiday or weekly off.",
-          "assigned_team": "Capability Managers",
+          "assigned_team": "Program Operations",
           "poc_primary": "Respective COS's > If chose 'Back up required' > arunkumar.naram@nxtwave.co.in",
-          "poc_cc": "manoj.panchothi@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "poc_cc": "Capability Manager & prudhviraj.garlapati@nxtwave.co.in",
           "ticket_volume": 11,
           "data_coverage": "Possibly Incomplete",
           "examples": [
@@ -513,9 +513,9 @@
           "id": "G06-S04",
           "name": "WFH Approval",
           "description": "Request to work from home on specific dates instead of reporting to campus.",
-          "assigned_team": "Capability Managers",
+          "assigned_team": "Program Operations",
           "poc_primary": "Respective COS's > If chose 'Back up required' > arunkumar.naram@nxtwave.co.in",
-          "poc_cc": "manoj.panchothi@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "poc_cc": "Capability Manager & prudhviraj.garlapati@nxtwave.co.in",
           "ticket_volume": 12,
           "data_coverage": "Possibly Incomplete",
           "examples": [
@@ -693,7 +693,7 @@
           "description": "Decisions or information affecting the instructor are being withheld or not communicated in a timely manner.",
           "assigned_team": "Capability Managers",
           "poc_primary": "Respective Capability Manager",
-          "poc_cc": "kattekola.shravani@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "poc_cc": "shreyasi.biswas@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
           "ticket_volume": 6,
           "data_coverage": "Possibly Incomplete",
           "examples": [
@@ -709,7 +709,7 @@
           "description": "A manager or peer has behaved unprofessionally — verbal abuse, dismissiveness, or public humiliation.",
           "assigned_team": "Capability Managers",
           "poc_primary": "Respective Capability Manager",
-          "poc_cc": "kattekola.shravani@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "poc_cc": "shreyasi.biswas@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
           "ticket_volume": 8,
           "data_coverage": "Possibly Incomplete",
           "examples": [
@@ -725,7 +725,7 @@
           "description": "Instructor has experienced harassment, bullying, or discrimination of any kind. Treated with strict confidentiality.",
           "assigned_team": "Capability Managers",
           "poc_primary": "Respective Capability Manager",
-          "poc_cc": "kattekola.shravani@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "poc_cc": "shreyasi.biswas@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
           "ticket_volume": 1,
           "data_coverage": "Possibly Incomplete",
           "examples": [
@@ -738,7 +738,7 @@
           "description": "A grievance escalated past the normal manager because it wasn't acted on, keeps recurring, is actively disrupting live classes/students, the manager is unreachable, or a management decision appears biased/unfair. All variants route to the same Skip Level owner, so they're combined into one.",
           "assigned_team": "Central Managers/HOD",
           "poc_primary": "prudhviraj.garlapati@nxtwave.co.in",
-          "poc_cc": "vamsitallam@nxtwave.co.in",
+          "poc_cc": "vamsitallam@nxtwave.co.in, shreyasi.biswas@nxtwave.co.in",
           "ticket_volume": 41,
           "data_coverage": "Likely Complete",
           "examples": [
@@ -760,7 +760,7 @@
           "description": "Monthly salary has not been credited within 3 working days of the standard pay date.",
           "assigned_team": "Capability Managers",
           "poc_primary": "Respective Capability Manager",
-          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in, shreyasi.biswas@nxtwave.co.in",
           "ticket_volume": 6,
           "data_coverage": "Likely Complete",
           "examples": [
@@ -776,7 +776,7 @@
           "description": "Net salary received is lower than expected with no communicated reason for the deduction.",
           "assigned_team": "Capability Managers",
           "poc_primary": "Respective Capability Manager",
-          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in, shreyasi.biswas@nxtwave.co.in",
           "ticket_volume": 8,
           "data_coverage": "Likely Complete",
           "examples": [
@@ -792,7 +792,7 @@
           "description": "A confirmed salary revision has not been reflected in payroll by the effective date.",
           "assigned_team": "Capability Managers",
           "poc_primary": "Respective Capability Manager",
-          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in, Respective COS, shreyasi.biswas@nxtwave.co.in",
           "ticket_volume": 7,
           "data_coverage": "Likely Complete",
           "examples": [
@@ -808,7 +808,7 @@
           "description": "Performance-linked pay, arrears, variable pay, retention or referral bonus not credited.",
           "assigned_team": "Capability Managers",
           "poc_primary": "Respective Capability Manager",
-          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in, Respective COS, shreyasi.biswas@nxtwave.co.in",
           "ticket_volume": 8,
           "data_coverage": "Likely Complete",
           "examples": [
@@ -824,7 +824,7 @@
           "description": "An approved leave has been treated as Loss of Pay (LOP) in the payroll.",
           "assigned_team": "Capability Managers",
           "poc_primary": "Respective Capability Manager",
-          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in, shreyasi.biswas@nxtwave.co.in",
           "ticket_volume": 8,
           "data_coverage": "Likely Complete",
           "examples": [
@@ -836,11 +836,11 @@
         },
         {
           "id": "G10-S06",
-          "name": "Back-up Instructor Reimbursement",
+          "name": "Back-up Instructor Reimbursement/Bootcamps",
           "description": "Claim for payment for backup or substitute instructor sessions conducted.",
-          "assigned_team": "Central Team",
-          "poc_primary": "arunkumar.naram@nxtwave.co.in",
-          "poc_cc": "chepuri.sanjaykumar@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "assigned_team": "Operations Team",
+          "poc_primary": "naga.nunna@nxtwave.co.in",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in, shreyasi.biswas@nxtwave.co.in",
           "ticket_volume": 2,
           "data_coverage": "Possibly Incomplete",
           "examples": [
@@ -919,7 +919,7 @@
         {
           "id": "G11-S05",
           "name": "BRAVE",
-          "description": "Issues with the BRAVE programme itself — exam conduct, evaluation disputes, malpractice flags, hall/registration issues, or content/participation concerns. NOT for a regular class being displaced or rescheduled because of a BRAVE exam — see G05-S09 for that.",
+          "description": "Issues specific to the BRAVE programme — content, participation, or evaluation concerns.",
           "assigned_team": "L&O",
           "poc_primary": "tirupathirao.kella@nxtwave.co.in",
           "poc_cc": "bhavana.panchothi@nxtwave.co.in; maddikari.sireesha@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
@@ -930,7 +930,7 @@
         {
           "id": "G11-S06",
           "name": "MINT",
-          "description": "Issues with the MINT programme itself — exam conduct, evaluation disputes, malpractice flags, hall/registration issues, or content/participation concerns. NOT for a regular class being displaced or rescheduled because of a MINT exam — see G05-S09 for that.",
+          "description": "Issues specific to the MINT programme — content, participation, or evaluation concerns.",
           "assigned_team": "L&O",
           "poc_primary": "narra.devender@nxtwave.co.in, saiteja.boda@nxtwave.co.in",
           "poc_cc": "bhavana.panchothi@nxtwave.co.in; maddikari.sireesha@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
@@ -946,7 +946,7 @@
         {
           "id": "G11-S07",
           "name": "GRIT",
-          "description": "Issues with the GRIT programme itself — exam conduct, evaluation disputes, malpractice flags, hall/registration issues, or content/participation concerns. NOT for a regular class being displaced or rescheduled because of a GRIT exam — see G05-S09 for that.",
+          "description": "Issues specific to the GRIT programme — content, participation, or evaluation concerns.",
           "assigned_team": "L&O",
           "poc_primary": "krovvidi.lokesh@nxtwave.co.in, maddikari.sireesha@nxtwave.co.in",
           "poc_cc": "bhavana.panchothi@nxtwave.co.in; maddikari.sireesha@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
@@ -968,8 +968,8 @@
           "name": "Planned Replacement (Leave / Exit)",
           "description": "Replacement instructor needed for a known upcoming absence or a confirmed exit.",
           "assigned_team": "Central Managers",
-          "poc_primary": "Respective COS's & chepuri.sanjaykumar@nxtwave.co.in",
-          "poc_cc": "naga.nunna@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "poc_primary": "Respective COS's & Respective Capability Managers",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in",
           "ticket_volume": 9,
           "data_coverage": "Possibly Incomplete",
           "examples": [
@@ -984,8 +984,8 @@
           "name": "Backup Resource Needed",
           "description": "Immediate replacement needed for an unplanned instructor absence with less than 24 hours notice.",
           "assigned_team": "Central Managers",
-          "poc_primary": "Respective COS's & chepuri.sanjaykumar@nxtwave.co.in",
-          "poc_cc": "naga.nunna@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "poc_primary": "Respective COS's & Respective Capability Managers & arunkumar.naram@nxtwave.co.in",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
           "ticket_volume": 2,
           "data_coverage": "Possibly Incomplete",
           "examples": [
@@ -998,8 +998,8 @@
           "name": "Skill-Specific Replacement Required",
           "description": "Current instructor lacks the domain expertise required for specific modules.",
           "assigned_team": "Central Managers",
-          "poc_primary": "Respective COS's & chepuri.sanjaykumar@nxtwave.co.in",
-          "poc_cc": "naga.nunna@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
+          "poc_primary": "Respective COS's & Respective Capability Managers",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
           "ticket_volume": 4,
           "data_coverage": "Possibly Incomplete",
           "examples": [
@@ -1011,16 +1011,15 @@
         },
         {
           "id": "G12-S04",
-          "name": "Exit",
+          "name": "Exit (return laptop/mics/id card)",
           "description": "Queries about the resignation and offboarding process — notice period, handover, or exit formalities.",
           "assigned_team": "Central Managers",
-          "poc_primary": "kattekola.shravani@nxtwave.co.in",
+          "poc_primary": "narayana.dubbala@nxtwave.co.in, gompa.mounica@nxtwave.co.in",
           "poc_cc": "prudhviraj.garlapati@nxtwave.co.in",
           "ticket_volume": 2,
           "data_coverage": "Likely Complete",
           "examples": [
-            "Few visuals need to be plotted for each question, but exact information on the same is not been given",
-            "As it is a Dummy ticket, I just wanna check the process"
+            "Few visuals need to be plotted for each question, but exact information on the same is not been given"
           ]
         },
         {
@@ -1028,7 +1027,7 @@
           "name": "Contract Related",
           "description": "Questions about employment contract terms, designation, or contract renewal.",
           "assigned_team": "Central Managers",
-          "poc_primary": "kattekola.shravani@nxtwave.co.in",
+          "poc_primary": "Respective Capability Managers",
           "poc_cc": "prudhviraj.garlapati@nxtwave.co.in",
           "ticket_volume": 3,
           "data_coverage": "Likely Complete",
@@ -1043,30 +1042,14 @@
           "name": "Post-Deployment Policy Concerns",
           "description": "Leave policy or leave encashment related concerns post deployment.",
           "assigned_team": "Central Managers",
-          "poc_primary": "kattekola.shravani@nxtwave.co.in",
-          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in",
+          "poc_primary": "Respective Capability Managers",
+          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in, Respective COS",
           "ticket_volume": 3,
           "data_coverage": "Likely Complete",
           "examples": [
             "Hi, good evening. When I discussed the hike process with my RP after completing 1 year and 3 months at NxtWave, I was informed that hikes would be considered only after deployment to a university. Acc...",
             "This is regarding receiving employment offer from University. Post university deployment and transitioning to university payroll I was relieved from Nxtwave for compliance reasons. My last working day...",
             "Hello, I would like to inform you that I have been deployed to NIU (Noida International University), and my payroll was transitioned from NxtWave to NIU since October 1, 2025. It has now been over 8 m..."
-          ]
-        },
-        {
-          "id": "G12-S07",
-          "name": "Policy / Compliance Clarification",
-          "description": "Request for clarification on an official HR policy — leave, code of conduct, compliance requirements.",
-          "assigned_team": "Central Managers",
-          "poc_primary": "kattekola.shravani@nxtwave.co.in",
-          "poc_cc": "prudhviraj.garlapati@nxtwave.co.in",
-          "ticket_volume": 7,
-          "data_coverage": "Likely Complete",
-          "examples": [
-            "Subject: Clarification Required Before Signing the Retainer Agreement Dear HR Team, I hope you are doing well. I have received the Retainer Agreement for signing. Before proceeding, I would like to se...",
-            "Dear Team, I would like to request an update regarding my transition process. As per the communication received earlier, my last working day at Aurora University was 4th July 2026, and I was informed ...",
-            "Dear Team, I would like to request a No Objection Certificate (NOC) from the organization for applying to Ph.D. admission at Annamacharya University. The university requires the NOC as part of the adm...",
-            "Hello, I am formally requesting clarification and resolution on multiple employment-related discrepancies that have impacted my appraisal eligibility, role designation, and benefits entitlement. 1. AP..."
           ]
         }
       ]
@@ -1080,7 +1063,7 @@
           "name": "Suggestions / Advice on Any Tool",
           "description": "Suggestion to improve an existing platform tool — portal, Teach OS, or any internal tool.",
           "assigned_team": "Central Managers",
-          "poc_primary": "ninitha.h@nxtwave.co.in",
+          "poc_primary": "ninitha.h@nxtwave.co.in, shreyasi.biswas@nxtwave.co.in",
           "poc_cc": "vamsitallam@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
           "ticket_volume": 15,
           "data_coverage": "Possibly Incomplete",
@@ -1096,7 +1079,7 @@
           "name": "Feature Development Request",
           "description": "Request for a completely new feature to be built into an existing platform.",
           "assigned_team": "Central Managers",
-          "poc_primary": "ninitha.h@nxtwave.co.in",
+          "poc_primary": "ninitha.h@nxtwave.co.in, shreyasi.biswas@nxtwave.co.in",
           "poc_cc": "vamsitallam@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
           "ticket_volume": 5,
           "data_coverage": "Possibly Incomplete",
@@ -1112,7 +1095,7 @@
           "name": "Suggestions / Advice on Process or Systems",
           "description": "Suggestion to improve an operational process or system flow.",
           "assigned_team": "Central Managers",
-          "poc_primary": "ninitha.h@nxtwave.co.in",
+          "poc_primary": "ninitha.h@nxtwave.co.in, shreyasi.biswas@nxtwave.co.in",
           "poc_cc": "vamsitallam@nxtwave.co.in, prudhviraj.garlapati@nxtwave.co.in (observed on all source tickets)",
           "ticket_volume": 6,
           "data_coverage": "Possibly Incomplete",
