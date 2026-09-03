@@ -62,8 +62,12 @@ cd ticket-classifier
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env        # optional overrides only, see below
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
+
+`--host 0.0.0.0` matters on Replit specifically - its webview/deployment can't reach a
+server bound to `127.0.0.1`. See `REPLIT_DEPLOY.md` for deploying this as an always-on
+Reserved VM instead of running it locally.
 
 Open http://localhost:8000, paste your OpenAI API key into the box at the top of the
 page (kept in your browser's local storage, sent per-request — never written to disk
@@ -73,7 +77,7 @@ question), and use "Correct it" to simulate an agent fixing a bad call.
 ## The taxonomy
 
 `app/taxonomy.json` is wired to the real taxonomy (14 top-level categories,
-68 routed subcategories — QA/instructor evaluation, curriculum, staffing/HR,
+67 routed subcategories — QA/instructor evaluation, curriculum, staffing/HR,
 scheduling, etc., plus a catch-all "Other / Unclear" category for tickets with
 no discernible intent). Classification targets the **subcategory** level, since
 that's what actually determines routing (`assigned_team`, `poc_primary`,
@@ -202,9 +206,18 @@ cookie; `POST /api/logout` clears it).
 ## Production notes / next steps
 
 - **Storage**: SQLite locally, Firestore in production (set `FIREBASE_CREDENTIALS_BASE64`
-  - see `persistent-storage-setup.md`). Chroma is still local-only; for multi-instance
-  production point it at a hosted instance (or swap to Pinecone/Weaviate) —
-  `memory.py` is the only file that would need to change.
+  - see `persistent-storage-setup.md`). Reads are server-side filtered
+  (`db.list_pending_tickets`, `db.count_pending_tickets`,
+  `db.list_tickets_by_raw_status`) rather than reading the whole ticket
+  history, so Firestore's free-tier daily read quota scales with how many
+  tickets are actually pending/closed, not with total ticket count. Chroma is
+  still local-only; for multi-instance production point it at a hosted
+  instance (or swap to Pinecone/Weaviate) — `memory.py` is the only file that
+  would need to change.
+- **Hosting**: see `REPLIT_DEPLOY.md` for running this as an always-on
+  Replit Reserved VM instead of Render's free plan — no cold starts, and the
+  two background loops (auto-classify, auto-score) keep running between
+  requests, which an autoscale-to-zero host would kill.
 - **Auth**: a single admin login (session cookie, set via `ADMIN_USERNAME`/
   `ADMIN_PASSWORD` in `.env`, defaulting insecurely to `admin`/`admin` if unset)
   gates the UI and every `/api/*` route. This is fine for one trusted operator;

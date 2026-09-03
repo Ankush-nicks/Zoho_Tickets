@@ -93,10 +93,6 @@ def _doc_to_dict(snap) -> dict:
 # --- SQLite (local dev) helpers ---------------------------------------------
 
 
-def _placeholder(sql: str) -> str:
-    return sql
-
-
 @contextmanager
 def _sqlite_conn():
     import sqlite3
@@ -331,13 +327,13 @@ def _invalidate_list_all_cache():
 def list_all_tickets() -> list[dict]:
     """
     Every ticket ever stored, oldest first - backs the full CSV export,
-    the Pulse/Insights dashboards, and the pending-count/pending-batch
-    endpoints. This is a full collection read on Firestore (one read per
-    document), so it's cached briefly and invalidated on every write:
-    a single page load fires several of these back-to-back (tickets/range
-    + both pending-count checks), which used to mean 3-4 full reads for
-    one page view. Short enough that nobody perceives stale data, long
-    enough to collapse those bursts into one real read.
+    the Pulse/Insights dashboards, and the date-range views. This is a full
+    collection read on Firestore (one read per document), so it's cached
+    briefly and invalidated on every write. Prefer list_pending_tickets(),
+    count_pending_tickets(), or list_tickets_by_raw_status() instead of this
+    for anything that only needs a subset - those run as server-side
+    filtered queries on Firestore, so their read cost scales with the
+    matching subset, not with total ticket history the way this does.
     """
     now = time.time()
     if _list_all_cache["data"] is not None and now - _list_all_cache["at"] < _LIST_ALL_CACHE_TTL_SECONDS:
@@ -354,6 +350,75 @@ def list_all_tickets() -> list[dict]:
     _list_all_cache["data"] = result
     _list_all_cache["at"] = now
     return result
+
+
+def list_pending_tickets() -> list[dict]:
+    """
+    Tickets with status == 'pending' (e.g. from a --no-classify historical
+    import), oldest first. On Firestore this is a server-side equality
+    filter - read cost scales with how many tickets are actually sitting
+    unclassified, not with total ticket history, unlike list_all_tickets().
+    No .order_by() here on purpose: combining an equality filter with an
+    order_by on a different field needs a Firestore composite index, and
+    processing order doesn't matter for this - it's a queue drained every
+    30 min regardless of order.
+    """
+    if USE_FIRESTORE:
+        from google.cloud.firestore_v1 import FieldFilter
+
+        docs = _fs_client().collection("tickets").where(filter=FieldFilter("status", "==", "pending")).stream()
+        return [_doc_to_dict(d) for d in docs]
+
+    with _sqlite_conn() as conn:
+        rows = _sqlite_exec(
+            conn, "SELECT * FROM tickets WHERE status = 'pending' ORDER BY created_at ASC"
+        ).fetchall()
+        return [_load_raw_payload(dict(r)) for r in rows]
+
+
+def count_pending_tickets() -> int:
+    """Cheap count of status == 'pending' tickets - powers the "Classify Now"
+    banner. Uses Firestore's count() aggregation (billed as a small fixed
+    read, not one read per matching document) instead of streaming rows."""
+    if USE_FIRESTORE:
+        from google.cloud.firestore_v1 import FieldFilter
+
+        agg = _fs_client().collection("tickets").where(filter=FieldFilter("status", "==", "pending")).count()
+        return agg.get()[0][0].value
+
+    with _sqlite_conn() as conn:
+        row = _sqlite_exec(conn, "SELECT COUNT(*) AS n FROM tickets WHERE status = 'pending'").fetchone()
+        return row["n"]
+
+
+def list_tickets_by_raw_status(statuses: list[str]) -> list[dict]:
+    """
+    Tickets whose raw_payload.ticket_status (the Zoho status string) is one
+    of `statuses` - used to find closed tickets for resolution grading
+    without reading the entire ticket history. On Firestore this queries the
+    nested raw_payload map field directly (dot-path field, single "in"
+    filter, no composite index needed), so read cost scales with how many
+    tickets are actually closed, not with total ticket count. Still needs a
+    Python pass afterward to check resolution_scored_at - Firestore can't
+    reliably filter "field is absent" server-side without every document
+    already carrying an explicit null for it.
+    """
+    if USE_FIRESTORE:
+        from google.cloud.firestore_v1 import FieldFilter
+
+        docs = (_fs_client().collection("tickets")
+                .where(filter=FieldFilter("raw_payload.ticket_status", "in", statuses))
+                .stream())
+        return [_doc_to_dict(d) for d in docs]
+
+    placeholders = ", ".join("?" for _ in statuses)
+    with _sqlite_conn() as conn:
+        rows = _sqlite_exec(
+            conn,
+            f"SELECT * FROM tickets WHERE json_extract(raw_payload, '$.ticket_status') IN ({placeholders})",
+            statuses,
+        ).fetchall()
+        return [_load_raw_payload(dict(r)) for r in rows]
 
 
 def list_tickets_for_date(date_str: str) -> list[dict]:

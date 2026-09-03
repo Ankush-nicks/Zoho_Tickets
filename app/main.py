@@ -423,16 +423,17 @@ def _classify_pending_batch(limit: int, api_key: str) -> dict:
     Used by both the manual "Classify Now" button and the background
     auto-classify loop below.
 
-    Only calls db.list_all_tickets() once (a full collection read on
-    Firestore) and derives "remaining" from that same snapshot plus how
-    many were just processed, rather than re-fetching everything to
-    recount - halves this function's read cost, which matters because the
-    auto-classify loop calls it every 30 min regardless of any real
-    traffic. "remaining" is an estimate against that snapshot (a ticket
-    that arrived mid-batch won't be reflected until the next cycle).
+    Queries only status='pending' tickets (db.list_pending_tickets()) rather
+    than reading the whole ticket history - on Firestore this is a
+    server-side filter, so its read cost scales with how many tickets are
+    actually unclassified, not with total ticket count, unlike the
+    list_all_tickets()-then-filter-in-Python shape this used to have.
+    Derives "remaining" from that same snapshot plus how many were just
+    processed, rather than re-querying to recount - "remaining" is an
+    estimate against that snapshot (a ticket that arrived mid-batch won't
+    be reflected until the next cycle).
     """
-    all_tickets = db.list_all_tickets()
-    pending_all = [t for t in all_tickets if t["status"] == "pending"]
+    pending_all = db.list_pending_tickets()
     pending = pending_all[:limit]
     classified_count = 0
     stopped_early = False
@@ -500,13 +501,19 @@ def _score_pending_resolutions_batch(limit: int, api_key: str) -> dict:
     batch above. Used by both the manual "Score Now" trigger and the
     background auto-score loop below.
 
-    Only calls db.list_all_tickets() once and derives "remaining" from
-    that snapshot - see _classify_pending_batch's docstring for why (this
-    loop's own 30-min cadence makes the second full-collection read a
-    real, avoidable recurring cost independent of any actual traffic).
+    Queries only tickets whose raw_payload.ticket_status is closed
+    (db.list_tickets_by_raw_status) rather than reading the whole ticket
+    history - on Firestore this is a server-side filter on that one field,
+    so read cost scales with how many tickets are actually closed, not with
+    total ticket count. The resolution_scored_at check still has to happen
+    in Python (Firestore can't cheaply query "field is absent"), but that's
+    now filtering a small closed-tickets subset instead of everything ever
+    stored. Derives "remaining" from that same snapshot - this loop's own
+    30-min cadence would otherwise make a second full read a real, avoidable
+    recurring cost independent of any actual traffic.
     """
-    all_tickets = db.list_all_tickets()
-    pending_all = [t for t in all_tickets if quality_scorer.is_closed(t) and not t.get("resolution_scored_at")]
+    closed = db.list_tickets_by_raw_status(list(quality_scorer.CLOSED_STATUSES))
+    pending_all = [t for t in closed if not t.get("resolution_scored_at")]
     pending = pending_all[:limit]
     scored_count = 0
     stopped_early = False
@@ -647,8 +654,10 @@ def export_tickets_csv(date: str | None = None, user: str = Depends(require_logi
 @app.get("/api/tickets/pending-count")
 def get_pending_count(user: str = Depends(require_login)):
     """How many tickets are sitting in status='pending' - e.g. from a
-    --no-classify historical import - powers the portal's "Classify Now" banner."""
-    count = sum(1 for t in db.list_all_tickets() if t["status"] == "pending")
+    --no-classify historical import - powers the portal's "Classify Now"
+    banner. Uses count_pending_tickets() (a Firestore count() aggregation,
+    not a full-collection read) rather than listing every ticket to count."""
+    count = db.count_pending_tickets()
     return {"count": count}
 
 
@@ -665,8 +674,11 @@ def classify_pending_tickets(limit: int = 20, user: str = Depends(require_login)
 @app.get("/api/resolutions/pending-count")
 def get_resolution_pending_count(user: str = Depends(require_login)):
     """How many closed tickets haven't been quality-graded yet - powers the
-    Weekly Resolution Insights view's "Score Now" banner."""
-    count = sum(1 for t in db.list_all_tickets() if quality_scorer.is_closed(t) and not t.get("resolution_scored_at"))
+    Weekly Resolution Insights view's "Score Now" banner. Queries only
+    closed-status tickets (db.list_tickets_by_raw_status) instead of the
+    whole ticket history before checking resolution_scored_at in Python."""
+    closed = db.list_tickets_by_raw_status(list(quality_scorer.CLOSED_STATUSES))
+    count = sum(1 for t in closed if not t.get("resolution_scored_at"))
     return {"count": count}
 
 
