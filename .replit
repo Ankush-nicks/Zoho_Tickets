@@ -1,0 +1,29 @@
+# Replit workspace config for local dev/preview inside the Replit editor.
+#
+# This does NOT configure the production Deployment - that's deliberately
+# left to Replit's own Deploy UI wizard (Deploy button -> Reserved VM).
+# Hand-authoring the [deployment] block's deploymentTarget here risks
+# shipping a guessed/stale value; the wizard writes the correct current
+# schema itself when you pick Reserved VM and set the run/build commands
+# there. See REPLIT_DEPLOY.md for the click-by-click steps.
+
+entrypoint = "app/main.py"
+modules = ["python-3.12"]
+run = "uvicorn app.main:app --host 0.0.0.0 --port 8000"
+
+[nix]
+channel = "stable-24_05"
+
+[[ports]]
+localPort = 8000
+externalPort = 80
+
+[env]
+PYTHONUNBUFFERED = "1"
+
+[unitTest]
+language = "python3"
+
+[deployment]
+run = ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+build = ["sh", "-c", "pip install -r requirements.txt"]
