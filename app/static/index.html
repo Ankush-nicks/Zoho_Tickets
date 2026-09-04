@@ -322,7 +322,7 @@
   #pulseView .flip-id-chip{ font-family:var(--mono); font-size:11px; color:var(--p-text-primary); background:var(--p-surface-2); border:1px solid var(--p-border); border-radius:5px; padding:2px 7px; }
 
   #pulseView .tiles, #statsView .tiles{ display:grid; grid-template-columns:repeat(5, 1fr); gap:12px; margin-bottom:32px; }
-  #pulseView .tiles-6{ display:grid; grid-template-columns:repeat(6, 1fr); gap:12px; margin-bottom:32px; }
+  #pulseView .tiles-7{ display:grid; grid-template-columns:repeat(7, 1fr); gap:12px; margin-bottom:32px; }
   #pulseView .tile, #statsView .tile{ background:var(--p-surface-1); border:1px solid var(--p-border); border-radius:10px; padding:16px 16px 14px; position:relative; }
   #pulseView .tile.flag, #statsView .tile.flag{ border-color:rgba(176,52,46,.35); }
   #pulseView .tile-label, #statsView .tile-label{ font-family:var(--mono); font-size:10px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:var(--p-text-muted); margin:0 0 8px; }
@@ -389,7 +389,7 @@
 
   @media (max-width: 1100px){
     #pulseView .tiles, #statsView .tiles{ grid-template-columns:repeat(2, 1fr); }
-    #pulseView .tiles-6{ grid-template-columns:repeat(3, 1fr); }
+    #pulseView .tiles-7{ grid-template-columns:repeat(3, 1fr); }
     #pulseView .uni-cards{ grid-template-columns:repeat(2, 1fr); }
     #pulseView .grid-2, #statsView .grid-2{ grid-template-columns:1fr; }
     #pulseView .range-summary, #statsView .range-summary{ margin-left:0; width:100%; }
@@ -686,7 +686,7 @@
             <h2>Ticket status breakdown</h2>
             <span class="section-note">within selected window</span>
           </div>
-          <div class="tiles-6" id="pulseStatusTiles"></div>
+          <div class="tiles-7" id="pulseStatusTiles"></div>
         </section>
 
         <section>
@@ -2117,6 +2117,11 @@ function pulseRenderStatusBreakdown(rows) {
   const yetToPick = rows.filter(r => r.status === 'Yet To Pick').length;
   const inProgress = rows.filter(r => r.status === 'In Progress').length;
   const awaiting = rows.filter(r => r.status === 'Awaiting Instructors Response').length;
+  // Zoho's 'Discard' status is neither one of PULSE_CLOSED_STATUSES nor one
+  // of the three open sub-statuses above, so without its own tile it was
+  // silently counted in "Open" but missing from every breakdown tile below
+  // it - yetToPick + inProgress + awaiting didn't sum to "open".
+  const discarded = rows.filter(r => r.status === 'Discard').length;
 
   const tiles = [
     { label: 'Total tickets', value: total, sub: 'in selected window', critical: false },
@@ -2125,6 +2130,7 @@ function pulseRenderStatusBreakdown(rows) {
     { label: 'Yet to pick', value: yetToPick, sub: 'not yet assigned/started', critical: yetToPick / total > 0.2 },
     { label: 'In progress', value: inProgress, sub: 'actively being worked', critical: false },
     { label: 'Awaiting response', value: awaiting, sub: 'waiting on instructor', critical: false },
+    { label: 'Discarded', value: discarded, sub: 'counted as open, not yet triaged out', critical: false },
   ];
   el.innerHTML = tiles.map(x => `
     <div class="tile ${x.critical ? 'flag' : ''}">
