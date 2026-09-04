@@ -322,6 +322,7 @@
   #pulseView .flip-id-chip{ font-family:var(--mono); font-size:11px; color:var(--p-text-primary); background:var(--p-surface-2); border:1px solid var(--p-border); border-radius:5px; padding:2px 7px; }
 
   #pulseView .tiles, #statsView .tiles{ display:grid; grid-template-columns:repeat(5, 1fr); gap:12px; margin-bottom:32px; }
+  #pulseView .tiles-6{ display:grid; grid-template-columns:repeat(6, 1fr); gap:12px; margin-bottom:32px; }
   #pulseView .tile, #statsView .tile{ background:var(--p-surface-1); border:1px solid var(--p-border); border-radius:10px; padding:16px 16px 14px; position:relative; }
   #pulseView .tile.flag, #statsView .tile.flag{ border-color:rgba(176,52,46,.35); }
   #pulseView .tile-label, #statsView .tile-label{ font-family:var(--mono); font-size:10px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:var(--p-text-muted); margin:0 0 8px; }
@@ -339,15 +340,14 @@
   #pulseView .callout .dot, #statsView .callout .dot{ width:7px; height:7px; border-radius:50%; background:var(--p-warning); margin-top:6px; flex-shrink:0; }
   #pulseView .empty-state, #statsView .empty-state{ font-size:13px; color:var(--p-text-muted); padding:24px 0; text-align:center; }
 
-  #pulseView .trend-chart{ display:flex; align-items:flex-end; gap:14px; height:190px; padding:4px 4px 0; }
-  #pulseView .trend-col{ flex:1; display:flex; flex-direction:column; align-items:center; height:100%; max-width:90px; }
+  #pulseView .trend-chart{ display:flex; align-items:flex-end; gap:14px; height:190px; padding:4px 4px 10px; overflow-x:auto; overflow-y:hidden; }
+  #pulseView .trend-col{ flex:1 0 44px; display:flex; flex-direction:column; align-items:center; height:100%; max-width:90px; }
   #pulseView .trend-bar-track{ flex:1; width:100%; max-width:46px; display:flex; flex-direction:column-reverse; justify-content:flex-start; border-bottom:1px solid var(--p-baseline); }
   #pulseView .trend-seg{ width:100%; }
-  #pulseView .trend-seg.breached{ background:var(--p-critical); border-radius:3px 3px 0 0; }
+  #pulseView .trend-seg.breached{ background:var(--p-critical); }
   #pulseView .trend-seg.within{ background:var(--p-good); }
-  #pulseView .trend-seg.within:first-child{ border-radius:3px 3px 0 0; }
   #pulseView .trend-seg.pending{ background:var(--p-baseline); }
-  #pulseView .trend-seg.pending:first-child{ border-radius:3px 3px 0 0; }
+  #pulseView .trend-seg.top{ border-radius:3px 3px 0 0; }
   #pulseView .trend-col-label{ font-size:11px; color:var(--p-text-muted); margin-top:8px; font-variant-numeric:tabular-nums; }
   #pulseView .trend-col-total{ font-size:12px; font-weight:700; color:var(--p-text-primary); margin-top:1px; }
   #pulseView .legend-row{ display:flex; gap:18px; margin-top:14px; padding-top:14px; border-top:1px solid var(--p-border); font-size:12px; color:var(--p-text-secondary); flex-wrap:wrap; }
@@ -389,6 +389,7 @@
 
   @media (max-width: 1100px){
     #pulseView .tiles, #statsView .tiles{ grid-template-columns:repeat(2, 1fr); }
+    #pulseView .tiles-6{ grid-template-columns:repeat(3, 1fr); }
     #pulseView .uni-cards{ grid-template-columns:repeat(2, 1fr); }
     #pulseView .grid-2, #statsView .grid-2{ grid-template-columns:1fr; }
     #pulseView .range-summary, #statsView .range-summary{ margin-left:0; width:100%; }
@@ -647,6 +648,25 @@
 
         <section>
           <div class="section-head">
+            <h2>SLA &amp; backlog health</h2>
+            <span class="section-note">closed/reopen/recurring stats are within selected window; backlog age &amp; burn-down are current-state</span>
+          </div>
+          <div class="tiles" id="pulseSlaHealthTiles"></div>
+          <div class="section-head">
+            <h2 style="font-size:13px">Top recurring tickets/issues</h2>
+          </div>
+          <div class="p-card table-scroll">
+            <table>
+              <thead>
+                <tr><th class="num">#</th><th>Issue</th><th class="num">Count</th><th class="num">% of window</th></tr>
+              </thead>
+              <tbody id="pulseTopRecurring"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section>
+          <div class="section-head">
             <h2>Daily volume &amp; SLA outcome</h2>
             <span class="section-note">by date raised, within selected window</span>
           </div>
@@ -659,6 +679,14 @@
               <div class="legend-item"><span class="legend-swatch" style="background:var(--p-baseline)"></span>Not yet due / unknown</div>
             </div>
           </div>
+        </section>
+
+        <section>
+          <div class="section-head">
+            <h2>Ticket status breakdown</h2>
+            <span class="section-note">within selected window</span>
+          </div>
+          <div class="tiles-6" id="pulseStatusTiles"></div>
         </section>
 
         <section>
@@ -1685,6 +1713,17 @@ function pulseStatusCountsHTML(v) {
 function pulseFmtDate(d) { return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }); }
 function pulseIsoDate(d) { return d.toISOString().slice(0,10); }
 
+// Zoho's 'DD/MM/YYYY HH:MM:SS' fields (e.g. ticket_closure_date_time) are IST -
+// parsed as UTC+5:30 and converted to a real Date so it can be compared
+// against added/pulseAS_OF. Returns null on anything that doesn't match.
+function pulseParseZohoDate(s) {
+  if (!s) return null;
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2}):(\d{2})$/.exec(String(s).trim());
+  if (!m) return null;
+  const [, dd, mm, yyyy, hh, mi, ss] = m.map(Number);
+  return new Date(Date.UTC(yyyy, mm - 1, dd, hh, mi, ss) - (5 * 60 + 30) * 60000);
+}
+
 const pulseState = { from: new Date(), to: new Date(), presetDays: 7, catUni: 'ALL' };
 
 function pulseInRange(row) {
@@ -1693,6 +1732,16 @@ function pulseInRange(row) {
 }
 function pulseFilteredRows() { return pulseROWS.filter(pulseInRange); }
 function pulseAgeHours(row) { return (pulseAS_OF - new Date(row.added)) / 3600000; }
+
+// Best-effort "was this ticket open at a given point in time" check, used for
+// the backlog burn-down metric - there's no historical status-transition log,
+// so a currently-closed ticket is treated as having been open at `atDate`
+// only when its recorded closure timestamp is after `atDate`.
+function pulseWasOpenAt(row, atDate) {
+  if (new Date(row.added) > atDate) return false;
+  if (row.open) return true;
+  return row.closedAt ? row.closedAt > atDate : false;
+}
 
 function pulseMapTicket(t) {
   const rp = t.raw_payload || {};
@@ -1711,6 +1760,8 @@ function pulseMapTicket(t) {
     open: ticketStatus ? !PULSE_CLOSED_STATUSES.has(ticketStatus) : true,
     issue: t.issue_in_detail || '',
     priority: rp.priority_level || null,
+    reopenCount: parseInt(rp.ticket_reopen_count, 10) || 0,
+    closedAt: pulseParseZohoDate(rp.ticket_closure_date_time),
   };
 }
 
@@ -1956,6 +2007,61 @@ function pulseRenderTiles(rows) {
     </div>`).join('');
 }
 
+// ---- SLA & backlog health ----
+function pulseRenderSlaHealth(rows) {
+  const tilesEl = document.getElementById('pulseSlaHealthTiles');
+  const recurEl = document.getElementById('pulseTopRecurring');
+  if (rows.length === 0) {
+    tilesEl.innerHTML = '';
+    recurEl.innerHTML = '<tr><td colspan="4" class="empty-state">No tickets in this window.</td></tr>';
+    return;
+  }
+
+  const closedWithSla = rows.filter(r => !r.open && r.sla);
+  const closedWithin = closedWithSla.filter(r => r.sla === 'Within SLA');
+  const closedBreached = closedWithSla.filter(r => r.sla === 'Breached');
+  const withinPct = closedWithSla.length ? Math.round(closedWithin.length / closedWithSla.length * 100) : 0;
+  const breachedPct = closedWithSla.length ? Math.round(closedBreached.length / closedWithSla.length * 100) : 0;
+
+  const reopened = rows.filter(r => r.reopenCount > 0);
+  const reopenPct = Math.round(reopened.length / rows.length * 100);
+
+  // Backlog age/burn-down are current-state signals, not scoped to the
+  // window's raised-tickets filter - a short window (e.g. "1D") would
+  // otherwise always show 0 for "older than 30 days" since none of that
+  // day's own tickets could be 30 days old yet. Pulled from the full
+  // dataset (pulseROWS), evaluated as of now / the window's own bounds.
+  const older30 = pulseROWS.filter(r => r.open && pulseAgeHours(r) > 30 * 24);
+  const startBacklog = pulseROWS.filter(r => pulseWasOpenAt(r, pulseState.from)).length;
+  const endBacklog = pulseROWS.filter(r => pulseWasOpenAt(r, pulseState.to)).length;
+  const backlogDelta = endBacklog - startBacklog;
+
+  const tiles = [
+    { label: '% closed within SLA', value: pulseFmtPct(withinPct), sub: `${closedWithin.length} of ${closedWithSla.length} closed tickets`, critical: closedWithSla.length > 0 && withinPct < 50 },
+    { label: 'Open beyond SLA at close', value: pulseFmtPct(breachedPct), sub: `${closedBreached.length} of ${closedWithSla.length} closed tickets`, critical: breachedPct > 50 },
+    { label: 'Tickets older than 30 days', value: older30.length, sub: 'still open, as of today', critical: older30.length > 0 },
+    { label: 'Reopen rate', value: pulseFmtPct(reopenPct), sub: `${reopened.length} of ${rows.length} reopened at least once`, critical: reopenPct > 10 },
+    { label: 'Backlog burn-down', value: `${backlogDelta > 0 ? '+' : ''}${backlogDelta}`, sub: `${startBacklog} open at start &rarr; ${endBacklog} open at end`, critical: backlogDelta > 0 },
+  ];
+  tilesEl.innerHTML = tiles.map(x => `
+    <div class="tile ${x.critical ? 'flag' : ''}">
+      <p class="tile-label">${x.label}</p>
+      <div class="tile-value ${x.critical ? 'critical' : ''}">${x.value}</div>
+      <div class="tile-sub">${x.sub}</div>
+    </div>`).join('');
+
+  const subMap = {};
+  rows.forEach(r => { subMap[r.sub] = (subMap[r.sub] || 0) + 1; });
+  const topSubs = Object.entries(subMap).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  recurEl.innerHTML = topSubs.map(([name, count], i) => `
+    <tr>
+      <td class="num">${i + 1}</td>
+      <td>${esc(name)}</td>
+      <td class="num">${count}</td>
+      <td class="num">${pulseFmtPct(count / rows.length * 100)}</td>
+    </tr>`).join('');
+}
+
 // ---- Daily trend ----
 function pulseRenderTrend(rows) {
   const el = document.getElementById('pulseTrendChart');
@@ -1974,23 +2080,58 @@ function pulseRenderTrend(rows) {
   const days = Object.keys(byDay).sort();
   const maxTotal = Math.max(...days.map(d => byDay[d].total));
   const h = 150;
+  // Never let a non-zero segment round down to an invisible 0px sliver.
+  const segHeight = (count) => count > 0 ? Math.max(2, Math.round(count / maxTotal * h)) : 0;
   el.innerHTML = days.map(d => {
     const v = byDay[d];
-    const bH = Math.round(v.breached / maxTotal * h);
-    const wH = Math.round(v.within / maxTotal * h);
-    const pH = Math.round(v.pending / maxTotal * h);
+    const bH = segHeight(v.breached);
+    const wH = segHeight(v.within);
+    const pH = segHeight(v.pending);
     const label = pulseFmtDate(new Date(d + 'T00:00:00'));
+    // Visual stacking (bottom -> top, via column-reverse) is pending / within /
+    // breached - round the top corners of whichever of those is actually the
+    // topmost segment with height > 0, rather than assuming it's always
+    // "breached" (a day with zero breaches otherwise gets a flat-cut top edge).
+    const topSeg = bH > 0 ? 'breached' : (wH > 0 ? 'within' : 'pending');
+    const cls = (name) => `trend-seg ${name}${name === topSeg ? ' top' : ''}`;
     return `
       <div class="trend-col">
         <div class="trend-col-total">${v.total}</div>
         <div class="trend-bar-track" style="height:${h}px">
-          <div class="trend-seg pending" style="height:${pH}px"></div>
-          <div class="trend-seg within" style="height:${wH}px"></div>
-          <div class="trend-seg breached" style="height:${bH}px"></div>
+          <div class="${cls('pending')}" style="height:${pH}px"></div>
+          <div class="${cls('within')}" style="height:${wH}px"></div>
+          <div class="${cls('breached')}" style="height:${bH}px"></div>
         </div>
         <div class="trend-col-label">${label}</div>
       </div>`;
   }).join('');
+}
+
+// ---- Ticket status breakdown ----
+function pulseRenderStatusBreakdown(rows) {
+  const el = document.getElementById('pulseStatusTiles');
+  if (rows.length === 0) { el.innerHTML = ''; return; }
+  const total = rows.length;
+  const closed = rows.filter(r => !r.open).length;
+  const open = rows.filter(r => r.open).length;
+  const yetToPick = rows.filter(r => r.status === 'Yet To Pick').length;
+  const inProgress = rows.filter(r => r.status === 'In Progress').length;
+  const awaiting = rows.filter(r => r.status === 'Awaiting Instructors Response').length;
+
+  const tiles = [
+    { label: 'Total tickets', value: total, sub: 'in selected window', critical: false },
+    { label: 'Closed', value: closed, sub: `${pulseFmtPct(closed / total * 100)} of window`, critical: false },
+    { label: 'Open', value: open, sub: `${pulseFmtPct(open / total * 100)} of window`, critical: false },
+    { label: 'Yet to pick', value: yetToPick, sub: 'not yet assigned/started', critical: yetToPick / total > 0.2 },
+    { label: 'In progress', value: inProgress, sub: 'actively being worked', critical: false },
+    { label: 'Awaiting response', value: awaiting, sub: 'waiting on instructor', critical: false },
+  ];
+  el.innerHTML = tiles.map(x => `
+    <div class="tile ${x.critical ? 'flag' : ''}">
+      <p class="tile-label">${x.label}</p>
+      <div class="tile-value ${x.critical ? 'critical' : ''}">${x.value}</div>
+      <div class="tile-sub">${x.sub}</div>
+    </div>`).join('');
 }
 
 // ---- Universities: top-5 focus cards + full table ----
@@ -2136,7 +2277,9 @@ function pulseRenderAll() {
   document.getElementById('pulseUniCountMeta').textContent = `${pulseUNIVERSITIES.length} universities tracked`;
   pulseRenderActionItems(rows);
   pulseRenderTiles(rows);
+  pulseRenderSlaHealth(rows);
   pulseRenderTrend(rows);
+  pulseRenderStatusBreakdown(rows);
   pulseRenderUniversities(rows);
   pulseRenderCategory(rows);
   pulseRenderTeam(rows);
