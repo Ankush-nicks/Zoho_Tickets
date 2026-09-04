@@ -168,7 +168,7 @@ prediction match whatever category the ticket already carried in Zoho) -
 a rough, automatic accuracy signal from real traffic.
 
 It's authenticated by a shared secret instead of a session, and classifies
-using the server's own `OPENAI_API_KEY` (no UI operator involved). Changed/added:
+using the server's own `OPENROUTER_API_KEY` (no UI operator involved). Changed/added:
 
 - `app/config.py` — new `ZOHO_WEBHOOK_SECRET` env var (empty by default, so
   the endpoint refuses everything until you set it)
@@ -185,8 +185,9 @@ using the server's own `OPENAI_API_KEY` (no UI operator involved). Changed/added
 
 1. Set `ZOHO_WEBHOOK_SECRET` to a real random value, e.g. generate one with
    `python -c "import secrets; print(secrets.token_hex(32))"`
-2. Set `OPENAI_API_KEY` to a real OpenAI key (this endpoint has no UI
-   operator to supply one per-request, unlike the manual/UI flow)
+2. Set `OPENROUTER_API_KEY` to a real OpenRouter key, and `OPENAI_API_KEY`
+   to a real OpenAI key for embeddings (this endpoint has no UI operator to
+   supply one per-request, unlike the manual/UI flow)
 3. Redeploy so both take effect
 
 **Deluge script — attach to the Tickets form's "On Add" workflow**
@@ -253,8 +254,8 @@ Notes:
   execution log (Zoho shows `response` there via the `info` line) — a 401
   there means the secret doesn't match what's set in Render; a 400/500
   means `Ticket_ID`/`Issue_in_Detail` came through empty or Render's
-  `OPENAI_API_KEY` isn't set.
-- This endpoint always classifies with the server's own `OPENAI_API_KEY` —
+  `OPENROUTER_API_KEY` isn't set.
+- This endpoint always classifies with the server's own `OPENROUTER_API_KEY` —
   if a ticket needs a clarifying question, that state (`awaiting_clarification`)
   is stored and visible in your portal's UI same as any manual ticket, but
   nothing prompts anyone automatically; someone still has to open the portal

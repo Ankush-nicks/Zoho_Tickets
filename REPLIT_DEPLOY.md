@@ -43,7 +43,8 @@ every time it scales to zero, so don't use it for this app.
 2. **Add Secrets** (Replit's equivalent of Render's Environment tab - the
    padlock icon in the workspace sidebar, or the Deploy dialog's own Secrets
    section):
-   - `OPENAI_API_KEY`
+   - `OPENROUTER_API_KEY` (classification/resolution grading)
+   - `OPENAI_API_KEY` (embeddings only - few-shot memory retrieval)
    - `FIREBASE_CREDENTIALS_BASE64` (same base64 string you're using on
      Render today - see `persistent-storage-setup.md` step 2 if you need to
      regenerate it)

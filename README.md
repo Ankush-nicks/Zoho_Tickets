@@ -2,7 +2,7 @@
 
 ![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688)
-![OpenAI](https://img.shields.io/badge/OpenAI-structured%20outputs-412991)
+![OpenRouter](https://img.shields.io/badge/OpenRouter-structured%20outputs-6467f2)
 ![Chroma](https://img.shields.io/badge/vector%20store-Chroma-orange)
 
 A dynamic, learning ticket classifier: a ticket comes in, it's matched against your
@@ -20,7 +20,7 @@ ticket text
 retrieve K most-similar known examples  (Chroma vector store: taxonomy seed
      │                                    examples + past corrected tickets)
      ▼
-OpenAI structured-output call            (taxonomy + retrieved examples in prompt)
+OpenRouter structured-output call        (taxonomy + retrieved examples in prompt)
      │
      ▼
 confident & unambiguous? ──No──► ask ONE clarifying question ──► append answer,
@@ -46,7 +46,7 @@ with no deploy step.
 ```
 app/
   main.py          FastAPI routes — the classify/clarify/correct orchestration
-  classifier.py    Builds the dynamic prompt, calls OpenAI, decides finalize vs clarify
+  classifier.py    Builds the dynamic prompt, calls OpenRouter, decides finalize vs clarify
   memory.py        Chroma vector store — the "context memory" (seed + corrections)
   taxonomy.py      Loads taxonomy.json, exposes it to the prompt + JSON schema
   taxonomy.json    <-- your real taxonomy (14 categories / 68 routed subcategories)
@@ -69,10 +69,11 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 server bound to `127.0.0.1`. See `REPLIT_DEPLOY.md` for deploying this as an always-on
 Reserved VM instead of running it locally.
 
-Open http://localhost:8000, paste your OpenAI API key into the box at the top of the
-page (kept in your browser's local storage, sent per-request — never written to disk
-server-side), then type a ticket and watch it get classified (or asked a clarifying
-question), and use "Correct it" to simulate an agent fixing a bad call.
+Set `OPENROUTER_API_KEY` (classification/grading) and `OPENAI_API_KEY` (embeddings
+only, see below) in `.env` before starting the server - there's no in-browser key
+input, both are server-side only. Open http://localhost:8000, log in, then type a
+ticket and watch it get classified (or asked a clarifying question), and use
+"Correct it" to simulate an agent fixing a bad call.
 
 ## The taxonomy
 
@@ -85,7 +86,7 @@ that's what actually determines routing (`assigned_team`, `poc_primary`,
 resolve that back to its parent category, team, and point of contact.
 
 Nothing in the code is hardcoded to this taxonomy's content — the classifier,
-the JSON schema sent to OpenAI, and the seed examples are all generated from
+the JSON schema sent to OpenRouter, and the seed examples are all generated from
 this file at startup. To update it, re-export the same 2-level shape:
 
 ```json
@@ -141,7 +142,9 @@ this file at startup. To update it, re-export the same 2-level shape:
 
 | Var | Default | Effect |
 |---|---|---|
-| `OPENAI_CLASSIFY_MODEL` | `gpt-4o-mini` | Model used for classification. Bump to `gpt-4o` for harder taxonomies. |
+| `OPENROUTER_API_KEY` | (required) | Key for classify()/grade_resolution() - get one at openrouter.ai/keys. |
+| `OPENROUTER_CLASSIFY_MODEL` | `openai/gpt-4o-mini` | Model used for classification + resolution grading, in OpenRouter's `provider/model` form. |
+| `OPENAI_API_KEY` | (required) | Used ONLY for embeddings now (few-shot memory) - OpenRouter has no embeddings endpoint. |
 | `CONFIDENCE_THRESHOLD` | `0.65` | Below this, the ticket needs clarification or human review rather than auto-routing. |
 | `MAX_CLARIFICATION_TURNS` | `2` | Caps back-and-forth so the bot doesn't interrogate the user forever; falls back to `needs_human_review`. |
 | `FEWSHOT_K` | `5` | How many retrieved examples get injected as dynamic few-shot context per call. |
@@ -150,45 +153,45 @@ Tune `CONFIDENCE_THRESHOLD` down if you're getting too many clarifying questions
 on tickets a human would consider obvious; tune it up if wrong-but-confident
 routes are getting through.
 
-### OpenAI vs Gemini accuracy comparison
+### OpenRouter vs Gemini accuracy comparison
 
-The app's own classify path is OpenAI-only, but `app/classifier.py` also has
-`classify_gemini()` - same taxonomy, prompt, and few-shot retrieval, just a
-Gemini call instead of OpenAI for the final decision. `scripts/compare_
+The app's own classify path goes through OpenRouter, but `app/classifier.py`
+also has `classify_gemini()` - same taxonomy, prompt, and few-shot retrieval,
+just a Gemini call instead for the final decision. `scripts/compare_
 classifiers.py` runs both against existing tickets that already carry a Zoho
 category tag (used as a rough reference, not a hand-labeled eval set) and
 reports agreement rates:
 
 ```bash
-OPENAI_API_KEY=sk-... GEMINI_API_KEY=... python scripts/compare_classifiers.py --limit 20
+OPENROUTER_API_KEY=sk-or-... OPENAI_API_KEY=sk-... GEMINI_API_KEY=... python scripts/compare_classifiers.py --limit 20
 ```
 
-Needs `GEMINI_API_KEY` (and `GEMINI_CLASSIFY_MODEL`, default `gemini-2.5-flash`)
-set - see `.env.example`. Not wired into the running app in any way; it's a
-standalone script for deciding whether switching or dual-running models is
-worth pursuing further.
+`OPENAI_API_KEY` is only needed here for embeddings (few-shot retrieval used
+by both sides), not classification. Needs `GEMINI_API_KEY` (and
+`GEMINI_CLASSIFY_MODEL`, default `gemini-2.5-flash`) set too - see
+`.env.example`. Not wired into the running app in any way; it's a standalone
+script for deciding whether switching or dual-running models is worth
+pursuing further.
 
 ### Cloudflare AI Gateway (optional)
 
 Set `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_AI_GATEWAY_ID` (see `.env.example`)
-to route every OpenAI call (classify, embeddings, resolution grading) through
-a Cloudflare AI Gateway instead of hitting OpenAI directly - same
-`OPENAI_API_KEY`, same models, but Cloudflare caches repeated identical
-requests (e.g. a Zoho webhook retry that fires before the first attempt
-finished) and gives a usage dashboard at `dash.cloudflare.com -> AI -> AI
-Gateway`. This reduces how often duplicate calls burn OpenAI's own request
-quota - it does **not** raise OpenAI's actual per-account rate limit, which
-only OpenAI controls. Unset means calls go straight to OpenAI, unchanged
-from before this existed.
+to route OpenAI embedding calls (memory.py) through a Cloudflare AI Gateway
+instead of hitting OpenAI directly - same `OPENAI_API_KEY`, same model, but
+Cloudflare caches repeated identical requests and gives a usage dashboard at
+`dash.cloudflare.com -> AI -> AI Gateway`. Does **not** apply to classify()/
+grade_resolution() (those go to OpenRouter, not OpenAI). Unset means
+embedding calls go straight to OpenAI, unchanged from before this existed.
 
 Separately, set `CLOUDFLARE_API_TOKEN` (a token with **Workers AI** permission
-specifically, not AI Gateway's) and `classify()` automatically falls back to
-Cloudflare Workers AI (`CLOUDFLARE_WORKERS_AI_MODEL`, default
-`@cf/meta/llama-3.1-8b-instruct`) whenever OpenAI raises a rate-limit error -
-a completely separate quota from OpenAI's, so classification keeps working
-instead of stalling until OpenAI's own limit resets. Same taxonomy/prompt/
-few-shot pipeline either way; only the final model call moves. Unset means
-`classify()` behaves exactly as before (raises on rate limit).
+specifically, not AI Gateway's) and `classify()`/`grade_resolution()`
+automatically fall back to Cloudflare Workers AI (`CLOUDFLARE_WORKERS_AI_MODEL`,
+default `@cf/meta/llama-3.1-8b-instruct`) whenever OpenRouter raises a
+rate-limit error - a completely separate quota from OpenRouter's, so
+classification/grading keeps working instead of stalling until OpenRouter's
+own limit resets. Same taxonomy/prompt/few-shot pipeline either way; only the
+final model call moves. Unset means these calls behave exactly as before
+(raise on rate limit).
 
 ## API
 

@@ -193,16 +193,19 @@ def grade_resolution(
     sla_status: str | None, duration_days: float | None, api_key: str,
 ) -> ResolutionGrade:
     """
+    api_key is an OpenRouter key - grading has no embedding step, so unlike
+    classify() there's no separate OpenAI key needed here.
+
     Falls back to Cloudflare Workers AI (see classifier._classify_via_
-    cloudflare's sibling below) on an OpenAI RateLimitError, same as
-    classify() - a separate quota from OpenAI's, so grading keeps working
-    instead of stalling. Re-raises as before when Cloudflare isn't set up.
+    cloudflare's sibling below) on a RateLimitError, same as classify() - a
+    separate quota from OpenRouter's, so grading keeps working instead of
+    stalling. Re-raises as before when Cloudflare isn't set up.
     """
     prompt = _build_prompt(issue_text, ack_text, worklog_text, resolution_note, sla_status, duration_days)
-    client = OpenAI(api_key=api_key, base_url=config.openai_base_url())
+    client = OpenAI(api_key=api_key, base_url=config.OPENROUTER_BASE_URL)
     try:
         completion = client.chat.completions.create(
-            model=config.CLASSIFY_MODEL,
+            model=config.OPENROUTER_CLASSIFY_MODEL,
             messages=[{"role": "user", "content": prompt}],
             response_format={"type": "json_schema", "json_schema": _response_schema()},
             temperature=0,

@@ -69,7 +69,7 @@ System" CSV export, classifying each row through the same pipeline a live
 webhook ticket uses:
 
 ```bash
-FIREBASE_CREDENTIALS_BASE64=... OPENAI_API_KEY=sk-... \
+FIREBASE_CREDENTIALS_BASE64=... OPENROUTER_API_KEY=sk-or-... OPENAI_API_KEY=sk-... \
   python scripts/import_zoho_csv.py "path/to/export.csv"
 ```
 

@@ -1,9 +1,9 @@
 """
-One-off accuracy comparison: OpenAI vs Gemini on the app's own classifier
-pipeline (same taxonomy, same prompt, same few-shot retrieval - only the
-final classification call differs). Not part of the running app; run this
-manually whenever you want a read on whether switching (or dual-running)
-models is worth it.
+One-off accuracy comparison: OpenRouter (app's default classify() model) vs
+Gemini on the app's own classifier pipeline (same taxonomy, same prompt,
+same few-shot retrieval - only the final classification call differs). Not
+part of the running app; run this manually whenever you want a read on
+whether switching (or dual-running) models is worth it.
 
 Ground truth: tickets that already carry a Zoho-provided category/sub-
 category tag (from a live ticket's own "Category Of The Issue" fields) are
@@ -12,7 +12,11 @@ for its own Zoho-agreement indicator - not a hand-labeled eval set, so
 treat the numbers as a signal, not a verdict.
 
 Usage:
-    OPENAI_API_KEY=sk-... GEMINI_API_KEY=... python scripts/compare_classifiers.py [--limit 20] [--results-file path.jsonl]
+    OPENROUTER_API_KEY=sk-or-... OPENAI_API_KEY=sk-... GEMINI_API_KEY=... python scripts/compare_classifiers.py [--limit 20] [--results-file path.jsonl]
+
+    OPENAI_API_KEY is only needed here for embeddings (few-shot retrieval,
+    used by both classify() and classify_gemini()) - OpenRouter has no
+    embeddings endpoint of its own.
 
 Resumable: each successful comparison is appended to --results-file
 immediately (one JSON object per line) and skipped on future runs, so a
@@ -84,10 +88,14 @@ def main():
     if "--results-file" in args:
         results_file = args[args.index("--results-file") + 1]
 
+    openrouter_key = os.environ.get("OPENROUTER_API_KEY")
     openai_key = os.environ.get("OPENAI_API_KEY")
     gemini_key = os.environ.get("GEMINI_API_KEY")
+    if not openrouter_key:
+        print("Set OPENROUTER_API_KEY in the environment.")
+        sys.exit(1)
     if not openai_key:
-        print("Set OPENAI_API_KEY in the environment.")
+        print("Set OPENAI_API_KEY in the environment (needed for embeddings, not classification).")
         sys.exit(1)
     if not gemini_key:
         print("Set GEMINI_API_KEY in the environment.")
@@ -114,11 +122,11 @@ def main():
         text = (t.get("full_context") or t.get("original_text") or "").strip()
         zoho_tag = t.get("zoho_subcategory") or t.get("zoho_category")
 
-        openai_result, openai_err = _classify_safely(classifier.classify, text, openai_key)
+        openai_result, openai_err = _classify_safely(classifier.classify, text, openrouter_key, openai_key)
         gemini_result, gemini_err = _classify_safely(classifier.classify_gemini, text, gemini_key, openai_key)
 
         if openai_err:
-            print(f"[{i}/{len(sample)}] OpenAI failed on {t['id']}: {openai_err}")
+            print(f"[{i}/{len(sample)}] OpenRouter failed on {t['id']}: {openai_err}")
         if gemini_err:
             print(f"[{i}/{len(sample)}] Gemini failed on {t['id']}: {gemini_err}")
         if openai_err or gemini_err:

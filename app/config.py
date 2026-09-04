@@ -7,42 +7,52 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent
 
-# Optional fallback only - the UI collects a key from the operator and sends it
-# per-request (X-OpenAI-Api-Key header), so nothing secret needs to live in .env.
+# Classification and resolution-grading both go through OpenRouter now, not
+# OpenAI directly - one key with access to many models/providers and its own
+# (usually more forgiving) rate limits, instead of being pinned to a single
+# OpenAI key's per-account limit. Model id needs OpenRouter's "provider/model"
+# form (see https://openrouter.ai/models); the default keeps the same
+# underlying OpenAI model as before, just routed through OpenRouter, so the
+# strict json_schema structured-output path needs no changes.
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
+OPENROUTER_CLASSIFY_MODEL = os.getenv("OPENROUTER_CLASSIFY_MODEL", "openai/gpt-4o-mini")
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+
+# OpenAI is kept ONLY for embeddings now (memory.py's few-shot retrieval) -
+# OpenRouter has no embeddings endpoint of its own. This key is never used
+# for classification or resolution grading anymore.
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-CLASSIFY_MODEL = os.getenv("OPENAI_CLASSIFY_MODEL", "gpt-4o-mini")
 EMBED_MODEL = os.getenv("OPENAI_EMBED_MODEL", "text-embedding-3-small")
 
 # Only used by scripts/compare_classifiers.py (OpenAI vs Gemini accuracy
-# comparison) - never required for the app's normal classify path, which
-# stays OpenAI-only. Few-shot retrieval always uses OpenAI embeddings
-# (OPENAI_API_KEY above) even when comparing against Gemini, since that's
-# the only embedding backend this app has.
+# comparison) - never required for the app's normal classify path. Few-shot
+# retrieval always uses OpenAI embeddings (OPENAI_API_KEY above) even when
+# comparing against Gemini, since that's the only embedding backend this
+# app has.
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_CLASSIFY_MODEL = os.getenv("GEMINI_CLASSIFY_MODEL", "gemini-2.5-flash")
 
-# When both are set, every OpenAI call (classify, embeddings, resolution
-# grading) routes through this Cloudflare AI Gateway instead of hitting
-# OpenAI directly - same OpenAI key, same models, but Cloudflare caches
-# repeated identical requests and logs usage at gateway.ai.cloudflare.com.
-# Reduces how often duplicate calls burn OpenAI's own request quota; does
-# NOT raise OpenAI's actual per-account rate limit (that's OpenAI-side,
-# billing-gated). Unset means calls go straight to OpenAI as before.
+# When both are set, OpenAI embedding calls (memory.py) route through this
+# Cloudflare AI Gateway instead of hitting OpenAI directly - same OpenAI key,
+# same model, but Cloudflare caches repeated identical requests and logs
+# usage at gateway.ai.cloudflare.com. Does NOT apply to classify()/
+# grade_resolution() anymore now that those call OpenRouter, not OpenAI.
 CLOUDFLARE_ACCOUNT_ID = os.getenv("CLOUDFLARE_ACCOUNT_ID", "")
 CLOUDFLARE_AI_GATEWAY_ID = os.getenv("CLOUDFLARE_AI_GATEWAY_ID", "")
 
-# Automatic classify() fallback when OpenAI hits its rate limit - a real
-# Cloudflare API token with "Workers AI" permission (separate from AI
-# Gateway's own permission group above). Few-shot retrieval still goes
-# through OpenAI embeddings first (usually unaffected, since OpenAI rate
-# limits are per-model and gpt-4o-mini's own limit is what actually gets
-# hit) - only the final classification call itself moves to Cloudflare.
-# Unset means classify() behaves exactly as before (raises on rate limit).
+# Automatic classify()/grade_resolution() fallback when OpenRouter hits a
+# rate limit - a real Cloudflare API token with "Workers AI" permission
+# (separate from AI Gateway's own permission group above). Few-shot
+# retrieval still goes through OpenAI embeddings first (unaffected by
+# OpenRouter's own limits) - only the final classification/grading call
+# itself moves to Cloudflare. Unset means these calls raise on rate limit
+# same as before.
 CLOUDFLARE_API_TOKEN = os.getenv("CLOUDFLARE_API_TOKEN", "")
 CLOUDFLARE_WORKERS_AI_MODEL = os.getenv("CLOUDFLARE_WORKERS_AI_MODEL", "@cf/meta/llama-3.1-8b-instruct")
 
 
 def openai_base_url() -> str | None:
+    """Base URL for direct OpenAI calls - embeddings only now (see above)."""
     if CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_AI_GATEWAY_ID:
         return f"https://gateway.ai.cloudflare.com/v1/{CLOUDFLARE_ACCOUNT_ID}/{CLOUDFLARE_AI_GATEWAY_ID}/openai"
     return None

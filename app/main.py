@@ -55,16 +55,17 @@ async def zoho_webhook_debug_handler(request: Request, exc: RequestValidationErr
     return JSONResponse(status_code=422, content={"detail": exc.errors()})
 
 
-def require_api_key(x_openai_api_key: str | None = Header(default=None, alias="X-OpenAI-Api-Key")) -> str:
+def require_api_key(x_openrouter_api_key: str | None = Header(default=None, alias="X-OpenRouter-Api-Key")) -> str:
     """
-    The OpenAI key comes from the server's OPENAI_API_KEY env var - the UI
-    no longer collects or sends one. X-OpenAI-Api-Key is still accepted as
-    an override (takes precedence when present) in case a per-request key
-    is ever needed again, but nothing in the current UI sets it.
+    The OpenRouter key (used for classify()/grade_resolution()) comes from
+    the server's OPENROUTER_API_KEY env var - the UI doesn't collect or send
+    one. X-OpenRouter-Api-Key is still accepted as an override (takes
+    precedence when present) in case a per-request key is ever needed
+    again, but nothing in the current UI sets it.
     """
-    key = x_openai_api_key or config.OPENAI_API_KEY
+    key = x_openrouter_api_key or config.OPENROUTER_API_KEY
     if not key:
-        raise HTTPException(401, "OpenAI API key required - set OPENAI_API_KEY in the server's environment.")
+        raise HTTPException(401, "OpenRouter API key required - set OPENROUTER_API_KEY in the server's environment.")
     return key
 
 
@@ -228,7 +229,7 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
     Auth is a shared secret (X-Webhook-Secret, see require_webhook_secret)
     rather than the session login the UI uses, since Deluge can't hold a
     browser session. Classification runs with the server-side
-    OPENAI_API_KEY (no UI operator is present to supply one per-request).
+    OPENROUTER_API_KEY (no UI operator is present to supply one per-request).
 
     Accepts a plain dict rather than a typed model on purpose: the real
     "On Add/Edit" workflow sends dozens of fields (priority, assigned team,
@@ -277,10 +278,10 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
         )
         return {"ok": True, "updated": True, "ticket_id": existing["id"]}
 
-    if not config.OPENAI_API_KEY:
+    if not config.OPENROUTER_API_KEY:
         raise HTTPException(
             500,
-            "OPENAI_API_KEY is not set in the server's .env - required for "
+            "OPENROUTER_API_KEY is not set in the server's .env - required for "
             "webhook-triggered classification since there's no UI operator "
             "to supply a per-request key.",
         )
@@ -292,7 +293,7 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
         zoho_subcategory=zoho_subcategory,
         raw_payload=payload,
     )
-    _run_classification_and_persist(ticket_id, issue_text, clarification_turns=0, api_key=config.OPENAI_API_KEY)
+    _run_classification_and_persist(ticket_id, issue_text, clarification_turns=0, api_key=config.OPENROUTER_API_KEY)
 
     return {"ok": True}
 
@@ -474,17 +475,17 @@ _AUTO_CLASSIFY_BATCH_SIZE = 10
 async def _auto_classify_loop():
     """
     Background retry for pending tickets - picks up automatically once
-    OPENAI_API_KEY's rate limit (or whatever else caused a stall) clears,
+    OPENROUTER_API_KEY's rate limit (or whatever else caused a stall) clears,
     with no need for anyone to click "Classify Now". Small batch size and
     a long interval so a persistent outage just quietly no-ops each cycle
     instead of hammering a dead API.
     """
     while True:
         await asyncio.sleep(_AUTO_CLASSIFY_INTERVAL_SECONDS)
-        if not config.OPENAI_API_KEY:
+        if not config.OPENROUTER_API_KEY:
             continue
         try:
-            result = _classify_pending_batch(_AUTO_CLASSIFY_BATCH_SIZE, config.OPENAI_API_KEY)
+            result = _classify_pending_batch(_AUTO_CLASSIFY_BATCH_SIZE, config.OPENROUTER_API_KEY)
             if result["classified"]:
                 logger.info(
                     "auto-classify: classified %d pending ticket(s), %d remaining",
@@ -544,10 +545,10 @@ async def _auto_score_loop():
     """Same self-healing shape as _auto_classify_loop, for resolution grading."""
     while True:
         await asyncio.sleep(_AUTO_SCORE_INTERVAL_SECONDS)
-        if not config.OPENAI_API_KEY:
+        if not config.OPENROUTER_API_KEY:
             continue
         try:
-            result = _score_pending_resolutions_batch(_AUTO_SCORE_BATCH_SIZE, config.OPENAI_API_KEY)
+            result = _score_pending_resolutions_batch(_AUTO_SCORE_BATCH_SIZE, config.OPENROUTER_API_KEY)
             if result["scored"]:
                 logger.info(
                     "auto-score: graded %d resolution(s), %d remaining",
@@ -666,9 +667,9 @@ def classify_pending_tickets(limit: int = 20, user: str = Depends(require_login)
     """Manually trigger classification for up to `limit` pending tickets - see
     _classify_pending_batch. The background auto-classify loop does this too,
     on its own schedule; this is for "I don't want to wait for the next cycle"."""
-    if not config.OPENAI_API_KEY:
-        raise HTTPException(500, "OPENAI_API_KEY is not set in the server's environment.")
-    return _classify_pending_batch(limit, config.OPENAI_API_KEY)
+    if not config.OPENROUTER_API_KEY:
+        raise HTTPException(500, "OPENROUTER_API_KEY is not set in the server's environment.")
+    return _classify_pending_batch(limit, config.OPENROUTER_API_KEY)
 
 
 @app.get("/api/resolutions/pending-count")
@@ -687,9 +688,9 @@ def score_pending_resolutions(limit: int = 10, user: str = Depends(require_login
     """Manually trigger resolution grading for up to `limit` closed-but-
     ungraded tickets - see _score_pending_resolutions_batch. The background
     auto-score loop does this too, on its own schedule."""
-    if not config.OPENAI_API_KEY:
-        raise HTTPException(500, "OPENAI_API_KEY is not set in the server's environment.")
-    return _score_pending_resolutions_batch(limit, config.OPENAI_API_KEY)
+    if not config.OPENROUTER_API_KEY:
+        raise HTTPException(500, "OPENROUTER_API_KEY is not set in the server's environment.")
+    return _score_pending_resolutions_batch(limit, config.OPENROUTER_API_KEY)
 
 
 @app.get("/api/tickets/{ticket_id}", response_model=TicketStateResponse)
@@ -702,13 +703,16 @@ def get_ticket(ticket_id: str, user: str = Depends(require_login)):
 
 @app.post("/api/tickets/{ticket_id}/correct", response_model=TicketStateResponse)
 def correct_ticket(
-    ticket_id: str, req: CorrectionRequest, api_key: str = Depends(require_api_key), user: str = Depends(require_login)
+    ticket_id: str, req: CorrectionRequest, user: str = Depends(require_login)
 ):
     """
     Human-in-the-loop correction. This is the endpoint that makes the
     system 'dynamic': the corrected (text -> category) pair is embedded
     and written into vector memory immediately, so the very next similar
     ticket benefits from it without any retraining or redeploy.
+
+    Uses OPENAI_API_KEY directly (not require_api_key/OPENROUTER_API_KEY) -
+    this only embeds text for memory, it never calls the classify model.
     """
     ticket = db.get_ticket(ticket_id)
     if not ticket:
@@ -717,7 +721,7 @@ def correct_ticket(
         raise HTTPException(400, f"unknown category_id '{req.corrected_category_id}'")
 
     db.log_correction(ticket_id, ticket.get("category_id"), req.corrected_category_id, req.corrected_by)
-    memory.add_example(ticket["full_context"], req.corrected_category_id, api_key, source="correction")
+    memory.add_example(ticket["full_context"], req.corrected_category_id, config.OPENAI_API_KEY, source="correction")
 
     db.update_ticket(
         ticket_id,

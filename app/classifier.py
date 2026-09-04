@@ -75,25 +75,32 @@ RULES:
 """
 
 
-def classify(ticket_text: str, api_key: str) -> ClassificationResult:
+def classify(ticket_text: str, api_key: str, embed_api_key: str | None = None) -> ClassificationResult:
     """
     Dynamic classification: retrieves the most similar known-good examples
     (seed + corrected) and injects them as few-shot context, then asks the
     model for a structured decision.
 
-    Falls back to Cloudflare Workers AI (see _classify_via_cloudflare) on an
-    OpenAI RateLimitError, when CLOUDFLARE_ACCOUNT_ID/CLOUDFLARE_API_TOKEN
-    are configured - a completely separate quota from OpenAI's, so a
-    classification still goes through instead of stalling until OpenAI's
+    api_key is an OpenRouter key for the actual classification call.
+    embed_api_key is a separate OpenAI key for few-shot memory embeddings
+    (OpenRouter has no embeddings endpoint) - defaults to config.OPENAI_
+    API_KEY when omitted, since that's a fixed server-side value, not
+    something callers normally need to pass explicitly.
+
+    Falls back to Cloudflare Workers AI (see _classify_via_cloudflare) on a
+    RateLimitError, when CLOUDFLARE_ACCOUNT_ID/CLOUDFLARE_API_TOKEN are
+    configured - a completely separate quota from OpenRouter's, so a
+    classification still goes through instead of stalling until OpenRouter's
     own limit resets. Re-raises as before when Cloudflare isn't set up.
     """
-    memory.seed_if_empty(taxonomy.seed_examples(), api_key)
-    fewshot = memory.retrieve_similar(ticket_text, api_key, k=config.FEWSHOT_K)
+    embed_api_key = embed_api_key or config.OPENAI_API_KEY
+    memory.seed_if_empty(taxonomy.seed_examples(), embed_api_key)
+    fewshot = memory.retrieve_similar(ticket_text, embed_api_key, k=config.FEWSHOT_K)
 
-    client = OpenAI(api_key=api_key, base_url=config.openai_base_url())
+    client = OpenAI(api_key=api_key, base_url=config.OPENROUTER_BASE_URL)
     try:
         completion = client.chat.completions.create(
-            model=config.CLASSIFY_MODEL,
+            model=config.OPENROUTER_CLASSIFY_MODEL,
             messages=[
                 {"role": "system", "content": _build_system_prompt(fewshot)},
                 {"role": "user", "content": f"Ticket:\n{ticket_text}"},

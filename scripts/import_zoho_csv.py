@@ -7,7 +7,10 @@ so imported history behaves identically to tickets that arrived normally
 etc.).
 
 Usage:
-    OPENAI_API_KEY=sk-... python scripts/import_zoho_csv.py "path/to/export.csv"
+    OPENROUTER_API_KEY=sk-or-... OPENAI_API_KEY=sk-... python scripts/import_zoho_csv.py "path/to/export.csv"
+
+    OPENAI_API_KEY is only needed for few-shot embeddings - classification
+    itself goes through OpenRouter.
 
 Respects whichever backend app.db is already configured for (FIREBASE_
 CREDENTIALS_BASE64 set -> Firestore, unset -> local SQLite) - run this with
@@ -99,9 +102,9 @@ def main():
         sys.exit(1)
     csv_path = Path(args[0])
 
-    api_key = os.environ.get("OPENAI_API_KEY")
+    api_key = os.environ.get("OPENROUTER_API_KEY")
     if not no_classify and not api_key:
-        print("Set OPENAI_API_KEY in the environment before running this (or pass --no-classify "
+        print("Set OPENROUTER_API_KEY in the environment before running this (or pass --no-classify "
               "to import raw data only - use the portal's 'Classify Now' button to classify later).")
         sys.exit(1)
 
