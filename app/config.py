@@ -7,6 +7,14 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent
 
+
+def _env(name: str, default: str = "") -> str:
+    """os.getenv, stripped - a dashboard copy-paste (Render, Replit, etc.)
+    very easily leaves a trailing newline/space on a pasted value, which
+    silently breaks anything that puts it straight into an HTTP header
+    (http.client raises ValueError: Invalid header value on a literal \\n)."""
+    return os.getenv(name, default).strip()
+
 # Classification and resolution-grading both go through OpenRouter now, not
 # OpenAI directly - one key with access to many models/providers and its own
 # (usually more forgiving) rate limits, instead of being pinned to a single
@@ -14,31 +22,31 @@ BASE_DIR = Path(__file__).resolve().parent
 # form (see https://openrouter.ai/models); the default keeps the same
 # underlying OpenAI model as before, just routed through OpenRouter, so the
 # strict json_schema structured-output path needs no changes.
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
-OPENROUTER_CLASSIFY_MODEL = os.getenv("OPENROUTER_CLASSIFY_MODEL", "openai/gpt-4o-mini")
+OPENROUTER_API_KEY = _env("OPENROUTER_API_KEY")
+OPENROUTER_CLASSIFY_MODEL = _env("OPENROUTER_CLASSIFY_MODEL", "openai/gpt-4o-mini")
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 
 # OpenAI is kept ONLY for embeddings now (memory.py's few-shot retrieval) -
 # OpenRouter has no embeddings endpoint of its own. This key is never used
 # for classification or resolution grading anymore.
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-EMBED_MODEL = os.getenv("OPENAI_EMBED_MODEL", "text-embedding-3-small")
+OPENAI_API_KEY = _env("OPENAI_API_KEY")
+EMBED_MODEL = _env("OPENAI_EMBED_MODEL", "text-embedding-3-small")
 
 # Only used by scripts/compare_classifiers.py (OpenAI vs Gemini accuracy
 # comparison) - never required for the app's normal classify path. Few-shot
 # retrieval always uses OpenAI embeddings (OPENAI_API_KEY above) even when
 # comparing against Gemini, since that's the only embedding backend this
 # app has.
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-GEMINI_CLASSIFY_MODEL = os.getenv("GEMINI_CLASSIFY_MODEL", "gemini-2.5-flash")
+GEMINI_API_KEY = _env("GEMINI_API_KEY")
+GEMINI_CLASSIFY_MODEL = _env("GEMINI_CLASSIFY_MODEL", "gemini-2.5-flash")
 
 # When both are set, OpenAI embedding calls (memory.py) route through this
 # Cloudflare AI Gateway instead of hitting OpenAI directly - same OpenAI key,
 # same model, but Cloudflare caches repeated identical requests and logs
 # usage at gateway.ai.cloudflare.com. Does NOT apply to classify()/
 # grade_resolution() anymore now that those call OpenRouter, not OpenAI.
-CLOUDFLARE_ACCOUNT_ID = os.getenv("CLOUDFLARE_ACCOUNT_ID", "")
-CLOUDFLARE_AI_GATEWAY_ID = os.getenv("CLOUDFLARE_AI_GATEWAY_ID", "")
+CLOUDFLARE_ACCOUNT_ID = _env("CLOUDFLARE_ACCOUNT_ID")
+CLOUDFLARE_AI_GATEWAY_ID = _env("CLOUDFLARE_AI_GATEWAY_ID")
 
 # Automatic classify()/grade_resolution() fallback when OpenRouter hits a
 # rate limit - a real Cloudflare API token with "Workers AI" permission
@@ -47,8 +55,8 @@ CLOUDFLARE_AI_GATEWAY_ID = os.getenv("CLOUDFLARE_AI_GATEWAY_ID", "")
 # OpenRouter's own limits) - only the final classification/grading call
 # itself moves to Cloudflare. Unset means these calls raise on rate limit
 # same as before.
-CLOUDFLARE_API_TOKEN = os.getenv("CLOUDFLARE_API_TOKEN", "")
-CLOUDFLARE_WORKERS_AI_MODEL = os.getenv("CLOUDFLARE_WORKERS_AI_MODEL", "@cf/meta/llama-3.1-8b-instruct")
+CLOUDFLARE_API_TOKEN = _env("CLOUDFLARE_API_TOKEN")
+CLOUDFLARE_WORKERS_AI_MODEL = _env("CLOUDFLARE_WORKERS_AI_MODEL", "@cf/meta/llama-3.1-8b-instruct")
 
 
 def openai_base_url() -> str | None:
@@ -57,11 +65,11 @@ def openai_base_url() -> str | None:
         return f"https://gateway.ai.cloudflare.com/v1/{CLOUDFLARE_ACCOUNT_ID}/{CLOUDFLARE_AI_GATEWAY_ID}/openai"
     return None
 
-CONFIDENCE_THRESHOLD = float(os.getenv("CONFIDENCE_THRESHOLD", "0.65"))
-MAX_CLARIFICATION_TURNS = int(os.getenv("MAX_CLARIFICATION_TURNS", "2"))
-FEWSHOT_K = int(os.getenv("FEWSHOT_K", "5"))
+CONFIDENCE_THRESHOLD = float(_env("CONFIDENCE_THRESHOLD", "0.65"))
+MAX_CLARIFICATION_TURNS = int(_env("MAX_CLARIFICATION_TURNS", "2"))
+FEWSHOT_K = int(_env("FEWSHOT_K", "5"))
 
-DATA_DIR = Path(os.getenv("DATA_DIR", str(BASE_DIR / "data")))
+DATA_DIR = Path(_env("DATA_DIR", str(BASE_DIR / "data")))
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 SQLITE_PATH = DATA_DIR / "tickets.db"
@@ -75,15 +83,15 @@ CHROMA_PATH = str(DATA_DIR / "chroma")
 # using SQLite exactly as before. Create a database and token with the
 # Turso CLI (`turso db create ...`, `turso db tokens create ...`) or the
 # Turso dashboard - see persistent-storage-setup.md.
-TURSO_DATABASE_URL = os.getenv("TURSO_DATABASE_URL", "")
-TURSO_AUTH_TOKEN = os.getenv("TURSO_AUTH_TOKEN", "")
+TURSO_DATABASE_URL = _env("TURSO_DATABASE_URL")
+TURSO_AUTH_TOKEN = _env("TURSO_AUTH_TOKEN")
 
 TAXONOMY_PATH = BASE_DIR / "taxonomy.json"
 
 # Single admin account that gates the whole app. Change these in .env for
 # anything beyond local/dev use - these defaults are not secure.
-ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin")
+ADMIN_USERNAME = _env("ADMIN_USERNAME", "admin")
+ADMIN_PASSWORD = _env("ADMIN_PASSWORD", "admin")
 
 # Signs the session cookie. Not a config value - generated once and cached on
 # disk (outside git) so logins survive restarts but nothing secret is checked in.
@@ -106,22 +114,22 @@ else:
 # the real Zoho Creator Custom API from zoho-invoke-url-setup.md is set up -
 # until then, pull-direction lookups will fail with a clear connection/404
 # error rather than silently returning fake data.
-ZOHO_INVOKE_URL = os.getenv(
+ZOHO_INVOKE_URL = _env(
     "ZOHO_INVOKE_URL", "https://REPLACE_WITH_REAL_ZOHO_CUSTOM_API/get-ticket?ticket_id={ticket_id}"
 )
 # Sent as a request header named ZOHO_AUTH_HEADER_NAME with this value.
 # Not sure yet whether Zoho expects this as a header at all (vs. baked into
 # the URL as the custom-API name) - swap ZOHO_AUTH_HEADER_NAME/ZOHO_API_KEY
 # once confirmed, no code change needed either way.
-ZOHO_AUTH_HEADER_NAME = os.getenv("ZOHO_AUTH_HEADER_NAME", "Ticket_Classification_version_0")
-ZOHO_API_KEY = os.getenv("ZOHO_API_KEY", "sample-zoho-key")
+ZOHO_AUTH_HEADER_NAME = _env("ZOHO_AUTH_HEADER_NAME", "Ticket_Classification_version_0")
+ZOHO_API_KEY = _env("ZOHO_API_KEY", "sample-zoho-key")
 
 # Field names as they appear (at any depth) in the JSON Zoho returns. These
 # are guesses at Zoho's usual "spaces become underscores" convention - see
 # zoho-invoke-url-setup.md section 4 for how to confirm/correct these
 # against a real response.
-ZOHO_FIELD_TICKET_ID = os.getenv("ZOHO_FIELD_TICKET_ID", "Ticket_ID")
-ZOHO_FIELD_ISSUE_DETAIL = os.getenv("ZOHO_FIELD_ISSUE_DETAIL", "Issue_in_Detail")
+ZOHO_FIELD_TICKET_ID = _env("ZOHO_FIELD_TICKET_ID", "Ticket_ID")
+ZOHO_FIELD_ISSUE_DETAIL = _env("ZOHO_FIELD_ISSUE_DETAIL", "Issue_in_Detail")
 
 # Shared secret Zoho Creator's Deluge "On Add" workflow sends back as the
 # X-Webhook-Secret header when it PUSHes a brand-new ticket to
@@ -130,4 +138,4 @@ ZOHO_FIELD_ISSUE_DETAIL = os.getenv("ZOHO_FIELD_ISSUE_DETAIL", "Issue_in_Detail"
 # ticket) - this one authenticates Zoho to *this app* for the push direction.
 # Empty by default so the webhook endpoint is refused (fails closed) until
 # you set a real value in .env.
-ZOHO_WEBHOOK_SECRET = os.getenv("ZOHO_WEBHOOK_SECRET", "")
+ZOHO_WEBHOOK_SECRET = _env("ZOHO_WEBHOOK_SECRET")

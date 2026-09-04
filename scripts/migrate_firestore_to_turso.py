@@ -38,11 +38,11 @@ def _firestore_client():
     import firebase_admin
     from firebase_admin import credentials, firestore as admin_firestore
 
-    creds_b64 = os.environ.get("FIREBASE_CREDENTIALS_BASE64")
+    creds_b64 = (os.environ.get("FIREBASE_CREDENTIALS_BASE64") or "").strip()
     if not creds_b64:
         print("Set FIREBASE_CREDENTIALS_BASE64 in the environment.")
         sys.exit(1)
-    database_id = os.environ.get("FIREBASE_DATABASE_ID", "(default)")
+    database_id = os.environ.get("FIREBASE_DATABASE_ID", "(default)").strip()
 
     cred_info = json.loads(base64.b64decode(creds_b64))
     cred = credentials.Certificate(cred_info)
