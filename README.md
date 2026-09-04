@@ -50,7 +50,7 @@ app/
   memory.py        Chroma vector store — the "context memory" (seed + corrections)
   taxonomy.py      Loads taxonomy.json, exposes it to the prompt + JSON schema
   taxonomy.json    <-- your real taxonomy (14 categories / 68 routed subcategories)
-  db.py            SQLite — ticket/session state, conversation turns, correction log
+  db.py            SQLite (local) / Turso (prod) — ticket/session state, conversation turns, correction log
   models.py        Pydantic request/response + structured-output schema
   static/index.html  Test console UI
 ```
@@ -208,15 +208,16 @@ cookie; `POST /api/logout` clears it).
 
 ## Production notes / next steps
 
-- **Storage**: SQLite locally, Firestore in production (set `FIREBASE_CREDENTIALS_BASE64`
-  - see `persistent-storage-setup.md`). Reads are server-side filtered
+- **Storage**: SQLite locally, Turso (remote libSQL) in production (set
+  `TURSO_DATABASE_URL`/`TURSO_AUTH_TOKEN` - see `persistent-storage-
+  setup.md`). Turso speaks the same SQL as SQLite, so `db.py` runs
+  unchanged against either. Reads are server-side filtered
   (`db.list_pending_tickets`, `db.count_pending_tickets`,
   `db.list_tickets_by_raw_status`) rather than reading the whole ticket
-  history, so Firestore's free-tier daily read quota scales with how many
-  tickets are actually pending/closed, not with total ticket count. Chroma is
-  still local-only; for multi-instance production point it at a hosted
-  instance (or swap to Pinecone/Weaviate) — `memory.py` is the only file that
-  would need to change.
+  history, cheaper than a full table scan on every background-loop cycle.
+  Chroma is still local-only; for multi-instance production point it at a
+  hosted instance (or swap to Pinecone/Weaviate) — `memory.py` is the only
+  file that would need to change.
 - **Hosting**: see `REPLIT_DEPLOY.md` for running this as an always-on
   Replit Reserved VM instead of Render's free plan — no cold starts, and the
   two background loops (auto-classify, auto-score) keep running between

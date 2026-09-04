@@ -1,4 +1,4 @@
-# Persistent ticket storage (Firestore)
+# Persistent ticket storage (Turso)
 
 ## Why this exists
 
@@ -9,67 +9,79 @@ filesystem resets to whatever's in the deployed image. `app/data/tickets.db`
 disk, so a spin-down doesn't just cause a slow wake-up, it silently erases
 ticket history the next time someone looks.
 
-`app/db.py` supports a `FIREBASE_CREDENTIALS_BASE64` environment variable -
-when set, it stores tickets/turns/corrections in Firestore instead of local
+`app/db.py` supports a `TURSO_DATABASE_URL` environment variable - when set,
+it stores tickets/turns/corrections in Turso (a remote libSQL database -
+SQLite's own wire protocol and SQL dialect, just hosted) instead of local
 SQLite, so history survives restarts. When unset (e.g. local dev), nothing
-changes - it keeps using SQLite exactly as before.
+changes - it keeps using SQLite exactly as before. Because Turso speaks the
+same SQL as SQLite, `app/db.py` runs the exact same queries against either
+backend; only the connection differs.
 
-## 1. Create a Firestore database
+## 1. Create a Turso database
 
-1. Go to the [Firebase Console](https://console.firebase.google.com), create
-   a project (or use an existing one).
-2. **Build → Firestore Database → Create database**. This is a separate step
-   from just creating the project - the database doesn't exist until you
-   click through this. Choose **Native mode** and any nearby location.
-   - If you leave the **Database ID** field as the default, it's created as
-     literally `(default)`, which the app assumes unless told otherwise.
-     If you type a custom Database ID instead, you'll need to set
-     `FIREBASE_DATABASE_ID` to match (see below) - the SDK only connects to
-     `(default)` unless told otherwise, and will fail with `"The database
-     (default) does not exist"` if you skip this.
-3. **Project Settings (gear icon) → Service Accounts → Generate new private
-   key** - downloads a JSON file. This is a real credential (broader access
-   than just Firestore, depending on the service account's role) - don't
-   commit it to git (the repo's `.gitignore` already excludes
-   `*firebase-adminsdk*.json` as a safety net, but keep it out of the repo
-   directory entirely if you can).
-
-## 2. Point Render at it
-
-Base64-encode the downloaded key (avoids newline-escaping issues a raw
-multi-line JSON paste would hit in an env var UI):
+Install the Turso CLI and create a database (interactive login opens a
+browser - you'll need to do this step yourself):
 
 ```bash
-python -c "import base64; print(base64.b64encode(open('key.json','rb').read()).decode())"
+curl -sSfL https://get.tur.so/install.sh | bash
+turso auth login
+turso db create ticket-classifier
+turso db show ticket-classifier --url          # -> TURSO_DATABASE_URL
+turso db tokens create ticket-classifier       # -> TURSO_AUTH_TOKEN
 ```
+
+(Or use the [Turso dashboard](https://app.turso.tech) instead of the CLI -
+same two values either way: a `libsql://...` database URL and an auth
+token.)
+
+## 2. Point Render at it
 
 In your Render service's **Environment** tab, add:
 
 ```
-FIREBASE_CREDENTIALS_BASE64=<the base64 string>
+TURSO_DATABASE_URL=libsql://your-database-name.turso.io
+TURSO_AUTH_TOKEN=<the token from `turso db tokens create`>
 ```
 
-Only add `FIREBASE_DATABASE_ID=<your-database-id>` if you used a custom
-Database ID in step 1 - omit it entirely to use `(default)`.
-
-Save - Render redeploys automatically. Firestore is schemaless, so there's
-no migration step; `db.init_db()` just verifies the connection at startup.
+Save - Render redeploys automatically. `db.init_db()` creates the schema in
+Turso on first connect if it doesn't already exist, same as it does for a
+fresh local SQLite file - no separate migration step needed for a new
+database.
 
 ## 3. Verify
 
 After redeploying, push a test ticket through (see
 `zoho-invoke-url-setup.md` section 5) and then check `/api/tickets` in the
-portal, or look at the `tickets` collection directly in the Firebase
-Console's Firestore Data tab.
+portal, or query the database directly with `turso db shell
+ticket-classifier "SELECT COUNT(*) FROM tickets"`.
 
-## Importing historical data
+## Migrating existing data from Firestore
+
+If you're moving off an existing Firestore setup rather than starting
+fresh, `scripts/migrate_firestore_to_turso.py` copies every ticket (+ its
+turns/corrections) across, preserving ids and timestamps exactly - read-only
+against Firestore, safely re-runnable if interrupted:
+
+```bash
+pip install firebase-admin   # not a normal app dependency - only needed for this one-off script
+FIREBASE_CREDENTIALS_BASE64=... TURSO_DATABASE_URL=... TURSO_AUTH_TOKEN=... \
+  python scripts/migrate_firestore_to_turso.py
+```
+
+It prints a Firestore-vs-Turso count comparison at the end. Once you've
+confirmed the counts match and the app works correctly against Turso, you
+can remove `FIREBASE_CREDENTIALS_BASE64`/`FIREBASE_DATABASE_ID` from
+Render's environment and decommission the Firebase project whenever you're
+ready - nothing in this script does that automatically.
+
+## Importing historical data (new tickets, not a Firestore migration)
 
 `scripts/import_zoho_csv.py` bulk-imports a Zoho "Instructors Ticketing
 System" CSV export, classifying each row through the same pipeline a live
 webhook ticket uses:
 
 ```bash
-FIREBASE_CREDENTIALS_BASE64=... OPENROUTER_API_KEY=sk-or-... OPENAI_API_KEY=sk-... \
+TURSO_DATABASE_URL=... TURSO_AUTH_TOKEN=... OPENROUTER_API_KEY=sk-or-... OPENAI_API_KEY=sk-... \
   python scripts/import_zoho_csv.py "path/to/export.csv"
 ```
 

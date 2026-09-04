@@ -25,8 +25,8 @@ cron job every ~30 min) and still build toward a larger sample. The
 printed summary always covers every row ever accumulated in that file,
 not just the current run's.
 
-Respects whichever backend app.db is already configured for (FIREBASE_
-CREDENTIALS_BASE64 set -> Firestore, unset -> local SQLite) - run this
+Respects whichever backend app.db is already configured for (TURSO_
+DATABASE_URL set -> Turso, unset -> local SQLite) - run this
 with the same environment variables you'd run the app itself with.
 """
 import json
@@ -101,7 +101,7 @@ def main():
         print("Set GEMINI_API_KEY in the environment.")
         sys.exit(1)
 
-    print(f"backend: {'Firestore' if db.USE_FIRESTORE else 'SQLite'}")
+    print(f"backend: {'Turso' if db.USE_TURSO else 'SQLite'}")
     db.init_db()
 
     existing = _load_results(results_file)

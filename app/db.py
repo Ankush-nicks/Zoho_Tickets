@@ -1,4 +1,3 @@
-import base64
 import json
 import uuid
 import time
@@ -7,12 +6,20 @@ from datetime import datetime, timedelta, timezone
 
 from . import config
 
-# Firestore (via FIREBASE_CREDENTIALS_BASE64) when set - so ticket history
-# survives Render's ephemeral disk across spin-downs/redeploys. Falls back to
-# local SQLite otherwise, unchanged from before local dev's perspective.
-USE_FIRESTORE = bool(config.FIREBASE_CREDENTIALS_BASE64)
+# Turso (via TURSO_DATABASE_URL) when set - so ticket history survives
+# Render's ephemeral disk across spin-downs/redeploys. Falls back to local
+# SQLite otherwise, unchanged from before local dev's perspective. Turso is
+# a remote libSQL database that speaks the same SQL dialect as SQLite
+# (including json_extract), and turso_serverless is a DB-API 2.0 driver with
+# the same `?` paramstyle - so every query below runs unchanged against
+# either backend; only the connection differs. Rows come back as plain
+# tuples on both (turso_serverless's documented Row type isn't actually what
+# fetchone()/fetchall() return in practice), so every read goes through
+# _fetchone()/_fetchall() below, which zip each row against cursor.
+# description to build a dict - never relying on a backend-specific row type.
+USE_TURSO = bool(config.TURSO_DATABASE_URL)
 
-SCHEMA_SQLITE = """
+SCHEMA = """
 CREATE TABLE IF NOT EXISTS tickets (
     id TEXT PRIMARY KEY,
     original_text TEXT NOT NULL,
@@ -59,46 +66,16 @@ CREATE TABLE IF NOT EXISTS corrections (
 """
 
 
-# --- Firestore client -------------------------------------------------------
-# Lazily initialized (only ever needed when USE_FIRESTORE is true) so local
-# dev never has to import firebase_admin or hold live credentials.
-
-_fs_client_singleton = None
-
-
-def _fs_client():
-    global _fs_client_singleton
-    if _fs_client_singleton is not None:
-        return _fs_client_singleton
-
-    import firebase_admin
-    from firebase_admin import credentials, firestore as admin_firestore
-
-    cred_info = json.loads(base64.b64decode(config.FIREBASE_CREDENTIALS_BASE64))
-    cred = credentials.Certificate(cred_info)
-    try:
-        app = firebase_admin.get_app()
-    except ValueError:
-        app = firebase_admin.initialize_app(cred)
-    _fs_client_singleton = admin_firestore.client(app=app, database_id=config.FIREBASE_DATABASE_ID)
-    return _fs_client_singleton
-
-
-def _doc_to_dict(snap) -> dict:
-    d = snap.to_dict() or {}
-    d["id"] = snap.id
-    return d
-
-
-# --- SQLite (local dev) helpers ---------------------------------------------
-
-
 @contextmanager
-def _sqlite_conn():
-    import sqlite3
+def _conn():
+    if USE_TURSO:
+        import turso_serverless
 
-    conn = sqlite3.connect(config.SQLITE_PATH)
-    conn.row_factory = sqlite3.Row
+        conn = turso_serverless.connect(config.TURSO_DATABASE_URL, auth_token=config.TURSO_AUTH_TOKEN)
+    else:
+        import sqlite3
+
+        conn = sqlite3.connect(config.SQLITE_PATH)
     try:
         yield conn
         conn.commit()
@@ -106,10 +83,29 @@ def _sqlite_conn():
         conn.close()
 
 
-def _sqlite_exec(conn, sql, params=()):
+def _exec(conn, sql, params=()):
+    """For INSERT/UPDATE/DELETE, or a query whose rows the caller doesn't
+    need read back as dicts - use _fetchone()/_fetchall() for that instead."""
     cur = conn.cursor()
     cur.execute(sql, params)
     return cur
+
+
+def _row_to_dict(cur, row) -> dict:
+    return {col[0]: val for col, val in zip(cur.description, row)}
+
+
+def _fetchone(conn, sql, params=()) -> dict | None:
+    cur = conn.cursor()
+    cur.execute(sql, params)
+    row = cur.fetchone()
+    return _row_to_dict(cur, row) if row is not None else None
+
+
+def _fetchall(conn, sql, params=()) -> list[dict]:
+    cur = conn.cursor()
+    cur.execute(sql, params)
+    return [_row_to_dict(cur, row) for row in cur.fetchall()]
 
 
 def _dump_raw_payload(raw_payload: dict | None) -> str | None:
@@ -117,9 +113,8 @@ def _dump_raw_payload(raw_payload: dict | None) -> str | None:
 
 
 def _load_raw_payload(row: dict) -> dict:
-    """Mutates a SQLite row dict in place so raw_payload is a dict (or None),
-    matching what Firestore already returns natively - callers never need to
-    know which backend served the row."""
+    """Mutates a row dict in place so raw_payload is a dict (or None) rather
+    than the raw JSON TEXT column value."""
     raw = row.get("raw_payload")
     row["raw_payload"] = json.loads(raw) if raw else None
     return row
@@ -130,28 +125,31 @@ def new_id() -> str:
 
 
 def init_db():
-    if USE_FIRESTORE:
-        _fs_client()  # fail fast at startup if credentials/database are misconfigured
-        return
-    with _sqlite_conn() as conn:
-        conn.executescript(SCHEMA_SQLITE)
-        # Older SQLite DB files predate these columns - add them if missing
-        # (CREATE TABLE IF NOT EXISTS above is a no-op on an existing table).
-        for col in ("zoho_ticket_id", "zoho_category", "zoho_subcategory", "raw_payload"):
+    with _conn() as conn:
+        for statement in SCHEMA.strip().split(";"):
+            statement = statement.strip()
+            if statement:
+                conn.execute(statement)
+        if not USE_TURSO:
+            # Older local SQLite DB files predate these columns - add them if
+            # missing (CREATE TABLE IF NOT EXISTS above is a no-op on an
+            # existing table). Not needed on Turso, which always starts from
+            # this same schema fresh.
+            for col in ("zoho_ticket_id", "zoho_category", "zoho_subcategory", "raw_payload"):
+                try:
+                    conn.execute(f"ALTER TABLE tickets ADD COLUMN {col} TEXT")
+                except Exception:
+                    pass
+            for col in ("resolution_score", "resolution_ack", "resolution_investigation",
+                        "resolution_root_cause", "resolution_sla", "resolution_detail", "resolution_scored_at"):
+                try:
+                    conn.execute(f"ALTER TABLE tickets ADD COLUMN {col} REAL")
+                except Exception:
+                    pass
             try:
-                conn.execute(f"ALTER TABLE tickets ADD COLUMN {col} TEXT")
+                conn.execute("ALTER TABLE tickets ADD COLUMN resolution_evidence TEXT")
             except Exception:
                 pass
-        for col in ("resolution_score", "resolution_ack", "resolution_investigation",
-                    "resolution_root_cause", "resolution_sla", "resolution_detail", "resolution_scored_at"):
-            try:
-                conn.execute(f"ALTER TABLE tickets ADD COLUMN {col} REAL")
-            except Exception:
-                pass
-        try:
-            conn.execute("ALTER TABLE tickets ADD COLUMN resolution_evidence TEXT")
-        except Exception:
-            pass
 
 
 def create_ticket(
@@ -172,27 +170,8 @@ def create_ticket(
     ticket_id = new_id()
     now = created_at if created_at is not None else time.time()
 
-    if USE_FIRESTORE:
-        _fs_client().collection("tickets").document(ticket_id).set({
-            "original_text": original_text,
-            "full_context": original_text,
-            "status": "pending",
-            "category_id": None,
-            "confidence": None,
-            "reasoning": None,
-            "clarification_turns": 0,
-            "zoho_ticket_id": zoho_ticket_id,
-            "zoho_category": zoho_category,
-            "zoho_subcategory": zoho_subcategory,
-            "raw_payload": raw_payload,
-            "created_at": now,
-            "updated_at": now,
-        })
-        _invalidate_list_all_cache()
-        return ticket_id
-
-    with _sqlite_conn() as conn:
-        _sqlite_exec(
+    with _conn() as conn:
+        _exec(
             conn,
             """INSERT INTO tickets
                (id, original_text, full_context, status, clarification_turns,
@@ -206,13 +185,9 @@ def create_ticket(
 
 
 def get_ticket(ticket_id: str) -> dict | None:
-    if USE_FIRESTORE:
-        snap = _fs_client().collection("tickets").document(ticket_id).get()
-        return _doc_to_dict(snap) if snap.exists else None
-
-    with _sqlite_conn() as conn:
-        row = _sqlite_exec(conn, "SELECT * FROM tickets WHERE id = ?", (ticket_id,)).fetchone()
-        return _load_raw_payload(dict(row)) if row else None
+    with _conn() as conn:
+        row = _fetchone(conn, "SELECT * FROM tickets WHERE id = ?", (ticket_id,))
+        return _load_raw_payload(row) if row else None
 
 
 def get_ticket_by_zoho_id(zoho_ticket_id: str) -> dict | None:
@@ -222,57 +197,31 @@ def get_ticket_by_zoho_id(zoho_ticket_id: str) -> dict | None:
     ticket, whether the call is a retried "On Add" or a genuine "On Edit"
     (status change, POC acknowledgment, worklog, etc.).
     """
-    if USE_FIRESTORE:
-        from google.cloud.firestore_v1 import FieldFilter
-
-        # Fetch all matches and pick the newest in Python rather than
-        # .order_by('created_at') server-side - filtering on one field and
-        # ordering by another needs a composite index, and there are only
-        # ever a handful of docs per zoho_ticket_id.
-        docs = list(_fs_client().collection("tickets")
-                    .where(filter=FieldFilter("zoho_ticket_id", "==", zoho_ticket_id)).stream())
-        if not docs:
-            return None
-        best = max(docs, key=lambda s: s.to_dict().get("created_at", 0))
-        return _doc_to_dict(best)
-
-    with _sqlite_conn() as conn:
-        row = _sqlite_exec(
+    with _conn() as conn:
+        row = _fetchone(
             conn,
             "SELECT * FROM tickets WHERE zoho_ticket_id = ? ORDER BY created_at DESC LIMIT 1",
             (zoho_ticket_id,),
-        ).fetchone()
-        return _load_raw_payload(dict(row)) if row else None
+        )
+        return _load_raw_payload(row) if row else None
 
 
 def update_ticket(ticket_id: str, **fields):
     fields["updated_at"] = time.time()
 
-    if USE_FIRESTORE:
-        _fs_client().collection("tickets").document(ticket_id).update(fields)
-        _invalidate_list_all_cache()
-        return
-
     if "raw_payload" in fields:
         fields["raw_payload"] = _dump_raw_payload(fields["raw_payload"])
     cols = ", ".join(f"{k} = ?" for k in fields)
     vals = list(fields.values()) + [ticket_id]
-    with _sqlite_conn() as conn:
-        _sqlite_exec(conn, f"UPDATE tickets SET {cols} WHERE id = ?", vals)
+    with _conn() as conn:
+        _exec(conn, f"UPDATE tickets SET {cols} WHERE id = ?", vals)
     _invalidate_list_all_cache()
 
 
 def append_turn(ticket_id: str, role: str, content: str):
     now = time.time()
-    if USE_FIRESTORE:
-        turn_id = new_id()
-        (_fs_client().collection("tickets").document(ticket_id)
-         .collection("turns").document(turn_id)
-         .set({"role": role, "content": content, "created_at": now}))
-        return
-
-    with _sqlite_conn() as conn:
-        _sqlite_exec(
+    with _conn() as conn:
+        _exec(
             conn,
             "INSERT INTO turns (id, ticket_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)",
             (new_id(), ticket_id, role, content, now),
@@ -280,34 +229,16 @@ def append_turn(ticket_id: str, role: str, content: str):
 
 
 def get_turns(ticket_id: str) -> list[dict]:
-    if USE_FIRESTORE:
-        docs = (_fs_client().collection("tickets").document(ticket_id)
-                .collection("turns").order_by("created_at").stream())
-        return [_doc_to_dict(d) for d in docs]
-
-    with _sqlite_conn() as conn:
-        rows = _sqlite_exec(
+    with _conn() as conn:
+        return _fetchall(
             conn, "SELECT * FROM turns WHERE ticket_id = ? ORDER BY created_at ASC", (ticket_id,)
-        ).fetchall()
-        return [dict(r) for r in rows]
+        )
 
 
 def log_correction(ticket_id: str, predicted_category_id: str | None, corrected_category_id: str, corrected_by: str | None):
     now = time.time()
-    if USE_FIRESTORE:
-        correction_id = new_id()
-        (_fs_client().collection("tickets").document(ticket_id)
-         .collection("corrections").document(correction_id)
-         .set({
-             "predicted_category_id": predicted_category_id,
-             "corrected_category_id": corrected_category_id,
-             "corrected_by": corrected_by,
-             "created_at": now,
-         }))
-        return
-
-    with _sqlite_conn() as conn:
-        _sqlite_exec(
+    with _conn() as conn:
+        _exec(
             conn,
             """INSERT INTO corrections
                (id, ticket_id, predicted_category_id, corrected_category_id, corrected_by, created_at)
@@ -326,26 +257,21 @@ def _invalidate_list_all_cache():
 
 def list_all_tickets() -> list[dict]:
     """
-    Every ticket ever stored, oldest first - backs the full CSV export,
-    the Pulse/Insights dashboards, and the date-range views. This is a full
-    collection read on Firestore (one read per document), so it's cached
-    briefly and invalidated on every write. Prefer list_pending_tickets(),
-    count_pending_tickets(), or list_tickets_by_raw_status() instead of this
-    for anything that only needs a subset - those run as server-side
-    filtered queries on Firestore, so their read cost scales with the
-    matching subset, not with total ticket history the way this does.
+    Every ticket ever stored, oldest first - backs the full CSV export, the
+    Pulse/Insights dashboards, and the date-range views. Cached briefly and
+    invalidated on every write since a single page load can fire several of
+    these back-to-back. Prefer list_pending_tickets(), count_pending_
+    tickets(), or list_tickets_by_raw_status() instead of this for anything
+    that only needs a subset - those filter server-side on Turso too, so
+    their read cost scales with the matching subset, not total history.
     """
     now = time.time()
     if _list_all_cache["data"] is not None and now - _list_all_cache["at"] < _LIST_ALL_CACHE_TTL_SECONDS:
         return _list_all_cache["data"]
 
-    if USE_FIRESTORE:
-        docs = _fs_client().collection("tickets").order_by("created_at").stream()
-        result = [_doc_to_dict(d) for d in docs]
-    else:
-        with _sqlite_conn() as conn:
-            rows = _sqlite_exec(conn, "SELECT * FROM tickets ORDER BY created_at ASC").fetchall()
-            result = [_load_raw_payload(dict(r)) for r in rows]
+    with _conn() as conn:
+        rows = _fetchall(conn, "SELECT * FROM tickets ORDER BY created_at ASC")
+        result = [_load_raw_payload(r) for r in rows]
 
     _list_all_cache["data"] = result
     _list_all_cache["at"] = now
@@ -353,41 +279,19 @@ def list_all_tickets() -> list[dict]:
 
 
 def list_pending_tickets() -> list[dict]:
-    """
-    Tickets with status == 'pending' (e.g. from a --no-classify historical
-    import), oldest first. On Firestore this is a server-side equality
-    filter - read cost scales with how many tickets are actually sitting
-    unclassified, not with total ticket history, unlike list_all_tickets().
-    No .order_by() here on purpose: combining an equality filter with an
-    order_by on a different field needs a Firestore composite index, and
-    processing order doesn't matter for this - it's a queue drained every
-    30 min regardless of order.
-    """
-    if USE_FIRESTORE:
-        from google.cloud.firestore_v1 import FieldFilter
-
-        docs = _fs_client().collection("tickets").where(filter=FieldFilter("status", "==", "pending")).stream()
-        return [_doc_to_dict(d) for d in docs]
-
-    with _sqlite_conn() as conn:
-        rows = _sqlite_exec(
+    """Tickets with status == 'pending' (e.g. from a --no-classify historical
+    import), oldest first - a queue drained every 30 min regardless of order."""
+    with _conn() as conn:
+        rows = _fetchall(
             conn, "SELECT * FROM tickets WHERE status = 'pending' ORDER BY created_at ASC"
-        ).fetchall()
-        return [_load_raw_payload(dict(r)) for r in rows]
+        )
+        return [_load_raw_payload(r) for r in rows]
 
 
 def count_pending_tickets() -> int:
-    """Cheap count of status == 'pending' tickets - powers the "Classify Now"
-    banner. Uses Firestore's count() aggregation (billed as a small fixed
-    read, not one read per matching document) instead of streaming rows."""
-    if USE_FIRESTORE:
-        from google.cloud.firestore_v1 import FieldFilter
-
-        agg = _fs_client().collection("tickets").where(filter=FieldFilter("status", "==", "pending")).count()
-        return agg.get()[0][0].value
-
-    with _sqlite_conn() as conn:
-        row = _sqlite_exec(conn, "SELECT COUNT(*) AS n FROM tickets WHERE status = 'pending'").fetchone()
+    """Cheap count of status == 'pending' tickets - powers the "Classify Now" banner."""
+    with _conn() as conn:
+        row = _fetchone(conn, "SELECT COUNT(*) AS n FROM tickets WHERE status = 'pending'")
         return row["n"]
 
 
@@ -395,56 +299,30 @@ def list_tickets_by_raw_status(statuses: list[str]) -> list[dict]:
     """
     Tickets whose raw_payload.ticket_status (the Zoho status string) is one
     of `statuses` - used to find closed tickets for resolution grading
-    without reading the entire ticket history. On Firestore this queries the
-    nested raw_payload map field directly (dot-path field, single "in"
-    filter, no composite index needed), so read cost scales with how many
-    tickets are actually closed, not with total ticket count. Still needs a
-    Python pass afterward to check resolution_scored_at - Firestore can't
-    reliably filter "field is absent" server-side without every document
-    already carrying an explicit null for it.
+    without reading the entire ticket history. Still needs a Python pass
+    afterward to check resolution_scored_at, since "field is absent" isn't
+    something json_extract can filter on directly.
     """
-    if USE_FIRESTORE:
-        from google.cloud.firestore_v1 import FieldFilter
-
-        docs = (_fs_client().collection("tickets")
-                .where(filter=FieldFilter("raw_payload.ticket_status", "in", statuses))
-                .stream())
-        return [_doc_to_dict(d) for d in docs]
-
     placeholders = ", ".join("?" for _ in statuses)
-    with _sqlite_conn() as conn:
-        rows = _sqlite_exec(
+    with _conn() as conn:
+        rows = _fetchall(
             conn,
             f"SELECT * FROM tickets WHERE json_extract(raw_payload, '$.ticket_status') IN ({placeholders})",
             statuses,
-        ).fetchall()
-        return [_load_raw_payload(dict(r)) for r in rows]
+        )
+        return [_load_raw_payload(r) for r in rows]
 
 
 def list_tickets_for_date(date_str: str) -> list[dict]:
-    """
-    Tickets created on the given UTC calendar date (YYYY-MM-DD), newest
-    first. Bucketing is done off a plain epoch-range query rather than SQL/
-    Firestore date functions, since those differ between backends.
-    """
+    """Tickets created on the given UTC calendar date (YYYY-MM-DD), newest first."""
     day_start = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
     start_ts = day_start.timestamp()
     end_ts = (day_start + timedelta(days=1)).timestamp()
 
-    if USE_FIRESTORE:
-        from google.cloud.firestore_v1 import FieldFilter
-
-        docs = (_fs_client().collection("tickets")
-                .where(filter=FieldFilter("created_at", ">=", start_ts))
-                .where(filter=FieldFilter("created_at", "<", end_ts))
-                .order_by("created_at", direction="DESCENDING")
-                .stream())
-        return [_doc_to_dict(d) for d in docs]
-
-    with _sqlite_conn() as conn:
-        rows = _sqlite_exec(
+    with _conn() as conn:
+        rows = _fetchall(
             conn,
             "SELECT * FROM tickets WHERE created_at >= ? AND created_at < ? ORDER BY created_at DESC",
             (start_ts, end_ts),
-        ).fetchall()
-        return [_load_raw_payload(dict(r)) for r in rows]
+        )
+        return [_load_raw_payload(r) for r in rows]

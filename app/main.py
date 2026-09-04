@@ -201,16 +201,15 @@ def get_zoho_status(user: str = Depends(require_login)):
 @app.get("/api/debug/db-info")
 def get_db_info(user: str = Depends(require_login)):
     """
-    Non-secret diagnostic: whether this deployment picked up Firestore config
-    at all (vs. silently falling back to empty local SQLite), which database
-    ID it's using, and how many tickets it can actually see - to tell apart
-    "env vars didn't take effect" from "wrong database/project" from "date
-    filter hid real data" when the portal appears empty.
+    Non-secret diagnostic: whether this deployment picked up Turso config at
+    all (vs. silently falling back to empty local SQLite), and how many
+    tickets it can actually see - to tell apart "env vars didn't take
+    effect" from "wrong database" from "date filter hid real data" when the
+    portal appears empty.
     """
     tickets = db.list_all_tickets()
     return {
-        "use_firestore": db.USE_FIRESTORE,
-        "database_id": config.FIREBASE_DATABASE_ID if db.USE_FIRESTORE else None,
+        "use_turso": db.USE_TURSO,
         "ticket_count": len(tickets),
     }
 
@@ -325,7 +324,7 @@ def _labels_loosely_match(a: str | None, b: str | None) -> bool | None:
 def _to_state_response(ticket: dict) -> TicketStateResponse:
     leaf = taxonomy.get(ticket["category_id"]) if ticket.get("category_id") else None
     conversation = []
-    # get_turns() is a real (network) query on Firestore - clarification_turns
+    # get_turns() is a real (network) query on Turso - clarification_turns
     # is incremented every time append_turn() is, so ==0 reliably means no
     # turns exist and this call can be skipped. Matters a lot in aggregate:
     # this function runs per-ticket for potentially hundreds of tickets at
@@ -425,10 +424,9 @@ def _classify_pending_batch(limit: int, api_key: str) -> dict:
     auto-classify loop below.
 
     Queries only status='pending' tickets (db.list_pending_tickets()) rather
-    than reading the whole ticket history - on Firestore this is a
-    server-side filter, so its read cost scales with how many tickets are
-    actually unclassified, not with total ticket count, unlike the
-    list_all_tickets()-then-filter-in-Python shape this used to have.
+    than reading the whole ticket history - this used to matter for
+    Firestore's per-document read quota specifically, and stays cheaper on
+    Turso too since it's a server-side WHERE filter, not a Python one.
     Derives "remaining" from that same snapshot plus how many were just
     processed, rather than re-querying to recount - "remaining" is an
     estimate against that snapshot (a ticket that arrived mid-batch won't
@@ -504,14 +502,13 @@ def _score_pending_resolutions_batch(limit: int, api_key: str) -> dict:
 
     Queries only tickets whose raw_payload.ticket_status is closed
     (db.list_tickets_by_raw_status) rather than reading the whole ticket
-    history - on Firestore this is a server-side filter on that one field,
-    so read cost scales with how many tickets are actually closed, not with
+    history - a server-side filter on that one field (json_extract), so
+    read cost scales with how many tickets are actually closed, not with
     total ticket count. The resolution_scored_at check still has to happen
-    in Python (Firestore can't cheaply query "field is absent"), but that's
-    now filtering a small closed-tickets subset instead of everything ever
-    stored. Derives "remaining" from that same snapshot - this loop's own
-    30-min cadence would otherwise make a second full read a real, avoidable
-    recurring cost independent of any actual traffic.
+    in Python ("field is absent" isn't something json_extract filters on
+    directly), but that's now filtering a small closed-tickets subset
+    instead of everything ever stored. Derives "remaining" from that same
+    snapshot rather than re-querying to recount.
     """
     closed = db.list_tickets_by_raw_status(list(quality_scorer.CLOSED_STATUSES))
     pending_all = [t for t in closed if not t.get("resolution_scored_at")]
@@ -656,8 +653,8 @@ def export_tickets_csv(date: str | None = None, user: str = Depends(require_logi
 def get_pending_count(user: str = Depends(require_login)):
     """How many tickets are sitting in status='pending' - e.g. from a
     --no-classify historical import - powers the portal's "Classify Now"
-    banner. Uses count_pending_tickets() (a Firestore count() aggregation,
-    not a full-collection read) rather than listing every ticket to count."""
+    banner. Uses count_pending_tickets() (a SQL COUNT(*), not a full-table
+    read) rather than listing every ticket to count."""
     count = db.count_pending_tickets()
     return {"count": count}
 

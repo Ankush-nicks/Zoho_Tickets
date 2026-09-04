@@ -12,8 +12,8 @@ Usage:
     OPENAI_API_KEY is only needed for few-shot embeddings - classification
     itself goes through OpenRouter.
 
-Respects whichever backend app.db is already configured for (FIREBASE_
-CREDENTIALS_BASE64 set -> Firestore, unset -> local SQLite) - run this with
+Respects whichever backend app.db is already configured for (TURSO_
+DATABASE_URL set -> Turso, unset -> local SQLite) - run this with
 the same environment variables you'd run the app itself with.
 
 Safely re-runnable: rows whose "Ticket ID" already exists (via
@@ -108,7 +108,7 @@ def main():
               "to import raw data only - use the portal's 'Classify Now' button to classify later).")
         sys.exit(1)
 
-    print(f"backend: {'Firestore' if db.USE_FIRESTORE else 'SQLite'}, classify: {not no_classify}")
+    print(f"backend: {'Turso' if db.USE_TURSO else 'SQLite'}, classify: {not no_classify}")
     db.init_db()
 
     with open(csv_path, encoding="utf-8-sig") as f:
