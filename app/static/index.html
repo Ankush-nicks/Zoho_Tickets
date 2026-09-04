@@ -324,6 +324,9 @@
   #pulseView .tiles, #statsView .tiles{ display:grid; grid-template-columns:repeat(5, 1fr); gap:12px; margin-bottom:32px; }
   #pulseView .tiles-7{ display:grid; grid-template-columns:repeat(7, 1fr); gap:12px; margin-bottom:32px; }
   #pulseView .tile, #statsView .tile{ background:var(--p-surface-1); border:1px solid var(--p-border); border-radius:10px; padding:16px 16px 14px; position:relative; }
+  #pulseView .tile.clickable{ cursor:pointer; transition:border-color .12s; }
+  #pulseView .tile.clickable:hover{ border-color:var(--p-accent); }
+  #pulseView .tile .flip-ids-list{ max-height:140px; overflow-y:auto; }
   #pulseView .tile.flag, #statsView .tile.flag{ border-color:rgba(176,52,46,.35); }
   #pulseView .tile-label, #statsView .tile-label{ font-family:var(--mono); font-size:10px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:var(--p-text-muted); margin:0 0 8px; }
   #pulseView .tile-value, #statsView .tile-value{ font-size:27px; font-weight:700; letter-spacing:-.01em; font-variant-numeric:tabular-nums; line-height:1; color:var(--p-text-primary); }
@@ -2112,32 +2115,43 @@ function pulseRenderStatusBreakdown(rows) {
   const el = document.getElementById('pulseStatusTiles');
   if (rows.length === 0) { el.innerHTML = ''; return; }
   const total = rows.length;
-  const closed = rows.filter(r => !r.open).length;
-  const open = rows.filter(r => r.open).length;
-  const yetToPick = rows.filter(r => r.status === 'Yet To Pick').length;
-  const inProgress = rows.filter(r => r.status === 'In Progress').length;
-  const awaiting = rows.filter(r => r.status === 'Awaiting Instructors Response').length;
+  const closedRows = rows.filter(r => !r.open);
+  const openRows = rows.filter(r => r.open);
+  const yetToPickRows = rows.filter(r => r.status === 'Yet To Pick');
+  const inProgressRows = rows.filter(r => r.status === 'In Progress');
+  const awaitingRows = rows.filter(r => r.status === 'Awaiting Instructors Response');
   // Zoho's 'Discard' status is neither one of PULSE_CLOSED_STATUSES nor one
   // of the three open sub-statuses above, so without its own tile it was
   // silently counted in "Open" but missing from every breakdown tile below
   // it - yetToPick + inProgress + awaiting didn't sum to "open".
-  const discarded = rows.filter(r => r.status === 'Discard').length;
+  const discardedRows = rows.filter(r => r.status === 'Discard');
 
   const tiles = [
-    { label: 'Total tickets', value: total, sub: 'in selected window', critical: false },
-    { label: 'Closed', value: closed, sub: `${pulseFmtPct(closed / total * 100)} of window`, critical: false },
-    { label: 'Open', value: open, sub: `${pulseFmtPct(open / total * 100)} of window`, critical: false },
-    { label: 'Yet to pick', value: yetToPick, sub: 'not yet assigned/started', critical: yetToPick / total > 0.2 },
-    { label: 'In progress', value: inProgress, sub: 'actively being worked', critical: false },
-    { label: 'Awaiting response', value: awaiting, sub: 'waiting on instructor', critical: false },
-    { label: 'Discarded', value: discarded, sub: 'counted as open, not yet triaged out', critical: false },
+    { label: 'Total tickets', rows, sub: 'in selected window', critical: false },
+    { label: 'Closed', rows: closedRows, sub: `${pulseFmtPct(closedRows.length / total * 100)} of window`, critical: false },
+    { label: 'Open', rows: openRows, sub: `${pulseFmtPct(openRows.length / total * 100)} of window`, critical: false },
+    { label: 'Yet to pick', rows: yetToPickRows, sub: 'not yet assigned/started', critical: yetToPickRows.length / total > 0.2 },
+    { label: 'In progress', rows: inProgressRows, sub: 'actively being worked', critical: false },
+    { label: 'Awaiting response', rows: awaitingRows, sub: 'waiting on instructor', critical: false },
+    { label: 'Discarded', rows: discardedRows, sub: 'counted as open, not yet triaged out', critical: false },
   ];
-  el.innerHTML = tiles.map(x => `
-    <div class="tile ${x.critical ? 'flag' : ''}">
-      <p class="tile-label">${x.label}</p>
-      <div class="tile-value ${x.critical ? 'critical' : ''}">${x.value}</div>
-      <div class="tile-sub">${x.sub}</div>
-    </div>`).join('');
+  el.innerHTML = tiles.map(x => {
+    const ids = x.rows.map(r => r.id);
+    return `
+    <div class="tile clickable ${x.critical ? 'flag' : ''}" onclick="pulseToggleFlipCard(this)">
+      <div class="flip-face flip-face-front">
+        <p class="tile-label">${x.label}</p>
+        <div class="tile-value ${x.critical ? 'critical' : ''}">${ids.length}</div>
+        <div class="tile-sub">${x.sub}</div>
+        <div class="flip-hint">${ids.length} ticket ID${ids.length === 1 ? '' : 's'} &#8594;</div>
+      </div>
+      <div class="flip-face flip-face-back">
+        <p class="tile-label">${x.label}</p>
+        <div class="flip-ids-list">${ids.length ? ids.map(id => `<span class="flip-id-chip">#${esc(id)}</span>`).join('') : '<span class="flip-hint">No tickets</span>'}</div>
+        <div class="flip-hint">&#8592; back</div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // ---- Universities: top-5 focus cards + full table ----
