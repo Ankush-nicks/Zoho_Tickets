@@ -123,7 +123,25 @@ def logout(request: Request):
 
 @app.get("/api/taxonomy")
 def get_taxonomy(user: str = Depends(require_login)):
-    return {"categories": taxonomy.groups}
+    return {"version": taxonomy.version, "categories": taxonomy.groups}
+
+
+@app.put("/api/taxonomy")
+def update_taxonomy(payload: dict, user: str = Depends(require_login)):
+    """
+    Full-replace save for the Taxonomy tab's editor - payload is the same
+    {version, categories: [...]} shape GET /api/taxonomy returns, since the
+    editor works off one in-browser copy and saves the whole thing back
+    rather than patching individual fields. Rejects structurally invalid
+    data (missing ids/names, duplicate ids) with a 400 before writing
+    anything; a valid payload is written to taxonomy.json and hot-reloaded,
+    so classify()/grade_resolution() see it immediately, no restart needed.
+    """
+    try:
+        taxonomy.save(payload)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"version": taxonomy.version, "categories": taxonomy.groups}
 
 
 @app.get("/api/taxonomy/export.csv")

@@ -46,6 +46,10 @@ class Taxonomy:
         return self._data["categories"]
 
     @property
+    def version(self):
+        return self._data.get("version")
+
+    @property
     def category_ids(self) -> list[str]:
         """Leaf (subcategory) ids - what the classifier actually predicts."""
         return list(self._leaf_index.keys())
@@ -66,6 +70,41 @@ class Taxonomy:
             for ex in leaf.get("examples", []):
                 out.append({"text": ex, "category_id": leaf_id, "source": "seed"})
         return out
+
+    def save(self, data: dict) -> None:
+        """
+        Validates and persists a full taxonomy replacement (same {version,
+        categories: [...]} shape reload() expects - the Taxonomy tab's editor
+        sends its whole working copy back on Save, not a per-field patch).
+        Raises ValueError on structural problems (missing ids/names,
+        duplicate ids) before ever touching disk. Reloads immediately after
+        writing so classify()/grade_resolution() pick up the change without
+        a restart.
+        """
+        if not isinstance(data.get("categories"), list) or not data["categories"]:
+            raise ValueError("taxonomy must have a non-empty 'categories' list")
+
+        seen_cat_ids: set[str] = set()
+        seen_sub_ids: set[str] = set()
+        for group in data["categories"]:
+            cat_id, cat_name = group.get("id"), group.get("name")
+            if not cat_id or not cat_name:
+                raise ValueError(f"every category needs an id and name (got {group!r})")
+            if cat_id in seen_cat_ids:
+                raise ValueError(f"duplicate category id: {cat_id}")
+            seen_cat_ids.add(cat_id)
+            for sub in group.get("subcategories", []):
+                sub_id, sub_name = sub.get("id"), sub.get("name")
+                if not sub_id or not sub_name:
+                    raise ValueError(f"every subcategory needs an id and name (got {sub!r})")
+                if sub_id in seen_sub_ids:
+                    raise ValueError(f"duplicate subcategory id: {sub_id}")
+                seen_sub_ids.add(sub_id)
+
+        with self._lock:
+            with open(self._path, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+        self.reload()
 
     def as_prompt_block(self) -> str:
         """Render the taxonomy as text for the classification system prompt,

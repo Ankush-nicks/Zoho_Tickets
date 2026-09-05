@@ -88,6 +88,7 @@
   /* --- Main content --- */
   .main-content{ flex:1; min-width:0; padding:32px 40px 80px; }
   .wrap{ max-width:900px; }
+  .wrap.wrap-full{ max-width:none; }
 
   .main-topbar{ display:flex; align-items:center; justify-content:flex-end; gap:10px; margin-bottom:24px; }
 
@@ -470,6 +471,74 @@
   #statsView .ipm-meta{ font-size:12.5px; color:var(--p-text-muted); margin-top:2px; }
   #statsView .ipm-kpis{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:18px; }
   #statsView .ipm-ticket-list{ display:flex; flex-direction:column; gap:0; }
+
+  /* ---------- Taxonomy tab - dense, directly-editable table ---------- */
+  #taxonomyView .p-header{ display:flex; justify-content:space-between; align-items:flex-start; gap:24px; flex-wrap:wrap; margin-bottom:14px; }
+  #taxonomyView .p-eyebrow{ font-family:var(--mono); font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--p-accent); margin:0 0 6px; }
+  #taxonomyView h1{ font-size:24px; font-weight:700; letter-spacing:-.01em; margin:0; color:var(--p-text-primary); }
+  #taxonomyView .p-subtitle{ color:var(--p-text-secondary); font-size:13px; margin-top:6px; max-width:72ch; }
+  #taxonomyView .p-header-meta{ text-align:right; font-size:12px; color:var(--p-text-muted); font-variant-numeric:tabular-nums; }
+  #taxonomyView .empty-state{ font-size:13px; color:var(--p-text-muted); padding:24px 0; text-align:center; }
+
+  #taxonomyView .taxo-toolbar{
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px;
+    position:sticky; top:0; z-index:3; background:var(--bg); padding:8px 0;
+  }
+  #taxonomyView .taxo-btn{
+    font-family:var(--mono); font-size:11px; letter-spacing:.04em; text-transform:uppercase;
+    color:var(--p-text-primary); border:1px solid var(--p-border); border-radius:6px;
+    padding:7px 12px; background:var(--p-surface-1); cursor:pointer;
+  }
+  #taxonomyView .taxo-btn:hover{ border-color:var(--p-accent); color:var(--p-accent); }
+  #taxonomyView .taxo-btn:disabled{ opacity:.4; cursor:default; border-color:var(--p-border); color:var(--p-text-muted); }
+  #taxonomyView .taxo-btn.primary{ background:var(--p-accent); border-color:var(--p-accent); color:#fff; }
+  #taxonomyView .taxo-btn.primary:disabled{ background:var(--p-surface-2); color:var(--p-text-muted); }
+  #taxonomyView .taxo-status{ font-size:12.5px; color:var(--p-text-muted); margin-left:auto; }
+  #taxonomyView .taxo-status.dirty{ color:var(--p-warning); }
+  #taxonomyView .taxo-status.error{ color:var(--p-critical); }
+  #taxonomyView .taxo-status.saved{ color:var(--p-good); }
+
+  #taxonomyView .taxo-table-wrap{ overflow:auto; max-height:calc(100vh - 230px); border:1px solid var(--p-border); border-radius:10px; }
+  #taxonomyView table{ border-collapse:collapse; width:100%; font-size:12px; }
+  #taxonomyView thead th{
+    position:sticky; top:0; z-index:2; text-align:left; font-family:var(--mono); font-size:9.5px; font-weight:600;
+    letter-spacing:.03em; text-transform:uppercase; color:var(--p-text-muted); background:var(--p-surface-2);
+    padding:7px 8px; border-bottom:1px solid var(--p-border); white-space:nowrap;
+  }
+  #taxonomyView td{ padding:4px 8px; border-bottom:1px solid var(--p-border); color:var(--p-text-primary); vertical-align:top; }
+  #taxonomyView td.num{ text-align:right; font-variant-numeric:tabular-nums; }
+  #taxonomyView tr.taxo-cat-row td{
+    background:var(--p-surface-2); font-weight:700; padding-top:8px; padding-bottom:8px;
+  }
+  #taxonomyView tr.taxo-cat-row .taxo-cat-id{ font-family:var(--mono); font-size:11px; color:var(--p-text-muted); font-weight:600; margin-right:8px; }
+  #taxonomyView tr.taxo-add-row td{ padding:5px 8px; }
+  #taxonomyView .taxo-add-link{ font-size:11.5px; color:var(--p-accent); cursor:pointer; }
+  #taxonomyView .taxo-add-link:hover{ text-decoration:underline; }
+  #taxonomyView [contenteditable="true"]{
+    outline:none; min-width:40px; line-height:1.4; white-space:pre-wrap; word-break:break-word;
+    border-radius:4px; padding:2px 4px; margin:-2px -4px;
+    max-height:54px; overflow-y:auto;
+  }
+  #taxonomyView td.taxo-name-cell [contenteditable]{ max-height:none; overflow-y:visible; }
+  #taxonomyView [contenteditable="true"]:hover{ background:var(--p-surface-2); }
+  #taxonomyView [contenteditable="true"]:focus{ background:var(--p-surface-1); box-shadow:inset 0 0 0 1px var(--p-accent); }
+  #taxonomyView td.taxo-id-cell{ font-family:var(--mono); font-size:11px; color:var(--p-text-muted); white-space:nowrap; }
+  #taxonomyView td.taxo-name-cell [contenteditable]{ font-weight:600; }
+  #taxonomyView input.taxo-num-input{
+    width:48px; font:inherit; font-variant-numeric:tabular-nums; text-align:right; color:var(--p-text-primary);
+    background:transparent; border:1px solid transparent; border-radius:4px; padding:2px 4px;
+  }
+  #taxonomyView input.taxo-num-input:hover{ background:var(--p-surface-2); }
+  #taxonomyView input.taxo-num-input:focus{ outline:none; background:var(--p-surface-1); border-color:var(--p-accent); }
+  #taxonomyView select.taxo-cat-select{
+    font:inherit; font-size:11px; color:var(--p-text-primary); background:var(--p-surface-1);
+    border:1px solid var(--p-border); border-radius:5px; padding:3px 2px; width:60px;
+  }
+  #taxonomyView .taxo-del-btn{
+    font-size:14px; line-height:1; color:var(--p-text-muted); background:none; border:none; cursor:pointer; padding:2px 4px;
+  }
+  #taxonomyView .taxo-del-btn:hover{ color:var(--p-critical); }
+  #taxonomyView tr.taxo-row:hover td{ background:var(--p-surface-2); }
 </style>
 </head>
 <body>
@@ -506,6 +575,12 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>
           </span>
           Stats
+        </button>
+        <button class="nav-item" id="navBtn-taxonomy" onclick="switchTab('taxonomy')" type="button">
+          <span class="nav-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/></svg>
+          </span>
+          Taxonomy
         </button>
       </div>
     </nav>
@@ -791,6 +866,47 @@
             </table>
           </div>
         </section>
+      </div>
+
+      <div id="taxonomyView" style="display:none;">
+        <div class="p-header">
+          <div>
+            <p class="p-eyebrow">Instructors Ticketing System</p>
+            <h1>Taxonomy Editor</h1>
+            <p class="p-subtitle">Edit categories and subcategories directly &mdash; click any field to change it, then Save. Takes effect immediately, no restart needed.</p>
+          </div>
+          <div class="p-header-meta">
+            <div id="taxoCountMeta">&ndash;</div>
+          </div>
+        </div>
+        <div class="empty-state" id="taxoLoadingState">Loading taxonomy&hellip;</div>
+
+        <div class="taxo-toolbar" id="taxoToolbar" style="display:none;">
+          <button class="taxo-btn" onclick="taxoAddCategory()">+ Add category</button>
+          <span class="taxo-status" id="taxoStatus">All changes saved</span>
+          <button class="taxo-btn primary" id="taxoSaveBtn" onclick="taxoSave()" disabled>Save changes</button>
+        </div>
+
+        <div class="taxo-table-wrap" id="taxoTableWrap" style="display:none;">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:70px">Category</th>
+                <th style="width:75px">ID</th>
+                <th style="width:180px">Name</th>
+                <th style="min-width:280px">Description</th>
+                <th style="width:150px">Team</th>
+                <th style="width:170px">POC Primary</th>
+                <th style="width:170px">POC CC</th>
+                <th class="num" style="width:50px">Vol</th>
+                <th style="width:110px">Coverage</th>
+                <th style="min-width:220px">Examples (one per line)</th>
+                <th style="width:30px"></th>
+              </tr>
+            </thead>
+            <tbody id="taxoTableBody"></tbody>
+          </table>
+        </div>
       </div>
     </div>
   </main>
@@ -1260,9 +1376,14 @@ function switchTab(tab) {
   document.getElementById('ticketsView').style.display = tab === 'tickets' ? '' : 'none';
   document.getElementById('statsView').style.display = tab === 'stats' ? '' : 'none';
   document.getElementById('pulseView').style.display = tab === 'pulse' ? '' : 'none';
+  document.getElementById('taxonomyView').style.display = tab === 'taxonomy' ? '' : 'none';
   document.getElementById('navBtn-tickets').classList.toggle('active', tab === 'tickets');
   document.getElementById('navBtn-stats').classList.toggle('active', tab === 'stats');
   document.getElementById('navBtn-pulse').classList.toggle('active', tab === 'pulse');
+  document.getElementById('navBtn-taxonomy').classList.toggle('active', tab === 'taxonomy');
+  // The taxonomy editor wants every column visible at once - break out of
+  // the 900px reading-width column the other tabs use.
+  document.querySelector('.wrap').classList.toggle('wrap-full', tab === 'taxonomy');
   if (tab === 'stats' && !insightLoadedOnce) {
     insightLoadedOnce = true;
     insightBoot();
@@ -1270,6 +1391,10 @@ function switchTab(tab) {
   if (tab === 'pulse' && !pulseLoadedOnce) {
     pulseLoadedOnce = true;
     pulseBoot();
+  }
+  if (tab === 'taxonomy' && !taxoLoadedOnce) {
+    taxoLoadedOnce = true;
+    taxoBoot();
   }
 }
 
@@ -2387,6 +2512,239 @@ async function pulseBoot() {
     pulseRenderAll();
   } catch (err) {
     loadingEl.textContent = `Couldn't load live ticket data: ${err.message}`;
+  }
+}
+
+// ============================================================
+// Taxonomy tab - dense, directly-editable table over app/taxonomy.json.
+// Works off one in-memory working copy (taxoState); every edit mutates it
+// and marks the page dirty. Save PUTs the whole thing back to
+// PUT /api/taxonomy, which validates, writes taxonomy.json, and
+// hot-reloads the classifier - nothing touches disk until Save is clicked.
+// ============================================================
+let taxoLoadedOnce = false;
+let taxoState = null;   // { version, categories: [...] }
+let taxoDirty = false;
+
+function taxoSetStatus(text, cls) {
+  const el = document.getElementById('taxoStatus');
+  el.textContent = text;
+  el.className = 'taxo-status' + (cls ? ' ' + cls : '');
+}
+
+function taxoMarkDirty() {
+  taxoDirty = true;
+  document.getElementById('taxoSaveBtn').disabled = false;
+  taxoSetStatus('Unsaved changes', 'dirty');
+}
+
+function taxoUpdateCountMeta() {
+  const catCount = taxoState.categories.length;
+  const subCount = taxoState.categories.reduce((n, c) => n + (c.subcategories || []).length, 0);
+  document.getElementById('taxoCountMeta').textContent = `${catCount} categories · ${subCount} subcategories`;
+}
+
+function taxoFindSub(subId) {
+  for (const cat of taxoState.categories) {
+    const sub = (cat.subcategories || []).find(s => s.id === subId);
+    if (sub) return { cat, sub };
+  }
+  return null;
+}
+
+function taxoCategoryOptionsHTML(selectedCatId) {
+  return taxoState.categories.map(c =>
+    `<option value="${esc(c.id)}" ${c.id === selectedCatId ? 'selected' : ''}>${esc(c.id)}</option>`
+  ).join('');
+}
+
+function taxoSubRowHTML(sub) {
+  const examplesText = (sub.examples || []).join('\n');
+  return `
+    <tr class="taxo-row" data-sub="${esc(sub.id)}">
+      <td><select class="taxo-cat-select" onchange="taxoReassignCategory('${esc(sub.id)}', this.value)">${taxoCategoryOptionsHTML(taxoFindSub(sub.id).cat.id)}</select></td>
+      <td class="taxo-id-cell">${esc(sub.id)}</td>
+      <td class="taxo-name-cell"><div contenteditable="true" data-sub="${esc(sub.id)}" data-field="name" onblur="taxoFieldEdit(this)">${esc(sub.name)}</div></td>
+      <td><div contenteditable="true" data-sub="${esc(sub.id)}" data-field="description" onblur="taxoFieldEdit(this)">${esc(sub.description || '')}</div></td>
+      <td><div contenteditable="true" data-sub="${esc(sub.id)}" data-field="assigned_team" onblur="taxoFieldEdit(this)">${esc(sub.assigned_team || '')}</div></td>
+      <td><div contenteditable="true" data-sub="${esc(sub.id)}" data-field="poc_primary" onblur="taxoFieldEdit(this)">${esc(sub.poc_primary || '')}</div></td>
+      <td><div contenteditable="true" data-sub="${esc(sub.id)}" data-field="poc_cc" onblur="taxoFieldEdit(this)">${esc(sub.poc_cc || '')}</div></td>
+      <td class="num"><input class="taxo-num-input" type="number" value="${sub.ticket_volume ?? ''}" data-sub="${esc(sub.id)}" data-field="ticket_volume" onblur="taxoFieldEdit(this)"></td>
+      <td><div contenteditable="true" data-sub="${esc(sub.id)}" data-field="data_coverage" onblur="taxoFieldEdit(this)">${esc(sub.data_coverage || '')}</div></td>
+      <td><div contenteditable="true" data-sub="${esc(sub.id)}" data-field="examples" onblur="taxoFieldEdit(this)">${esc(examplesText)}</div></td>
+      <td><button class="taxo-del-btn" title="Delete subcategory" onclick="taxoDeleteSubcategory('${esc(sub.id)}')">&times;</button></td>
+    </tr>`;
+}
+
+function taxoRender() {
+  const body = document.getElementById('taxoTableBody');
+  let html = '';
+  taxoState.categories.forEach(cat => {
+    html += `
+      <tr class="taxo-cat-row">
+        <td colspan="11">
+          <span class="taxo-cat-id">${esc(cat.id)}</span>
+          <span contenteditable="true" data-cat="${esc(cat.id)}" data-field="__catname" onblur="taxoFieldEdit(this)">${esc(cat.name)}</span>
+          <button class="taxo-del-btn" title="Delete category" onclick="taxoDeleteCategory('${esc(cat.id)}')" style="float:right">&times;</button>
+        </td>
+      </tr>`;
+    (cat.subcategories || []).forEach(sub => { html += taxoSubRowHTML(sub); });
+    html += `
+      <tr class="taxo-add-row">
+        <td colspan="11"><span class="taxo-add-link" onclick="taxoAddSubcategory('${esc(cat.id)}')">+ add subcategory to ${esc(cat.name)}</span></td>
+      </tr>`;
+  });
+  body.innerHTML = html;
+  taxoUpdateCountMeta();
+}
+
+function taxoFieldEdit(el) {
+  const field = el.dataset.field;
+  if (field === '__catname') {
+    const cat = taxoState.categories.find(c => c.id === el.dataset.cat);
+    const newName = el.textContent.trim();
+    if (cat && newName && cat.name !== newName) { cat.name = newName; taxoMarkDirty(); }
+    return;
+  }
+  const found = taxoFindSub(el.dataset.sub);
+  if (!found) return;
+  const { sub } = found;
+  if (field === 'examples') {
+    const lines = el.textContent.split('\n').map(s => s.trim()).filter(Boolean);
+    if (JSON.stringify(sub.examples || []) !== JSON.stringify(lines)) { sub.examples = lines; taxoMarkDirty(); }
+    return;
+  }
+  if (field === 'ticket_volume') {
+    const raw = el.value.trim();
+    const n = raw === '' ? null : parseInt(raw, 10);
+    const normalized = Number.isFinite(n) ? n : null;
+    if ((sub.ticket_volume ?? null) !== normalized) { sub.ticket_volume = normalized; taxoMarkDirty(); }
+    return;
+  }
+  const newVal = el.textContent.trim();
+  if ((sub[field] || '') !== newVal) { sub[field] = newVal || null; taxoMarkDirty(); }
+}
+
+function taxoReassignCategory(subId, newCatId) {
+  const found = taxoFindSub(subId);
+  if (!found || found.cat.id === newCatId) return;
+  const newCat = taxoState.categories.find(c => c.id === newCatId);
+  if (!newCat) return;
+  found.cat.subcategories = found.cat.subcategories.filter(s => s.id !== subId);
+  newCat.subcategories = newCat.subcategories || [];
+  newCat.subcategories.push(found.sub);
+  taxoMarkDirty();
+  taxoRender();
+}
+
+function taxoNextCategoryId() {
+  const nums = taxoState.categories.map(c => parseInt((c.id.match(/^G(\d+)/) || [])[1], 10)).filter(Number.isFinite);
+  const next = (nums.length ? Math.max(...nums) : 0) + 1;
+  return 'G' + String(next).padStart(2, '0');
+}
+
+function taxoAddCategory() {
+  const name = prompt('New category name:');
+  if (!name || !name.trim()) return;
+  const id = taxoNextCategoryId();
+  taxoState.categories.push({ id, name: name.trim(), subcategories: [] });
+  taxoMarkDirty();
+  taxoRender();
+}
+
+function taxoDeleteCategory(catId) {
+  const cat = taxoState.categories.find(c => c.id === catId);
+  if (!cat) return;
+  const subCount = (cat.subcategories || []).length;
+  const msg = subCount > 0
+    ? `Delete category ${catId} (${cat.name}) and all ${subCount} of its subcategories? This can't be undone once saved.`
+    : `Delete empty category ${catId} (${cat.name})?`;
+  if (!confirm(msg)) return;
+  taxoState.categories = taxoState.categories.filter(c => c.id !== catId);
+  taxoMarkDirty();
+  taxoRender();
+}
+
+function taxoNextSubId(cat) {
+  const nums = (cat.subcategories || []).map(s => parseInt((s.id.match(/-S(\d+)$/) || [])[1], 10)).filter(Number.isFinite);
+  const next = (nums.length ? Math.max(...nums) : 0) + 1;
+  return `${cat.id}-S${String(next).padStart(2, '0')}`;
+}
+
+function taxoAddSubcategory(catId) {
+  const cat = taxoState.categories.find(c => c.id === catId);
+  if (!cat) return;
+  cat.subcategories = cat.subcategories || [];
+  const id = taxoNextSubId(cat);
+  cat.subcategories.push({
+    id, name: 'New subcategory', description: '', assigned_team: '',
+    poc_primary: '', poc_cc: '', ticket_volume: null, data_coverage: '', examples: [],
+  });
+  taxoMarkDirty();
+  taxoRender();
+  requestAnimationFrame(() => {
+    const el = document.querySelector(`[data-sub="${CSS.escape(id)}"][data-field="name"]`);
+    if (el) {
+      el.focus();
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+  });
+}
+
+function taxoDeleteSubcategory(subId) {
+  const found = taxoFindSub(subId);
+  if (!found) return;
+  if (!confirm(`Delete subcategory ${subId} (${found.sub.name})? This can't be undone once saved.`)) return;
+  found.cat.subcategories = found.cat.subcategories.filter(s => s.id !== subId);
+  taxoMarkDirty();
+  taxoRender();
+}
+
+async function taxoSave() {
+  const btn = document.getElementById('taxoSaveBtn');
+  btn.disabled = true;
+  taxoSetStatus('Saving…');
+  try {
+    const res = await fetch('/api/taxonomy', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(taxoState),
+    });
+    if (res.status === 401) { window.location = '/login'; return; }
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+    taxoState = { version: data.version, categories: data.categories };
+    taxoDirty = false;
+    taxoSetStatus('All changes saved', 'saved');
+    taxoRender();
+  } catch (err) {
+    taxoSetStatus(`Save failed: ${err.message}`, 'error');
+    btn.disabled = false;
+  }
+}
+
+window.addEventListener('beforeunload', (e) => {
+  if (taxoDirty) { e.preventDefault(); e.returnValue = ''; }
+});
+
+async function taxoBoot() {
+  const loadingEl = document.getElementById('taxoLoadingState');
+  try {
+    const res = await fetch('/api/taxonomy');
+    if (res.status === 401) { window.location = '/login'; return; }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    taxoState = { version: data.version, categories: data.categories };
+    loadingEl.style.display = 'none';
+    document.getElementById('taxoToolbar').style.display = 'flex';
+    document.getElementById('taxoTableWrap').style.display = 'block';
+    taxoRender();
+  } catch (err) {
+    loadingEl.textContent = `Couldn't load taxonomy: ${err.message}`;
   }
 }
 </script>
