@@ -298,6 +298,12 @@
   }
   #pulseView .range-summary, #statsView .range-summary{ margin-left:auto; font-size:12.5px; color:var(--p-text-muted); font-variant-numeric:tabular-nums; }
   #pulseView .range-summary strong, #statsView .range-summary strong{ color:var(--p-text-primary); }
+  #pulseView .p-download-link{
+    font-family:var(--mono); font-size:11px; letter-spacing:.04em; text-transform:uppercase;
+    color:var(--p-text-primary); text-decoration:none; border:1px solid var(--p-border); border-radius:6px;
+    padding:7px 12px; background:var(--p-surface-1); cursor:pointer;
+  }
+  #pulseView .p-download-link:hover{ border-color:var(--p-accent); color:var(--p-accent); }
 
   #pulseView .action-section{ margin-bottom:30px; }
   #pulseView .action-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:12px; }
@@ -637,6 +643,7 @@
             from <input type="date" id="pulseRangeFrom"> to <input type="date" id="pulseRangeTo">
           </div>
           <div class="range-summary" id="pulseRangeSummary"></div>
+          <button class="p-download-link" onclick="pulseDownloadCategoryStatusCsv()">&darr; Category &times; Status CSV</button>
         </div>
 
         <section class="action-section">
@@ -2152,6 +2159,57 @@ function pulseRenderStatusBreakdown(rows) {
       </div>
     </div>`;
   }).join('');
+}
+
+// ---- Category x status pivot CSV (matches the "Category Of The Issue /
+// Re-open / Awaiting Instructors Response / In Progress / Yet To Pick /
+// Grand Total" report format) ----
+function pulseCategoryStatusReport(rows) {
+  const map = {};
+  rows.forEach(r => {
+    if (!r.open) return; // this report is about the open backlog only
+    // A reopened ticket is bucketed as "Re-open" regardless of its current
+    // status - takes priority over the other three so every open ticket
+    // lands in exactly one column and the row sums to Grand Total.
+    let bucket;
+    if (r.reopenCount > 0) bucket = 'reopen';
+    else if (r.status === 'Awaiting Instructors Response') bucket = 'awaiting';
+    else if (r.status === 'In Progress') bucket = 'inProgress';
+    else if (r.status === 'Yet To Pick') bucket = 'yetToPick';
+    else return; // e.g. 'Discard' - not part of this report
+    map[r.cat] = map[r.cat] || { reopen: 0, awaiting: 0, inProgress: 0, yetToPick: 0 };
+    map[r.cat][bucket]++;
+  });
+  return Object.entries(map)
+    .map(([cat, v]) => ({ cat, ...v, total: v.reopen + v.awaiting + v.inProgress + v.yetToPick }))
+    .sort((a, b) => b.total - a.total);
+}
+
+function pulseCsvEscape(val) {
+  const s = String(val ?? '');
+  return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+function pulseDownloadCategoryStatusCsv() {
+  const report = pulseCategoryStatusReport(pulseFilteredRows());
+  const header = ['Category Of The Issue', 'Re-open', 'Awaiting Instructors Response', 'In Progress', 'Yet To Pick', 'Grand Total'];
+  const lines = [header.map(pulseCsvEscape).join(',')];
+  const totals = { reopen: 0, awaiting: 0, inProgress: 0, yetToPick: 0, total: 0 };
+  report.forEach(r => {
+    lines.push([r.cat, r.reopen || '', r.awaiting || '', r.inProgress || '', r.yetToPick || '', r.total].map(pulseCsvEscape).join(','));
+    totals.reopen += r.reopen; totals.awaiting += r.awaiting; totals.inProgress += r.inProgress; totals.yetToPick += r.yetToPick; totals.total += r.total;
+  });
+  lines.push(['Grand Total', totals.reopen || '', totals.awaiting || '', totals.inProgress || '', totals.yetToPick || '', totals.total].map(pulseCsvEscape).join(','));
+
+  const blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `category_status_report_${pulseIsoDate(pulseState.from)}_to_${pulseIsoDate(pulseState.to)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 // ---- Universities: top-5 focus cards + full table ----
