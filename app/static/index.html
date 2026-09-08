@@ -787,19 +787,16 @@
           <div class="section-head">
             <h2 style="font-size:13px">All universities in this window</h2>
           </div>
+          <div class="p-select-row" style="margin-bottom:12px; gap:16px; flex-wrap:wrap;">
+            <div class="range-presets" id="pulseUniViewToggle">
+              <button class="range-btn active" data-mode="university" onclick="pulseSetUniViewMode('university')" type="button">University wise</button>
+              <button class="range-btn" data-mode="team" onclick="pulseSetUniViewMode('team')" type="button">Team wise</button>
+            </div>
+            <select id="pulseUniStateSelect"></select>
+          </div>
           <div class="p-card table-scroll">
             <table>
-              <thead>
-                <tr>
-                  <th class="num">#</th>
-                  <th>University</th>
-                  <th class="num">Total</th>
-                  <th class="num">Open</th>
-                  <th class="num">Yet to pick</th>
-                  <th class="num">Unassigned</th>
-                  <th class="num">Status breakdown</th>
-                </tr>
-              </thead>
+              <thead id="pulseUniTableHead"></thead>
               <tbody id="pulseUniTable"></tbody>
             </table>
           </div>
@@ -1799,6 +1796,152 @@ let pulseDATA_MAX = new Date();
 let pulseUNIVERSITIES = [];
 const PULSE_CLOSED_STATUSES = new Set(['Resolved By POC', 'Resolution Acknowledged', 'Closed']);
 
+// ---- University -> state lookup (niat_university_collaborations_1.csv) ----
+// Zoho's own "University" field is free text - usually "<Name> - <City>" but
+// with encoding glitches, inconsistent city tags, and occasional nicknames
+// (e.g. "Crescent University" for the CSV's "B. S. Abdur Rahman Crescent
+// Institute..."), so it rarely matches this canonical list verbatim. Matching
+// happens in two tiers below: exact/stripped-suffix first, then word-overlap
+// fuzzy as a fallback - see pulseUniState().
+const PULSE_UNIVERSITY_CSV = [
+  ["GMR Institute of Technology (Deemed to be University)", "Andhra Pradesh", "Vizianagaram"],
+  ["Ajeenkya DY Patil University", "Maharashtra", "Pune"],
+  ["Sanjay Ghodawat University", "Maharashtra", "Kolhapur"],
+  ["Noida International University", "Uttar Pradesh", "Noida (Delhi NCR)"],
+  ["SMR University", "Telangana", "Hyderabad"],
+  ["Sushant University", "Haryana", "Gurgaon"],
+  ["Visakha Institute of Engineering & Technology", "Andhra Pradesh", "Visakhapatnam"],
+  ["PK DAS Institute of Social Sciences Health Sciences & Technology (Deemed to be University)", "Tamil Nadu", "Coimbatore"],
+  ["Lingaya's Institute of Management and Technology", "Andhra Pradesh", "Vijayawada"],
+  ["MVR College of Engineering and Technology", "Andhra Pradesh", "Krishna"],
+  ["Bharath Institute of Higher Education and Research", "Tamil Nadu", "Chennai"],
+  ["St. Peter's Institute of Higher Education and Research (SPIHER)", "Tamil Nadu", "Chennai"],
+  ["Lingaya's Vidyapeeth", "Haryana", "Faridabad"],
+  ["Sri Sri University", "Odisha", "Cuttack"],
+  ["T.S Mishra University", "Uttar Pradesh", "Lucknow"],
+  ["Subharti University", "Uttar Pradesh", "Meerut"],
+  ["SNS College of Technology", "Tamil Nadu", "Coimbatore"],
+  ["Chaitanya (Deemed to be University)", "Telangana", "Hyderabad"],
+  ["Geeta University", "Haryana", "Panipat"],
+  ["S-VYASA University School of Advanced Studies (Deemed to be University)", "Karnataka", "Bengaluru"],
+  ["Yenepoya Bangalore", "Karnataka", "Bangalore"],
+  ["AMET University | Academy of Maritime Education & Training", "Tamil Nadu", "Chennai"],
+  ["Yenepoya University", "Karnataka", "Mangalore"],
+  ["Vivekananda Global University", "Rajasthan", "Jaipur"],
+  ["St. Peter's Institute of Higher Education and Research (SPIHER)", "Karnataka", "Bangalore"],
+  ["B. S. Abdur Rahman Crescent Institute of Science & Technology (Deemed to be University)", "Tamil Nadu", "Chennai"],
+  ["Annamacharya University", "Andhra Pradesh", "Kadapa"],
+  ["Sandip University", "Maharashtra", "Maharashtra"],
+  ["Nadimpalli Satyanarayana Raju Institute of Technology (NSRIT)", "Andhra Pradesh", "Visakhapatnam"],
+  ["Scope Global Skills University", "Madhya Pradesh", "Bhopal"],
+  ["Alard University", "Maharashtra", "Pune"],
+  ["Joy University", "Tamil Nadu", "Tirunelveli"],
+  ["BEST Innovation University", "Andhra Pradesh", "Anantapur"],
+  ["Takshashila University", "Tamil Nadu", "Chennai-Pondicherry"],
+  ["Chalapathi Institute of Technology", "Andhra Pradesh", "Guntur"],
+  ["Sanskriti University", "Uttar Pradesh", "Mathura"],
+  ["Aurora Deemed University", "Telangana", "Hyderabad"],
+  ["St Mary's Rehabilitation University", "Telangana", "Bhuvangiri"],
+  ["Malla Reddy University", "Telangana", "Hyderabad"],
+  ["Malla Reddy Vishwavidyapeeth", "Telangana", "Hyderabad"],
+  ["NRI Institute of Technology", "Andhra Pradesh", "Vijayawada"],
+  ["Chalapathi Institute of Engineering and Technology - LAM", "Andhra Pradesh", "LAM (Guntur)"],
+  ["NIAT - KKH", "Telangana", "Hyderabad"],
+  ["NIAT - Chevella", "Telangana", "Chevella"],
+  ["CCBP Academy", "Telangana", "Hyderabad"],
+  ["Central Team", "Telangana", "Hyderabad"],
+  ["Intensive - Offline", "Telangana", "Hyderabad"],
+  ["Intensive - Online", "Telangana", "Hyderabad"],
+];
+
+// Fixed filter order the Pulse tab exposes - "Other" is appended for
+// whatever pulseUniState() can't confidently place in one of these.
+const PULSE_STATE_FILTERS = [
+  'Telangana', 'Andhra Pradesh', 'Haryana', 'Maharashtra', 'Rajasthan',
+  'Karnataka', 'Tamil Nadu', 'Delhi NCR', 'Madhya Pradesh', 'Uttar Pradesh', 'Odisha',
+];
+
+// Cities the CSV files under a home state (usually Uttar Pradesh/Haryana)
+// but that are colloquially "Delhi NCR" - overrides that university's state
+// for filtering purposes only, not a literal CSV value.
+const PULSE_NCR_CITIES = ['delhi', 'noida', 'greater noida', 'gurgaon', 'gurugram', 'faridabad', 'ghaziabad'];
+
+function pulseNorm(s) {
+  return (s || '').replace(/�/g, ' ').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+function pulseWords(s) {
+  const n = pulseNorm(s);
+  return n ? new Set(n.split(' ')) : new Set();
+}
+
+const PULSE_UNI_CANON = PULSE_UNIVERSITY_CSV.map(([name, state, city]) => {
+  const cityNorm = pulseNorm(city);
+  const isNcr = PULSE_NCR_CITIES.some(k => cityNorm.includes(k));
+  return { name, city, cityNorm, state: isNcr ? 'Delhi NCR' : state, norm: pulseNorm(name), words: pulseWords(name) };
+});
+
+// Tier 1: exact match, or exact match after stripping a trailing " - <city>"
+// (or " - <state>") segment Zoho tacks on - disambiguated by that dropped
+// suffix when the stripped name alone matches more than one CSV row (e.g.
+// both St. Peter's campuses share one literal name).
+function pulseUniExactTier(rawName) {
+  const hit = PULSE_UNI_CANON.find(c => c.norm === pulseNorm(rawName));
+  if (hit) return hit;
+  const parts = rawName.split(' - ');
+  for (let i = parts.length - 1; i >= 1; i--) {
+    const candidateNorm = pulseNorm(parts.slice(0, i).join(' - '));
+    const matches = PULSE_UNI_CANON.filter(c => c.norm === candidateNorm);
+    if (matches.length === 1) return matches[0];
+    if (matches.length > 1) {
+      const cityHint = pulseNorm(parts.slice(i).join(' '));
+      const byCity = matches.find(c => c.cityNorm && (cityHint.includes(c.cityNorm) || c.cityNorm.includes(cityHint)));
+      return byCity || matches[0];
+    }
+  }
+  return null;
+}
+
+// Tier 2: word-overlap fallback for nicknames/abbreviations exact matching
+// can't handle (e.g. "AMET University - Chennai" vs the CSV's "AMET
+// University | Academy of Maritime Education & Training"). Score is overlap
+// relative to the SMALLER word set, so a short nickname fully contained in a
+// longer official name still scores 1.0.
+function pulseUniFuzzyTier(rawName) {
+  const parts = rawName.split(' - ');
+  const candidateTexts = [rawName];
+  for (let i = parts.length - 1; i >= 1; i--) candidateTexts.push(parts.slice(0, i).join(' - '));
+  let bestScore = 0;
+  let bestList = [];
+  candidateTexts.forEach(text => {
+    const zw = pulseWords(text);
+    PULSE_UNI_CANON.forEach(c => {
+      let inter = 0;
+      zw.forEach(w => { if (c.words.has(w)) inter++; });
+      const smaller = Math.min(zw.size, c.words.size);
+      const score = smaller ? inter / smaller : 0;
+      if (score > bestScore) { bestScore = score; bestList = [c]; }
+      else if (score === bestScore && score > 0 && bestList.indexOf(c) === -1) bestList.push(c);
+    });
+  });
+  if (bestScore < 0.6) return null;
+  if (bestList.length > 1) {
+    const fullHint = pulseNorm(rawName);
+    const byCity = bestList.find(c => c.cityNorm && fullHint.includes(c.cityNorm));
+    if (byCity) return byCity;
+  }
+  return bestList[0];
+}
+
+const pulseUniStateCache = {};
+function pulseUniState(rawName) {
+  if (!rawName || rawName === 'Unknown') return 'Other';
+  if (pulseUniStateCache[rawName] !== undefined) return pulseUniStateCache[rawName];
+  const hit = pulseUniExactTier(rawName) || pulseUniFuzzyTier(rawName);
+  const state = hit ? hit.state : 'Other';
+  pulseUniStateCache[rawName] = state;
+  return state;
+}
+
 function pulseFmtPct(n) { return Math.round(n) + '%'; }
 function pulseStatusCountsHTML(v) {
   return `<span class="status-count-group">` +
@@ -2296,11 +2439,16 @@ function pulseDownloadCategoryStatusCsv() {
   URL.revokeObjectURL(url);
 }
 
-// ---- Universities: top-5 focus cards + full table ----
+// ---- Universities: top-5 focus cards (always unfiltered) + full table
+// (University wise / Team wise, with a state filter in University-wise mode) ----
+let pulseUniLastRows = [];
+let pulseUniViewMode = 'university'; // 'university' | 'team'
+let pulseUniStateFilter = 'ALL';
+
 function pulseRenderUniversities(rows) {
+  pulseUniLastRows = rows;
   const cardsEl = document.getElementById('pulseUniCards');
-  const tableEl = document.getElementById('pulseUniTable');
-  if (rows.length === 0) { cardsEl.innerHTML = ''; tableEl.innerHTML = '<tr><td colspan="7" class="empty-state">No tickets in this window.</td></tr>'; return; }
+  if (rows.length === 0) { cardsEl.innerHTML = ''; pulseRenderUniTable(); return; }
 
   const map = {};
   rows.forEach(r => {
@@ -2339,10 +2487,92 @@ function pulseRenderUniversities(rows) {
     </div>`;
   }).join('');
 
-  tableEl.innerHTML = list.map((u,i) => `
+  pulseRenderUniTable();
+}
+
+function pulseSetUniViewMode(mode) {
+  pulseUniViewMode = mode;
+  document.querySelectorAll('#pulseUniViewToggle .range-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  document.getElementById('pulseUniStateSelect').style.display = mode === 'university' ? '' : 'none';
+  pulseRenderUniTable();
+}
+
+function pulseInitUniStateSelect() {
+  const sel = document.getElementById('pulseUniStateSelect');
+  sel.innerHTML = `<option value="ALL">All states</option>` +
+    PULSE_STATE_FILTERS.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('') +
+    `<option value="Other">Other / Unmapped</option>`;
+  sel.addEventListener('change', () => { pulseUniStateFilter = sel.value; pulseRenderUniTable(); });
+}
+
+function pulseRenderUniTable() {
+  const theadEl = document.getElementById('pulseUniTableHead');
+  const tbodyEl = document.getElementById('pulseUniTable');
+  const rows = pulseUniLastRows;
+
+  if (pulseUniViewMode === 'team') {
+    theadEl.innerHTML = `<tr>
+      <th class="num">#</th>
+      <th>Team</th>
+      <th class="num">Total</th>
+      <th class="num">Status breakdown</th>
+    </tr>`;
+    if (rows.length === 0) { tbodyEl.innerHTML = '<tr><td colspan="4" class="empty-state">No tickets in this window.</td></tr>'; return; }
+    const map = {};
+    rows.forEach(r => {
+      map[r.team] = map[r.team] || { total: 0, yetToPick: 0, inProgress: 0, awaiting: 0 };
+      map[r.team].total++;
+      if (r.status === 'Yet To Pick') map[r.team].yetToPick++;
+      if (r.status === 'In Progress') map[r.team].inProgress++;
+      if (r.status === 'Awaiting Instructors Response') map[r.team].awaiting++;
+    });
+    const list = Object.entries(map).map(([name, v]) => ({ name, ...v })).sort((a,b) => b.total - a.total);
+    tbodyEl.innerHTML = list.map((r,i) => {
+      const isUnassigned = r.name === 'Unassigned';
+      return `
+      <tr>
+        <td class="rank">${i+1}</td>
+        <td style="${isUnassigned ? 'color:var(--p-critical);font-weight:600' : ''}" title="${esc(r.name)}">${esc(r.name)}</td>
+        <td class="num">${r.total}</td>
+        <td class="num">${pulseStatusCountsHTML(r)}</td>
+      </tr>`;
+    }).join('');
+    return;
+  }
+
+  theadEl.innerHTML = `<tr>
+    <th class="num">#</th>
+    <th>University</th>
+    <th>State</th>
+    <th class="num">Total</th>
+    <th class="num">Open</th>
+    <th class="num">Yet to pick</th>
+    <th class="num">Unassigned</th>
+    <th class="num">Status breakdown</th>
+  </tr>`;
+  if (rows.length === 0) { tbodyEl.innerHTML = '<tr><td colspan="8" class="empty-state">No tickets in this window.</td></tr>'; return; }
+
+  const scoped = pulseUniStateFilter === 'ALL' ? rows : rows.filter(r => pulseUniState(r.uni) === pulseUniStateFilter);
+  if (scoped.length === 0) { tbodyEl.innerHTML = '<tr><td colspan="8" class="empty-state">No universities in this state for the selected window.</td></tr>'; return; }
+
+  const map = {};
+  scoped.forEach(r => {
+    map[r.uni] = map[r.uni] || { total: 0, open: 0, yetToPick: 0, inProgress: 0, awaiting: 0, unassigned: 0 };
+    const m = map[r.uni];
+    m.total++;
+    if (r.open) m.open++;
+    if (r.status === 'Yet To Pick') m.yetToPick++;
+    if (r.status === 'In Progress') m.inProgress++;
+    if (r.status === 'Awaiting Instructors Response') m.awaiting++;
+    if (r.team === 'Unassigned') m.unassigned++;
+  });
+  const list = Object.entries(map).map(([name, v]) => ({ name, ...v, state: pulseUniState(name) })).sort((a,b) => b.open - a.open);
+
+  tbodyEl.innerHTML = list.map((u,i) => `
     <tr>
       <td class="rank">${i+1}</td>
       <td>${esc(u.name)}</td>
+      <td class="p-subtext">${esc(u.state)}</td>
       <td class="num">${u.total}</td>
       <td class="num">${u.open}</td>
       <td class="num">${u.yetToPick}</td>
@@ -2403,6 +2633,7 @@ async function pulseBoot() {
     loadingEl.style.display = 'none';
 
     pulseInitRangeBar();
+    pulseInitUniStateSelect();
     pulseRenderAll();
   } catch (err) {
     loadingEl.textContent = `Couldn't load live ticket data: ${err.message}`;
