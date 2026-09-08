@@ -2031,19 +2031,34 @@ function pulseMapTicket(t) {
   };
 }
 
-// Keyword flag on the free-text issue description - NOT a confirmed severity
-// call (no NLP/LLM involved, just a quick heuristic scan), so the card this
-// feeds always says so. A P1 priority tag from Zoho counts too, when present.
-const PULSE_URGENT_KEYWORDS = [
-  'urgent', 'immediately', 'immediate attention', 'asap', 'critical', 'emergency',
-  'not working', 'unable to', 'blocked', 'failed', 'escalate', 'high priority',
-  'severe', 'harassment', 'safety issue', 'security issue', 'data loss', 'unacceptable',
+// "Needs immediate attention" heuristics - NOT a confirmed severity call (no
+// NLP/LLM involved, just a keyword/length scan on the free-text issue
+// description), so the card this feeds always says so.
+//
+// Deliberately narrow and high-signal, unlike a broad "sounds urgent" list
+// (words like "urgent"/"asap"/"escalate"/"failed"/"blocked" show up in
+// routine tickets constantly and just add noise) - only wording that implies
+// real exposure: legal, safety, security, data, or money at risk. A P1
+// priority tag from Zoho counts too, when present.
+const PULSE_HIGH_RISK_KEYWORDS = [
+  'security issue', 'data loss', 'harassment', 'safety issue', 'legal',
+  'fraud', 'payment issue', 'payment failed', 'breach', 'leak',
 ];
-function pulseLooksUrgent(row) {
+function pulseLooksHighRisk(row) {
   const text = (row.issue || '').toLowerCase();
-  const keywordHit = PULSE_URGENT_KEYWORDS.some(k => text.includes(k));
+  const keywordHit = PULSE_HIGH_RISK_KEYWORDS.some(k => text.includes(k));
   const isP1 = (row.priority || '').toUpperCase() === 'P1';
   return keywordHit || isP1;
+}
+
+// A short issue description reads as a one-line, low-effort ask - worth
+// clearing fast precisely because it won't take long. Empty descriptions
+// aren't flagged either way - there's nothing to judge "small" from.
+const PULSE_SMALL_ISSUE_MAX_WORDS = 15;
+function pulseLooksSmallIssue(row) {
+  const text = (row.issue || '').trim();
+  if (!text) return false;
+  return text.split(/\s+/).filter(Boolean).length <= PULSE_SMALL_ISSUE_MAX_WORDS;
 }
 
 // ---- Range control ----
@@ -2174,16 +2189,24 @@ function pulseRenderActionItems(rows) {
     });
   }
 
-  const urgent = open.filter(pulseLooksUrgent);
-  if (urgent.length > 0) {
-    const p1Count = urgent.filter(r => (r.priority || '').toUpperCase() === 'P1').length;
+  // Restricted to "Yet To Pick" (not opened by anyone yet) - In Progress /
+  // Awaiting Instructors Response tickets are already being worked, so
+  // they're not a triage decision anymore. Within that pool, flag either a
+  // quick low-effort close (short description) or a genuinely high-risk one
+  // (security/data-loss/harassment/safety/legal wording, or P1) - the two
+  // reasons something in the unpicked queue deserves attention right now.
+  const notOpened = rows.filter(r => r.status === 'Yet To Pick');
+  const highRiskOnes = notOpened.filter(pulseLooksHighRisk);
+  const smallOnes = notOpened.filter(pulseLooksSmallIssue);
+  const needsAttention = notOpened.filter(r => pulseLooksHighRisk(r) || pulseLooksSmallIssue(r));
+  if (needsAttention.length > 0) {
     cards.push({
-      sev: (urgent.length / Math.max(open.length,1) > 0.15 || p1Count > 0) ? 'critical' : 'warning',
+      sev: highRiskOnes.length > 0 ? 'critical' : 'warning',
       tag: 'Needs immediate attention',
-      title: `${urgent.length} open ticket${urgent.length===1?'':'s'} read as urgent`,
-      detail: `Based on the issue description (words like "urgent", "not working", "escalate"${p1Count ? `, or a P1 priority tag (${p1Count})` : ''}), these look like same-day-response tickets — this is a keyword flag on the text, not a confirmed severity call.`,
-      action: `Read the actual issue text before assigning; verify it's really urgent and route accordingly.`,
-      ids: urgent.map(r => r.id),
+      title: `${needsAttention.length} unpicked ticket${needsAttention.length===1?'':'s'} worth triaging now`,
+      detail: `Still in "Yet To Pick" - ${smallOnes.length} read as quick, low-effort closes (short issue description) and ${highRiskOnes.length} read as high-risk (security/data-loss/harassment/safety/legal wording, or a P1 tag) - this is a text/priority heuristic, not a confirmed severity call.`,
+      action: `Clear the quick ones fast, and get the high-risk ones in front of the right owner immediately.`,
+      ids: needsAttention.map(r => r.id),
     });
   }
 
