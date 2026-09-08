@@ -357,6 +357,7 @@
   #pulseView .trend-seg.breached{ background:var(--p-critical); }
   #pulseView .trend-seg.within{ background:var(--p-good); }
   #pulseView .trend-seg.pending{ background:var(--p-baseline); }
+  #pulseView .trend-seg.yettopick{ background:var(--p-warning); }
   #pulseView .trend-seg.top{ border-radius:3px 3px 0 0; }
   #pulseView .trend-col-label{ font-size:11px; color:var(--p-text-muted); margin-top:8px; font-variant-numeric:tabular-nums; }
   #pulseView .trend-col-total{ font-size:12px; font-weight:700; color:var(--p-text-primary); margin-top:1px; }
@@ -755,13 +756,14 @@
             <h2>Daily volume &amp; SLA outcome</h2>
             <span class="section-note">by date raised, within selected window</span>
           </div>
-          <div class="callout" id="pulseTrendCallout"><div class="dot"></div><div>Tickets raised in roughly the last day or two may show as "not yet due" rather than "on time" &mdash; they haven't crossed the SLA window yet.</div></div>
+          <div class="callout" id="pulseTrendCallout"><div class="dot"></div><div>Tickets raised in roughly the last day or two may show as "not yet due" rather than "on time" &mdash; they haven't crossed the SLA window yet. Tickets still sitting in "Yet To Pick" are broken out separately since that's a triage gap, not a timing one.</div></div>
           <div class="p-card">
             <div class="trend-chart" id="pulseTrendChart"></div>
             <div class="legend-row">
               <div class="legend-item"><span class="legend-swatch" style="background:var(--p-critical)"></span>SLA breached</div>
               <div class="legend-item"><span class="legend-swatch" style="background:var(--p-good)"></span>Within SLA</div>
-              <div class="legend-item"><span class="legend-swatch" style="background:var(--p-baseline)"></span>Not yet due / unknown</div>
+              <div class="legend-item"><span class="legend-swatch" style="background:var(--p-baseline)"></span>Not yet due</div>
+              <div class="legend-item"><span class="legend-swatch" style="background:var(--p-warning)"></span>Yet to pick</div>
             </div>
           </div>
         </section>
@@ -802,47 +804,6 @@
             </table>
           </div>
         </section>
-
-        <div class="grid-2">
-          <section>
-            <div class="section-head"><h2>Issue category</h2></div>
-            <div class="p-select-row" style="margin-bottom:12px">
-              <select id="pulseCatUniSelect"></select>
-            </div>
-            <p class="section-desc" id="pulseCatDesc">Ticket count per category, with each category's status breakdown alongside.</p>
-            <div class="p-card table-scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th class="num">#</th>
-                    <th>Category</th>
-                    <th class="num">Total</th>
-                    <th class="num">Status breakdown</th>
-                  </tr>
-                </thead>
-                <tbody id="pulseCatBars"></tbody>
-              </table>
-            </div>
-          </section>
-
-          <section>
-            <div class="section-head"><h2>Owning team</h2></div>
-            <p class="section-desc">How the same window splits across owning teams &mdash; an outsized "Unassigned" row is a triage gap, not a workload one.</p>
-            <div class="p-card table-scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th class="num">#</th>
-                    <th>Team</th>
-                    <th class="num">Total</th>
-                    <th class="num">Status breakdown</th>
-                  </tr>
-                </thead>
-                <tbody id="pulseTeamBars"></tbody>
-              </table>
-            </div>
-          </section>
-        </div>
 
         <section>
           <div class="section-head">
@@ -1860,7 +1821,7 @@ function pulseParseZohoDate(s) {
   return new Date(Date.UTC(yyyy, mm - 1, dd, hh, mi, ss) - (5 * 60 + 30) * 60000);
 }
 
-const pulseState = { from: new Date(), to: new Date(), presetDays: 7, catUni: 'ALL' };
+const pulseState = { from: new Date(), to: new Date(), presetDays: 7 };
 
 function pulseInRange(row) {
   const t = new Date(row.added);
@@ -1998,7 +1959,6 @@ function pulseRenderActionItems(rows) {
   const unassigned = rows.filter(r => r.team === 'Unassigned');
   const unassignedBreached = unassigned.filter(r => r.sla === 'Breached');
   const unassignedWithSla = unassigned.filter(r => r.sla);
-  const stale = open.filter(r => pulseAgeHours(r) > 48);
 
   const catMap = {};
   rows.forEach(r => {
@@ -2026,18 +1986,6 @@ function pulseRenderActionItems(rows) {
     });
   }
 
-  if (unassigned.length > 0) {
-    const uRate = unassignedWithSla.length ? unassignedBreached.length / unassignedWithSla.length * 100 : 0;
-    cards.push({
-      sev: uRate >= 60 || unassigned.length / total > 0.2 ? 'critical' : 'warning',
-      tag: 'Ownership gap',
-      title: `${unassigned.length} ticket${unassigned.length===1?'':'s'} with no owning team`,
-      detail: `That's ${pulseFmtPct(unassigned.length/total*100)} of tickets in this window, breaching SLA at ${pulseFmtPct(uRate)} — the highest rate of any group.`,
-      action: `Set a same-day auto-routing rule so tickets don't sit unassigned; review the queue at end of day.`,
-      ids: unassigned.map(r => r.id),
-    });
-  }
-
   const uniMap = {};
   rows.forEach(r => {
     uniMap[r.uni] = uniMap[r.uni] || { total: 0, open: 0, yetToPick: 0 };
@@ -2057,17 +2005,6 @@ function pulseRenderActionItems(rows) {
     });
   }
 
-  if (stale.length > 0) {
-    cards.push({
-      sev: stale.length / Math.max(open.length,1) > 0.5 ? 'critical' : 'warning',
-      tag: 'Aging',
-      title: `${stale.length} open ticket${stale.length===1?'':'s'} past 48 hours`,
-      detail: `${pulseFmtPct(stale.length / Math.max(open.length,1) * 100)} of everything still open has been sitting for more than two days.`,
-      action: `Add anything crossing 48h to the daily stand-up review — don't let it wait for the weekly cleanup.`,
-      ids: stale.map(r => r.id),
-    });
-  }
-
   const urgent = open.filter(pulseLooksUrgent);
   if (urgent.length > 0) {
     const p1Count = urgent.filter(r => (r.priority || '').toUpperCase() === 'P1').length;
@@ -2078,6 +2015,18 @@ function pulseRenderActionItems(rows) {
       detail: `Based on the issue description (words like "urgent", "not working", "escalate"${p1Count ? `, or a P1 priority tag (${p1Count})` : ''}), these look like same-day-response tickets — this is a keyword flag on the text, not a confirmed severity call.`,
       action: `Read the actual issue text before assigning; verify it's really urgent and route accordingly.`,
       ids: urgent.map(r => r.id),
+    });
+  }
+
+  if (unassigned.length > 0) {
+    const uRate = unassignedWithSla.length ? unassignedBreached.length / unassignedWithSla.length * 100 : 0;
+    cards.push({
+      sev: uRate >= 60 || unassigned.length / total > 0.2 ? 'critical' : 'warning',
+      tag: 'Ownership gap',
+      title: `${unassigned.length} ticket${unassigned.length===1?'':'s'} with no owning team`,
+      detail: `That's ${pulseFmtPct(unassigned.length/total*100)} of tickets in this window, breaching SLA at ${pulseFmtPct(uRate)} — the highest rate of any group.`,
+      action: `Set a same-day auto-routing rule so tickets don't sit unassigned; review the queue at end of day.`,
+      ids: unassigned.map(r => r.id),
     });
   }
 
@@ -2207,10 +2156,16 @@ function pulseRenderTrend(rows) {
   const byDay = {};
   rows.forEach(r => {
     const day = r.added.slice(0,10);
-    byDay[day] = byDay[day] || { total: 0, breached: 0, within: 0, pending: 0 };
+    byDay[day] = byDay[day] || { total: 0, breached: 0, within: 0, pending: 0, yettopick: 0 };
     byDay[day].total++;
+    // Zoho leaves sla_breach_status blank for two very different reasons -
+    // a ticket still sitting in "Yet To Pick" (a triage gap) vs. one that's
+    // simply too new for the SLA clock to have posted a verdict yet ("not
+    // yet due"). Lumping both into one "pending" bucket hid which of the
+    // two was actually driving it, so split on ticket status first.
     if (r.sla === 'Breached') byDay[day].breached++;
     else if (r.sla === 'Within SLA') byDay[day].within++;
+    else if (r.status === 'Yet To Pick') byDay[day].yettopick++;
     else byDay[day].pending++;
   });
   const days = Object.keys(byDay).sort();
@@ -2223,17 +2178,20 @@ function pulseRenderTrend(rows) {
     const bH = segHeight(v.breached);
     const wH = segHeight(v.within);
     const pH = segHeight(v.pending);
+    const yH = segHeight(v.yettopick);
     const label = pulseFmtDate(new Date(d + 'T00:00:00'));
-    // Visual stacking (bottom -> top, via column-reverse) is pending / within /
-    // breached - round the top corners of whichever of those is actually the
-    // topmost segment with height > 0, rather than assuming it's always
-    // "breached" (a day with zero breaches otherwise gets a flat-cut top edge).
-    const topSeg = bH > 0 ? 'breached' : (wH > 0 ? 'within' : 'pending');
+    // Visual stacking (bottom -> top, via column-reverse) is yettopick /
+    // pending / within / breached - round the top corners of whichever of
+    // those is actually the topmost segment with height > 0, rather than
+    // assuming it's always "breached" (a day with zero breaches otherwise
+    // gets a flat-cut top edge).
+    const topSeg = bH > 0 ? 'breached' : (wH > 0 ? 'within' : (pH > 0 ? 'pending' : 'yettopick'));
     const cls = (name) => `trend-seg ${name}${name === topSeg ? ' top' : ''}`;
     return `
       <div class="trend-col">
         <div class="trend-col-total">${v.total}</div>
         <div class="trend-bar-track" style="height:${h}px">
+          <div class="${cls('yettopick')}" style="height:${yH}px"></div>
           <div class="${cls('pending')}" style="height:${pH}px"></div>
           <div class="${cls('within')}" style="height:${wH}px"></div>
           <div class="${cls('breached')}" style="height:${bH}px"></div>
@@ -2393,68 +2351,6 @@ function pulseRenderUniversities(rows) {
     </tr>`).join('');
 }
 
-// ---- Category breakdown, filterable by university ----
-function pulseInitCatSelect() {
-  const sel = document.getElementById('pulseCatUniSelect');
-  sel.innerHTML = `<option value="ALL">All universities</option>` +
-    pulseUNIVERSITIES.map(u => `<option value="${esc(u)}">${esc(u)}</option>`).join('');
-  sel.addEventListener('change', () => { pulseState.catUni = sel.value; pulseRenderCategory(pulseFilteredRows()); });
-}
-
-function pulseRenderCategory(rows) {
-  const scoped = pulseState.catUni === 'ALL' ? rows : rows.filter(r => r.uni === pulseState.catUni);
-  const descEl = document.getElementById('pulseCatDesc');
-  descEl.textContent = pulseState.catUni === 'ALL'
-    ? 'Ticket count per category across all universities in this window, with each category\'s status breakdown alongside.'
-    : `Ticket count per category for ${pulseState.catUni}, with each category's status breakdown alongside.`;
-
-  const el = document.getElementById('pulseCatBars');
-  if (scoped.length === 0) { el.innerHTML = '<tr><td colspan="4" class="empty-state">No tickets for this selection.</td></tr>'; return; }
-
-  const map = {};
-  scoped.forEach(r => {
-    map[r.cat] = map[r.cat] || { total: 0, yetToPick: 0, inProgress: 0, awaiting: 0 };
-    map[r.cat].total++;
-    if (r.status === 'Yet To Pick') map[r.cat].yetToPick++;
-    if (r.status === 'In Progress') map[r.cat].inProgress++;
-    if (r.status === 'Awaiting Instructors Response') map[r.cat].awaiting++;
-  });
-  const rows2 = Object.entries(map).map(([name, v]) => ({ name, ...v })).sort((a,b) => b.total - a.total);
-
-  el.innerHTML = rows2.map((r,i) => `
-    <tr>
-      <td class="rank">${i+1}</td>
-      <td title="${esc(r.name)}">${esc(r.name)}</td>
-      <td class="num">${r.total}</td>
-      <td class="num">${pulseStatusCountsHTML(r)}</td>
-    </tr>`).join('');
-}
-
-// ---- Team breakdown ----
-function pulseRenderTeam(rows) {
-  const el = document.getElementById('pulseTeamBars');
-  if (rows.length === 0) { el.innerHTML = '<tr><td colspan="4" class="empty-state">No tickets in this window.</td></tr>'; return; }
-  const map = {};
-  rows.forEach(r => {
-    map[r.team] = map[r.team] || { total: 0, yetToPick: 0, inProgress: 0, awaiting: 0 };
-    map[r.team].total++;
-    if (r.status === 'Yet To Pick') map[r.team].yetToPick++;
-    if (r.status === 'In Progress') map[r.team].inProgress++;
-    if (r.status === 'Awaiting Instructors Response') map[r.team].awaiting++;
-  });
-  const list = Object.entries(map).map(([name, v]) => ({ name, ...v })).sort((a,b) => b.total - a.total);
-  el.innerHTML = list.map((r,i) => {
-    const isUnassigned = r.name === 'Unassigned';
-    return `
-    <tr>
-      <td class="rank">${i+1}</td>
-      <td style="${isUnassigned ? 'color:var(--p-critical);font-weight:600' : ''}" title="${esc(r.name)}">${esc(r.name)}</td>
-      <td class="num">${r.total}</td>
-      <td class="num">${pulseStatusCountsHTML(r)}</td>
-    </tr>`;
-  }).join('');
-}
-
 // ---- Oldest open tickets ----
 function pulseRenderOldest(rows) {
   const el = document.getElementById('pulseOldestTable');
@@ -2485,8 +2381,6 @@ function pulseRenderAll() {
   pulseRenderTrend(rows);
   pulseRenderStatusBreakdown(rows);
   pulseRenderUniversities(rows);
-  pulseRenderCategory(rows);
-  pulseRenderTeam(rows);
   pulseRenderOldest(rows);
 }
 
@@ -2509,7 +2403,6 @@ async function pulseBoot() {
     loadingEl.style.display = 'none';
 
     pulseInitRangeBar();
-    pulseInitCatSelect();
     pulseRenderAll();
   } catch (err) {
     loadingEl.textContent = `Couldn't load live ticket data: ${err.message}`;
