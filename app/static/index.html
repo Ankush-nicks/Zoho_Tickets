@@ -1932,14 +1932,32 @@ function pulseUniFuzzyTier(rawName) {
   return bestList[0];
 }
 
-const pulseUniStateCache = {};
-function pulseUniState(rawName) {
-  if (!rawName || rawName === 'Unknown') return 'Other';
-  if (pulseUniStateCache[rawName] !== undefined) return pulseUniStateCache[rawName];
+// Single memoized lookup shared by pulseUniState() and pulseUniCanonicalName()
+// below, so each raw Zoho string only runs the two-tier match once.
+const pulseUniMatchCache = {};
+function pulseUniMatch(rawName) {
+  if (!rawName || rawName === 'Unknown') return null;
+  if (pulseUniMatchCache[rawName] !== undefined) return pulseUniMatchCache[rawName];
   const hit = pulseUniExactTier(rawName) || pulseUniFuzzyTier(rawName);
-  const state = hit ? hit.state : 'Other';
-  pulseUniStateCache[rawName] = state;
-  return state;
+  pulseUniMatchCache[rawName] = hit;
+  return hit;
+}
+
+function pulseUniState(rawName) {
+  const hit = pulseUniMatch(rawName);
+  return hit ? hit.state : 'Other';
+}
+
+// Collapses every raw Zoho variant of one university (different city tags,
+// nicknames, encoding glitches) onto the CSV's one canonical name, so e.g.
+// "Aurora Deemed University" and "Aurora Deemed University - Bhuvangiri"
+// count as the same university everywhere instead of two separate rows.
+// Falls back to the raw string itself when nothing matches, so genuinely
+// unrecognized names still show up (just ungrouped) rather than vanishing.
+function pulseUniCanonicalName(rawName) {
+  if (!rawName) return 'Unknown';
+  const hit = pulseUniMatch(rawName);
+  return hit ? hit.name : rawName;
 }
 
 function pulseFmtPct(n) { return Math.round(n) + '%'; }
@@ -1988,7 +2006,7 @@ function pulseMapTicket(t) {
   const ticketStatus = rp.ticket_status || null;
   return {
     id: t.zoho_ticket_id || t.ticket_id,
-    uni: rp.university_boa || rp.university || 'Unknown',
+    uni: pulseUniCanonicalName(rp.university_boa || rp.university || 'Unknown'),
     cat: rp.category_of_the_issue || t.zoho_category || t.category_group_name || 'Uncategorized',
     sub: rp.sub_category_of_the_issue || t.zoho_subcategory || t.category_name || 'Uncategorized',
     status: ticketStatus || 'Unknown',
