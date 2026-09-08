@@ -882,9 +882,10 @@
         <div class="empty-state" id="taxoLoadingState">Loading taxonomy&hellip;</div>
 
         <div class="taxo-toolbar" id="taxoToolbar" style="display:none;">
-          <button class="taxo-btn" onclick="taxoAddCategory()">+ Add category</button>
-          <span class="taxo-status" id="taxoStatus">All changes saved</span>
-          <button class="taxo-btn primary" id="taxoSaveBtn" onclick="taxoSave()" disabled>Save changes</button>
+          <button class="taxo-btn" id="taxoAddCatBtn" onclick="taxoAddCategory()" style="display:none;">+ Add category</button>
+          <button class="taxo-btn" id="taxoUnlockBtn" onclick="taxoUnlock()">&#128274; Unlock to edit</button>
+          <span class="taxo-status" id="taxoStatus">Read-only &mdash; unlock to edit</span>
+          <button class="taxo-btn primary" id="taxoSaveBtn" onclick="taxoSave()" disabled style="display:none;">Save changes</button>
         </div>
 
         <div class="taxo-table-wrap" id="taxoTableWrap" style="display:none;">
@@ -2525,6 +2526,14 @@ async function pulseBoot() {
 let taxoLoadedOnce = false;
 let taxoState = null;   // { version, categories: [...] }
 let taxoDirty = false;
+// Second gate in front of this tab, separate from the app login - stays
+// false until the correct password is entered via taxoUnlock(). The
+// password itself lives only in this in-memory variable (never persisted
+// to disk/localStorage) and is resent with every save; the server checks
+// it again on every PUT /api/taxonomy, so this client-side flag is a UX
+// convenience, not the actual security boundary.
+let taxoUnlocked = false;
+let taxoPassword = null;
 
 function taxoSetStatus(text, cls) {
   const el = document.getElementById('taxoStatus');
@@ -2533,9 +2542,40 @@ function taxoSetStatus(text, cls) {
 }
 
 function taxoMarkDirty() {
+  if (!taxoUnlocked) return;
   taxoDirty = true;
   document.getElementById('taxoSaveBtn').disabled = false;
   taxoSetStatus('Unsaved changes', 'dirty');
+}
+
+async function taxoUnlock() {
+  const password = prompt('Enter password to unlock taxonomy editing:');
+  if (!password) return;
+  const btn = document.getElementById('taxoUnlockBtn');
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/taxonomy/unlock', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
+    });
+    if (res.status === 401) { window.location = '/login'; return; }
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.detail || 'Incorrect password.');
+    }
+    taxoUnlocked = true;
+    taxoPassword = password;
+    document.getElementById('taxoUnlockBtn').style.display = 'none';
+    document.getElementById('taxoAddCatBtn').style.display = '';
+    document.getElementById('taxoSaveBtn').style.display = '';
+    taxoSetStatus('All changes saved', 'saved');
+    taxoRender();
+  } catch (err) {
+    alert(err.message);
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 function taxoUpdateCountMeta() {
@@ -2560,45 +2600,57 @@ function taxoCategoryOptionsHTML(selectedCatId) {
 
 function taxoSubRowHTML(sub) {
   const examplesText = (sub.examples || []).join('\n');
+  const ce = taxoUnlocked ? 'true' : 'false';
+  const dis = taxoUnlocked ? '' : 'disabled';
+  const delBtn = taxoUnlocked
+    ? `<button class="taxo-del-btn" title="Delete subcategory" onclick="taxoDeleteSubcategory('${esc(sub.id)}')">&times;</button>`
+    : '';
   return `
     <tr class="taxo-row" data-sub="${esc(sub.id)}">
-      <td><select class="taxo-cat-select" onchange="taxoReassignCategory('${esc(sub.id)}', this.value)">${taxoCategoryOptionsHTML(taxoFindSub(sub.id).cat.id)}</select></td>
+      <td><select class="taxo-cat-select" ${dis} onchange="taxoReassignCategory('${esc(sub.id)}', this.value)">${taxoCategoryOptionsHTML(taxoFindSub(sub.id).cat.id)}</select></td>
       <td class="taxo-id-cell">${esc(sub.id)}</td>
-      <td class="taxo-name-cell"><div contenteditable="true" data-sub="${esc(sub.id)}" data-field="name" onblur="taxoFieldEdit(this)">${esc(sub.name)}</div></td>
-      <td><div contenteditable="true" data-sub="${esc(sub.id)}" data-field="description" onblur="taxoFieldEdit(this)">${esc(sub.description || '')}</div></td>
-      <td><div contenteditable="true" data-sub="${esc(sub.id)}" data-field="assigned_team" onblur="taxoFieldEdit(this)">${esc(sub.assigned_team || '')}</div></td>
-      <td><div contenteditable="true" data-sub="${esc(sub.id)}" data-field="poc_primary" onblur="taxoFieldEdit(this)">${esc(sub.poc_primary || '')}</div></td>
-      <td><div contenteditable="true" data-sub="${esc(sub.id)}" data-field="poc_cc" onblur="taxoFieldEdit(this)">${esc(sub.poc_cc || '')}</div></td>
-      <td class="num"><input class="taxo-num-input" type="number" value="${sub.ticket_volume ?? ''}" data-sub="${esc(sub.id)}" data-field="ticket_volume" onblur="taxoFieldEdit(this)"></td>
-      <td><div contenteditable="true" data-sub="${esc(sub.id)}" data-field="data_coverage" onblur="taxoFieldEdit(this)">${esc(sub.data_coverage || '')}</div></td>
-      <td><div contenteditable="true" data-sub="${esc(sub.id)}" data-field="examples" onblur="taxoFieldEdit(this)">${esc(examplesText)}</div></td>
-      <td><button class="taxo-del-btn" title="Delete subcategory" onclick="taxoDeleteSubcategory('${esc(sub.id)}')">&times;</button></td>
+      <td class="taxo-name-cell"><div contenteditable="${ce}" data-sub="${esc(sub.id)}" data-field="name" onblur="taxoFieldEdit(this)">${esc(sub.name)}</div></td>
+      <td><div contenteditable="${ce}" data-sub="${esc(sub.id)}" data-field="description" onblur="taxoFieldEdit(this)">${esc(sub.description || '')}</div></td>
+      <td><div contenteditable="${ce}" data-sub="${esc(sub.id)}" data-field="assigned_team" onblur="taxoFieldEdit(this)">${esc(sub.assigned_team || '')}</div></td>
+      <td><div contenteditable="${ce}" data-sub="${esc(sub.id)}" data-field="poc_primary" onblur="taxoFieldEdit(this)">${esc(sub.poc_primary || '')}</div></td>
+      <td><div contenteditable="${ce}" data-sub="${esc(sub.id)}" data-field="poc_cc" onblur="taxoFieldEdit(this)">${esc(sub.poc_cc || '')}</div></td>
+      <td class="num"><input class="taxo-num-input" type="number" ${dis} value="${sub.ticket_volume ?? ''}" data-sub="${esc(sub.id)}" data-field="ticket_volume" onblur="taxoFieldEdit(this)"></td>
+      <td><div contenteditable="${ce}" data-sub="${esc(sub.id)}" data-field="data_coverage" onblur="taxoFieldEdit(this)">${esc(sub.data_coverage || '')}</div></td>
+      <td><div contenteditable="${ce}" data-sub="${esc(sub.id)}" data-field="examples" onblur="taxoFieldEdit(this)">${esc(examplesText)}</div></td>
+      <td>${delBtn}</td>
     </tr>`;
 }
 
 function taxoRender() {
   const body = document.getElementById('taxoTableBody');
+  const ce = taxoUnlocked ? 'true' : 'false';
   let html = '';
   taxoState.categories.forEach(cat => {
+    const catDelBtn = taxoUnlocked
+      ? `<button class="taxo-del-btn" title="Delete category" onclick="taxoDeleteCategory('${esc(cat.id)}')" style="float:right">&times;</button>`
+      : '';
     html += `
       <tr class="taxo-cat-row">
         <td colspan="11">
           <span class="taxo-cat-id">${esc(cat.id)}</span>
-          <span contenteditable="true" data-cat="${esc(cat.id)}" data-field="__catname" onblur="taxoFieldEdit(this)">${esc(cat.name)}</span>
-          <button class="taxo-del-btn" title="Delete category" onclick="taxoDeleteCategory('${esc(cat.id)}')" style="float:right">&times;</button>
+          <span contenteditable="${ce}" data-cat="${esc(cat.id)}" data-field="__catname" onblur="taxoFieldEdit(this)">${esc(cat.name)}</span>
+          ${catDelBtn}
         </td>
       </tr>`;
     (cat.subcategories || []).forEach(sub => { html += taxoSubRowHTML(sub); });
-    html += `
-      <tr class="taxo-add-row">
-        <td colspan="11"><span class="taxo-add-link" onclick="taxoAddSubcategory('${esc(cat.id)}')">+ add subcategory to ${esc(cat.name)}</span></td>
-      </tr>`;
+    if (taxoUnlocked) {
+      html += `
+        <tr class="taxo-add-row">
+          <td colspan="11"><span class="taxo-add-link" onclick="taxoAddSubcategory('${esc(cat.id)}')">+ add subcategory to ${esc(cat.name)}</span></td>
+        </tr>`;
+    }
   });
   body.innerHTML = html;
   taxoUpdateCountMeta();
 }
 
 function taxoFieldEdit(el) {
+  if (!taxoUnlocked) return;
   const field = el.dataset.field;
   if (field === '__catname') {
     const cat = taxoState.categories.find(c => c.id === el.dataset.cat);
@@ -2626,6 +2678,7 @@ function taxoFieldEdit(el) {
 }
 
 function taxoReassignCategory(subId, newCatId) {
+  if (!taxoUnlocked) return;
   const found = taxoFindSub(subId);
   if (!found || found.cat.id === newCatId) return;
   const newCat = taxoState.categories.find(c => c.id === newCatId);
@@ -2644,6 +2697,7 @@ function taxoNextCategoryId() {
 }
 
 function taxoAddCategory() {
+  if (!taxoUnlocked) return;
   const name = prompt('New category name:');
   if (!name || !name.trim()) return;
   const id = taxoNextCategoryId();
@@ -2653,6 +2707,7 @@ function taxoAddCategory() {
 }
 
 function taxoDeleteCategory(catId) {
+  if (!taxoUnlocked) return;
   const cat = taxoState.categories.find(c => c.id === catId);
   if (!cat) return;
   const subCount = (cat.subcategories || []).length;
@@ -2672,6 +2727,7 @@ function taxoNextSubId(cat) {
 }
 
 function taxoAddSubcategory(catId) {
+  if (!taxoUnlocked) return;
   const cat = taxoState.categories.find(c => c.id === catId);
   if (!cat) return;
   cat.subcategories = cat.subcategories || [];
@@ -2696,6 +2752,7 @@ function taxoAddSubcategory(catId) {
 }
 
 function taxoDeleteSubcategory(subId) {
+  if (!taxoUnlocked) return;
   const found = taxoFindSub(subId);
   if (!found) return;
   if (!confirm(`Delete subcategory ${subId} (${found.sub.name})? This can't be undone once saved.`)) return;
@@ -2705,13 +2762,14 @@ function taxoDeleteSubcategory(subId) {
 }
 
 async function taxoSave() {
+  if (!taxoUnlocked) return;
   const btn = document.getElementById('taxoSaveBtn');
   btn.disabled = true;
   taxoSetStatus('Saving…');
   try {
     const res = await fetch('/api/taxonomy', {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Taxonomy-Password': taxoPassword || '' },
       body: JSON.stringify(taxoState),
     });
     if (res.status === 401) { window.location = '/login'; return; }
@@ -2722,6 +2780,17 @@ async function taxoSave() {
     taxoSetStatus('All changes saved', 'saved');
     taxoRender();
   } catch (err) {
+    if (String(err.message).toLowerCase().includes('locked')) {
+      // Server no longer accepts our remembered password (e.g. it was
+      // changed server-side) - drop back to read-only and make the user
+      // re-unlock rather than silently failing on every future edit.
+      taxoUnlocked = false;
+      taxoPassword = null;
+      document.getElementById('taxoUnlockBtn').style.display = '';
+      document.getElementById('taxoAddCatBtn').style.display = 'none';
+      document.getElementById('taxoSaveBtn').style.display = 'none';
+      taxoRender();
+    }
     taxoSetStatus(`Save failed: ${err.message}`, 'error');
     btn.disabled = false;
   }

@@ -23,6 +23,7 @@ from .models import (
     ClarificationResponse,
     CorrectionRequest,
     TicketStateResponse,
+    TaxonomyUnlockRequest,
 )
 
 app = FastAPI(title="Ticket Classifier", version="0.1.0")
@@ -126,8 +127,25 @@ def get_taxonomy(user: str = Depends(require_login)):
     return {"version": taxonomy.version, "categories": taxonomy.groups}
 
 
+@app.post("/api/taxonomy/unlock")
+def unlock_taxonomy(req: TaxonomyUnlockRequest, user: str = Depends(require_login)):
+    """
+    Second gate in front of the Taxonomy tab's editor - separate from the
+    app-wide login. Checked here for immediate "Unlock to edit" UI feedback;
+    checked again on every PUT /api/taxonomy below since this endpoint alone
+    can't stop someone from calling the save endpoint directly.
+    """
+    if not secrets.compare_digest(req.password, config.TAXONOMY_EDIT_PASSWORD):
+        raise HTTPException(403, "Incorrect password.")
+    return {"ok": True}
+
+
 @app.put("/api/taxonomy")
-def update_taxonomy(payload: dict, user: str = Depends(require_login)):
+def update_taxonomy(
+    payload: dict,
+    user: str = Depends(require_login),
+    x_taxonomy_password: str | None = Header(None),
+):
     """
     Full-replace save for the Taxonomy tab's editor - payload is the same
     {version, categories: [...]} shape GET /api/taxonomy returns, since the
@@ -136,7 +154,16 @@ def update_taxonomy(payload: dict, user: str = Depends(require_login)):
     data (missing ids/names, duplicate ids) with a 400 before writing
     anything; a valid payload is written to taxonomy.json and hot-reloaded,
     so classify()/grade_resolution() see it immediately, no restart needed.
+
+    Requires the taxonomy-edit password on every call (X-Taxonomy-Password
+    header), not just at "Unlock to edit" time - the browser holds it in
+    memory only after a successful unlock and resends it here, so a request
+    made straight against the API without the password is rejected too.
     """
+    if not x_taxonomy_password or not secrets.compare_digest(
+        x_taxonomy_password, config.TAXONOMY_EDIT_PASSWORD
+    ):
+        raise HTTPException(403, "Taxonomy editing is locked - incorrect or missing password.")
     try:
         taxonomy.save(payload)
     except ValueError as e:

@@ -93,6 +93,13 @@ TAXONOMY_PATH = BASE_DIR / "taxonomy.json"
 ADMIN_USERNAME = _env("ADMIN_USERNAME", "admin")
 ADMIN_PASSWORD = _env("ADMIN_PASSWORD", "admin")
 
+# Second gate in front of the Taxonomy tab specifically - everyone logged
+# into the app can view it, but editing/saving needs this password too
+# (checked both at the "Unlock to edit" prompt and again on every PUT
+# /api/taxonomy, so the second check can't be skipped by calling the API
+# directly). Set in .env for anything beyond local/dev use.
+TAXONOMY_EDIT_PASSWORD = _env("TAXONOMY_EDIT_PASSWORD", "changeme")
+
 # Signs the session cookie. Not a config value - generated once and cached on
 # disk (outside git) so logins survive restarts but nothing secret is checked in.
 _SESSION_SECRET_PATH = DATA_DIR / ".session_secret"

@@ -6,6 +6,10 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class TaxonomyUnlockRequest(BaseModel):
+    password: str
+
+
 class NewTicketRequest(BaseModel):
     text: str
 
