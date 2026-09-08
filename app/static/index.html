@@ -800,6 +800,7 @@
               <button class="range-btn" data-mode="team" onclick="pulseSetUniViewMode('team')" type="button">Team wise</button>
             </div>
             <select id="pulseUniStateSelect"></select>
+            <button class="p-download-link" onclick="pulseDownloadUniTableCsv()">&darr; Download CSV</button>
           </div>
           <div class="p-card table-scroll">
             <table class="uni-table">
@@ -2530,32 +2531,14 @@ function pulseInitUniStateSelect() {
   sel.addEventListener('change', () => { pulseUniStateFilter = sel.value; pulseRenderUniTable(); });
 }
 
-// Same 8 columns in both modes (only the name column's label/grouping key
-// and the state filter differ) so switching University wise <-> Team wise
-// never reflows the table's shape.
-function pulseRenderUniTable() {
-  const theadEl = document.getElementById('pulseUniTableHead');
-  const tbodyEl = document.getElementById('pulseUniTable');
-  const rows = pulseUniLastRows;
+// Grouped rows for whatever the toggle/state-filter is currently set to -
+// shared by pulseRenderUniTable() and pulseDownloadUniTableCsv() so the
+// downloaded CSV always matches exactly what's on screen.
+function pulseUniTableList() {
   const isTeam = pulseUniViewMode === 'team';
-
-  theadEl.innerHTML = `<tr>
-    <th class="num" style="width:40px">#</th>
-    <th>${isTeam ? 'Team' : 'University'}</th>
-    <th class="num" style="width:118px">Total tickets</th>
-    <th class="num" style="width:80px">Open</th>
-    <th class="num" style="width:100px">Yet to pick</th>
-    <th class="num" style="width:100px">In progress</th>
-    <th class="num" style="width:100px">Awaiting IR</th>
-    <th class="num" style="width:90px">Discarded</th>
-  </tr>`;
-  if (rows.length === 0) { tbodyEl.innerHTML = '<tr><td colspan="8" class="empty-state">No tickets in this window.</td></tr>'; return; }
-
   const scoped = (!isTeam && pulseUniStateFilter !== 'ALL')
-    ? rows.filter(r => pulseUniState(r.uni) === pulseUniStateFilter)
-    : rows;
-  if (scoped.length === 0) { tbodyEl.innerHTML = '<tr><td colspan="8" class="empty-state">No universities in this state for the selected window.</td></tr>'; return; }
-
+    ? pulseUniLastRows.filter(r => pulseUniState(r.uni) === pulseUniStateFilter)
+    : pulseUniLastRows;
   const map = {};
   scoped.forEach(r => {
     const key = isTeam ? r.team : r.uni;
@@ -2568,7 +2551,31 @@ function pulseRenderUniTable() {
     if (r.status === 'Awaiting Instructors Response') m.awaiting++;
     if (r.status === 'Discard') m.discarded++;
   });
-  const list = Object.entries(map).map(([name, v]) => ({ name, ...v })).sort((a,b) => b.open - a.open);
+  return Object.entries(map).map(([name, v]) => ({ name, ...v })).sort((a,b) => b.open - a.open);
+}
+
+// Same 8 columns in both modes (only the name column's label/grouping key
+// and the state filter differ) so switching University wise <-> Team wise
+// never reflows the table's shape.
+function pulseRenderUniTable() {
+  const theadEl = document.getElementById('pulseUniTableHead');
+  const tbodyEl = document.getElementById('pulseUniTable');
+  const isTeam = pulseUniViewMode === 'team';
+
+  theadEl.innerHTML = `<tr>
+    <th class="num" style="width:40px">#</th>
+    <th>${isTeam ? 'Team' : 'University'}</th>
+    <th class="num" style="width:118px">Total tickets</th>
+    <th class="num" style="width:80px">Open</th>
+    <th class="num" style="width:100px">Yet to pick</th>
+    <th class="num" style="width:100px">In progress</th>
+    <th class="num" style="width:100px">Awaiting IR</th>
+    <th class="num" style="width:90px">Discarded</th>
+  </tr>`;
+  if (pulseUniLastRows.length === 0) { tbodyEl.innerHTML = '<tr><td colspan="8" class="empty-state">No tickets in this window.</td></tr>'; return; }
+
+  const list = pulseUniTableList();
+  if (list.length === 0) { tbodyEl.innerHTML = '<tr><td colspan="8" class="empty-state">No universities in this state for the selected window.</td></tr>'; return; }
 
   tbodyEl.innerHTML = list.map((u,i) => {
     const isUnassignedTeam = isTeam && u.name === 'Unassigned';
@@ -2584,6 +2591,32 @@ function pulseRenderUniTable() {
       <td class="num">${u.discarded}</td>
     </tr>`;
   }).join('');
+}
+
+function pulseDownloadUniTableCsv() {
+  const isTeam = pulseUniViewMode === 'team';
+  const list = pulseUniTableList();
+  const header = [
+    isTeam ? 'Team' : 'University', 'Total Tickets', 'Open', 'Yet To Pick',
+    'In Progress', 'Awaiting Instructors Response', 'Discarded',
+  ];
+  const lines = [header.map(pulseCsvEscape).join(',')];
+  list.forEach(u => {
+    lines.push([u.name, u.total, u.open, u.yetToPick, u.inProgress, u.awaiting, u.discarded].map(pulseCsvEscape).join(','));
+  });
+
+  const blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const scopePart = isTeam
+    ? 'teams'
+    : `universities-${pulseUniStateFilter === 'ALL' ? 'all-states' : pulseUniStateFilter.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+  a.download = `${scopePart}_${pulseIsoDate(pulseState.from)}_to_${pulseIsoDate(pulseState.to)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 // ---- Oldest open tickets ----
