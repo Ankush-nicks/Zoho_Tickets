@@ -393,6 +393,13 @@
   #pulseView tr:last-child td, #statsView tr:last-child td{ border-bottom:none; }
   #pulseView td.num, #pulseView th.num, #statsView td.num, #statsView th.num{ text-align:right; font-variant-numeric:tabular-nums; }
   #pulseView .p-subtext, #statsView .p-subtext{ color:var(--p-text-muted); font-size:11.5px; }
+  /* Fixed layout so the column widths never reflow between University wise
+     and Team wise (same 8 columns either way) - the name column takes
+     whatever width is left over after the numeric columns' explicit widths,
+     truncating long names with an ellipsis instead of forcing the table
+     wider than its container. */
+  #pulseView table.uni-table{ table-layout:fixed; }
+  #pulseView table.uni-table td, #pulseView table.uni-table th{ overflow:hidden; text-overflow:ellipsis; }
   #pulseView .status-count-group, #statsView .status-count-group{ display:inline-flex; gap:4px; flex-wrap:wrap; justify-content:flex-end; }
   #pulseView .status-count, #statsView .status-count{ display:inline-block; padding:1px 5px; border-radius:4px; font-size:10.5px; font-weight:600; background:var(--p-surface-2); color:var(--p-text-secondary); white-space:nowrap; }
 
@@ -795,7 +802,7 @@
             <select id="pulseUniStateSelect"></select>
           </div>
           <div class="p-card table-scroll">
-            <table>
+            <table class="uni-table">
               <thead id="pulseUniTableHead"></thead>
               <tbody id="pulseUniTable"></tbody>
             </table>
@@ -2523,80 +2530,60 @@ function pulseInitUniStateSelect() {
   sel.addEventListener('change', () => { pulseUniStateFilter = sel.value; pulseRenderUniTable(); });
 }
 
+// Same 8 columns in both modes (only the name column's label/grouping key
+// and the state filter differ) so switching University wise <-> Team wise
+// never reflows the table's shape.
 function pulseRenderUniTable() {
   const theadEl = document.getElementById('pulseUniTableHead');
   const tbodyEl = document.getElementById('pulseUniTable');
   const rows = pulseUniLastRows;
-
-  if (pulseUniViewMode === 'team') {
-    theadEl.innerHTML = `<tr>
-      <th class="num">#</th>
-      <th>Team</th>
-      <th class="num">Total</th>
-      <th class="num">Status breakdown</th>
-    </tr>`;
-    if (rows.length === 0) { tbodyEl.innerHTML = '<tr><td colspan="4" class="empty-state">No tickets in this window.</td></tr>'; return; }
-    const map = {};
-    rows.forEach(r => {
-      map[r.team] = map[r.team] || { total: 0, yetToPick: 0, inProgress: 0, awaiting: 0 };
-      map[r.team].total++;
-      if (r.status === 'Yet To Pick') map[r.team].yetToPick++;
-      if (r.status === 'In Progress') map[r.team].inProgress++;
-      if (r.status === 'Awaiting Instructors Response') map[r.team].awaiting++;
-    });
-    const list = Object.entries(map).map(([name, v]) => ({ name, ...v })).sort((a,b) => b.total - a.total);
-    tbodyEl.innerHTML = list.map((r,i) => {
-      const isUnassigned = r.name === 'Unassigned';
-      return `
-      <tr>
-        <td class="rank">${i+1}</td>
-        <td style="${isUnassigned ? 'color:var(--p-critical);font-weight:600' : ''}" title="${esc(r.name)}">${esc(r.name)}</td>
-        <td class="num">${r.total}</td>
-        <td class="num">${pulseStatusCountsHTML(r)}</td>
-      </tr>`;
-    }).join('');
-    return;
-  }
+  const isTeam = pulseUniViewMode === 'team';
 
   theadEl.innerHTML = `<tr>
-    <th class="num">#</th>
-    <th>University</th>
-    <th>State</th>
-    <th class="num">Total</th>
-    <th class="num">Open</th>
-    <th class="num">Yet to pick</th>
-    <th class="num">Unassigned</th>
-    <th class="num">Status breakdown</th>
+    <th class="num" style="width:40px">#</th>
+    <th>${isTeam ? 'Team' : 'University'}</th>
+    <th class="num" style="width:118px">Total tickets</th>
+    <th class="num" style="width:80px">Open</th>
+    <th class="num" style="width:100px">Yet to pick</th>
+    <th class="num" style="width:100px">In progress</th>
+    <th class="num" style="width:100px">Awaiting IR</th>
+    <th class="num" style="width:90px">Discarded</th>
   </tr>`;
   if (rows.length === 0) { tbodyEl.innerHTML = '<tr><td colspan="8" class="empty-state">No tickets in this window.</td></tr>'; return; }
 
-  const scoped = pulseUniStateFilter === 'ALL' ? rows : rows.filter(r => pulseUniState(r.uni) === pulseUniStateFilter);
+  const scoped = (!isTeam && pulseUniStateFilter !== 'ALL')
+    ? rows.filter(r => pulseUniState(r.uni) === pulseUniStateFilter)
+    : rows;
   if (scoped.length === 0) { tbodyEl.innerHTML = '<tr><td colspan="8" class="empty-state">No universities in this state for the selected window.</td></tr>'; return; }
 
   const map = {};
   scoped.forEach(r => {
-    map[r.uni] = map[r.uni] || { total: 0, open: 0, yetToPick: 0, inProgress: 0, awaiting: 0, unassigned: 0 };
-    const m = map[r.uni];
+    const key = isTeam ? r.team : r.uni;
+    map[key] = map[key] || { total: 0, open: 0, yetToPick: 0, inProgress: 0, awaiting: 0, discarded: 0 };
+    const m = map[key];
     m.total++;
     if (r.open) m.open++;
     if (r.status === 'Yet To Pick') m.yetToPick++;
     if (r.status === 'In Progress') m.inProgress++;
     if (r.status === 'Awaiting Instructors Response') m.awaiting++;
-    if (r.team === 'Unassigned') m.unassigned++;
+    if (r.status === 'Discard') m.discarded++;
   });
-  const list = Object.entries(map).map(([name, v]) => ({ name, ...v, state: pulseUniState(name) })).sort((a,b) => b.open - a.open);
+  const list = Object.entries(map).map(([name, v]) => ({ name, ...v })).sort((a,b) => b.open - a.open);
 
-  tbodyEl.innerHTML = list.map((u,i) => `
+  tbodyEl.innerHTML = list.map((u,i) => {
+    const isUnassignedTeam = isTeam && u.name === 'Unassigned';
+    return `
     <tr>
       <td class="rank">${i+1}</td>
-      <td>${esc(u.name)}</td>
-      <td class="p-subtext">${esc(u.state)}</td>
+      <td style="${isUnassignedTeam ? 'color:var(--p-critical);font-weight:600' : ''}" title="${esc(u.name)}">${esc(u.name)}</td>
       <td class="num">${u.total}</td>
       <td class="num">${u.open}</td>
       <td class="num">${u.yetToPick}</td>
-      <td class="num">${u.unassigned || '—'}</td>
-      <td class="num">${pulseStatusCountsHTML(u)}</td>
-    </tr>`).join('');
+      <td class="num">${u.inProgress}</td>
+      <td class="num">${u.awaiting}</td>
+      <td class="num">${u.discarded}</td>
+    </tr>`;
+  }).join('');
 }
 
 // ---- Oldest open tickets ----
