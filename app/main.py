@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from openai import RateLimitError
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import auth, config, db, memory, classifier, quality_scorer
+from . import auth, config, db, memory, classifier, quality_scorer, poc_queue
 from .taxonomy import taxonomy
 from .auth import require_login
 from .models import (
@@ -82,6 +82,26 @@ def require_webhook_secret(x_webhook_secret: str | None = Header(default=None, a
         x_webhook_secret, config.ZOHO_WEBHOOK_SECRET
     ):
         raise HTTPException(401, "Missing or invalid X-Webhook-Secret header.")
+
+
+def require_poc_token(x_poc_token: str | None = Header(default=None, alias="X-POC-Token")) -> str:
+    """
+    Authenticates a single POC's Chrome extension (see
+    docs/superpowers/specs/2026-09-09-poc-ticket-queue-extension-design.md) -
+    a per-POC bearer token, not the session-cookie login the main UI uses,
+    since the extension has no login flow of its own. 401s on a missing or
+    unrecognized token.
+    """
+    email = poc_queue.resolve_poc_email(x_poc_token)
+    if not email:
+        raise HTTPException(401, "Missing or invalid X-POC-Token header.")
+    return email
+
+
+@app.get("/api/extension/my-tickets")
+def get_my_tickets(poc_email: str = Depends(require_poc_token)):
+    """Read-only ticket queue for one POC's Chrome extension. Never writes anything."""
+    return poc_queue.build_poc_queue(poc_email)
 
 
 @app.on_event("startup")
