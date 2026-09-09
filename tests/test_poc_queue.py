@@ -45,6 +45,40 @@ def test_comma_separated_poc_primary_matches_by_containment(isolated_db):
     assert len(result["tickets"]) == 1
 
 
+def test_email_embedded_in_prose_poc_primary_matches_by_containment(isolated_db):
+    now = 1_000_000.0
+    # G03-S04's poc_primary is "Respective Capability Manager; escalate to
+    # catherine..., gauthami..., ankon..." - a naive comma-split leaves the
+    # first email buried in a longer prose segment.
+    _make_ticket(created_at=now - 3600, category_id="G03-S04")
+
+    result = poc_queue.build_poc_queue("gauthami.chandil@nxtwave.co.in", now=now)
+
+    assert len(result["tickets"]) == 1
+
+
+def test_email_embedded_in_arrow_separated_prose_matches_by_containment(isolated_db):
+    now = 1_000_000.0
+    # G06-S01's poc_primary is "Respective COS's > If chose 'Back up
+    # required' > arunkumar.naram@nxtwave.co.in".
+    _make_ticket(created_at=now - 3600, category_id="G06-S01")
+
+    result = poc_queue.build_poc_queue("arunkumar.naram@nxtwave.co.in", now=now)
+
+    assert len(result["tickets"]) == 1
+
+
+def test_poc_primary_with_no_email_never_matches(isolated_db):
+    now = 1_000_000.0
+    # G09-S01's poc_primary is "Respective Capability Manager" - no email at
+    # all, so it should never match any poc_email.
+    _make_ticket(created_at=now - 3600, category_id="G09-S01")
+
+    result = poc_queue.build_poc_queue("anyone@nxtwave.co.in", now=now)
+
+    assert result["tickets"] == []
+
+
 def test_needs_human_review_ticket_is_excluded_regardless_of_category(isolated_db):
     now = 1_000_000.0
     _make_ticket(created_at=now - 3600, status="needs_human_review")

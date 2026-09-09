@@ -6,6 +6,7 @@ for the full design and the reasoning behind every decision below.
 
 Deliberately has no write path: nothing here ever calls db.update_ticket.
 """
+import re
 import secrets
 import time
 
@@ -40,19 +41,28 @@ def resolve_poc_email(token: str | None) -> str | None:
     return None
 
 
+_EMAIL_RE = re.compile(r"[\w.+-]+@[\w.-]+")
+
+
 def _poc_matches(poc_primary_field: str | None, poc_email: str) -> bool:
     """
-    True if poc_email is one of poc_primary_field's comma-separated entries
-    (case-insensitive, whitespace-trimmed). taxonomy.json's poc_primary is
+    True if poc_email appears as one of the email addresses embedded in
+    poc_primary_field (case-insensitive). taxonomy.json's poc_primary is
     free text - sometimes one clean email, sometimes several comma-separated,
-    sometimes a prose placeholder with no email at all ("Respective
-    Capability Manager") - so this is containment-in-a-list, never exact
-    string equality.
+    sometimes prose with an email buried inside it (e.g. "Respective COS's >
+    If chose 'Back up required' > arunkumar.naram@nxtwave.co.in"), sometimes
+    a prose placeholder with no email at all ("Respective Capability
+    Manager"). A naive comma-split-and-exact-match fails on the prose cases
+    above because the comma/semicolon-delimited segment containing the email
+    also contains other text. Extracting every email-shaped substring and
+    checking containment against that set handles all of these uniformly,
+    including the "no email at all" case (extracts zero emails, so it never
+    matches).
     """
     if not poc_primary_field:
         return False
-    entries = {e.strip().casefold() for e in poc_primary_field.split(",")}
-    return poc_email.strip().casefold() in entries
+    emails = {m.group(0).casefold() for m in _EMAIL_RE.finditer(poc_primary_field)}
+    return poc_email.strip().casefold() in emails
 
 
 def _is_closed(raw_payload: dict | None) -> bool:
@@ -62,6 +72,19 @@ def _is_closed(raw_payload: dict | None) -> bool:
     resolution grading - one definition of "closed", not two). A ticket with
     no ticket_status at all (never came from Zoho, or Zoho hasn't sent a
     status yet) is always treated as open.
+
+    Known gap: Zoho's real ticket_status values also include "Closed" (see
+    app/static/index.html's broader PULSE_CLOSED_STATUSES, which adds
+    "Closed" on top of this same quality_scorer.CLOSED_STATUSES set), which
+    is NOT in quality_scorer.CLOSED_STATUSES - tickets marked "Closed" in
+    Zoho will not be excluded here. ("Discard" is a separate Zoho status
+    that Pulse itself deliberately treats as still-open, not closed - see
+    PULSE_CLOSED_STATUSES's usage in index.html - so it is not a gap
+    relative to the rest of this app, just something to be aware of if that
+    ever changes.) This module deliberately reuses the existing
+    CLOSED_STATUSES definition rather than creating a second one;
+    broadening it is a decision for whoever owns that shared constant, not
+    this feature.
     """
     if not raw_payload:
         return False

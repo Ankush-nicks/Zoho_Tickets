@@ -9,7 +9,9 @@ for the full design.
 1. Generate a token: `python -c "import secrets; print(secrets.token_hex(32))"`
 2. Add it to the server's `.env`: `POC_TOKEN_RANJITH_KUMAR=<the token>`
 3. Restart the server so the new env var takes effect.
-4. Paste the same token into this folder's `config.js` (`token` field).
+4. Copy `config.example.js` to `config.js` in this same folder, then paste
+   the token into the copy (`token` field). `config.js` is gitignored -
+   never commit a real token.
 5. Set `config.js`'s `apiBaseUrl` to wherever the server runs
    (`http://localhost:8000` for local dev, or the deployed URL).
 
@@ -25,3 +27,6 @@ for the full design.
   "not yet acknowledged" even if it was acknowledged in Zoho (design doc §2).
 - No "Open in Zoho" link yet - no safe, browser-viewable Zoho record URL
   exists (design doc §2).
+- Tickets Zoho marks "Closed" are not currently recognized as closed by this
+  queue (only "Resolved By POC" and "Resolution Acknowledged" are) - they
+  may continue to appear here after being closed in Zoho.

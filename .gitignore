@@ -26,3 +26,7 @@ __pycache__/
 
 # Local git worktrees used for isolated feature work
 .worktrees/
+
+# Per-POC extension config files contain a real, live auth token once filled
+# in by the operator - only the *.example.js template is tracked
+extensions/*/config.js

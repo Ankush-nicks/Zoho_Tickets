@@ -91,6 +91,8 @@ function renderTicketCard(ticket, now) {
 }
 
 function render() {
+  if (!state.error && !state.summary) return; // still loading, nothing to render yet
+
   const now = Date.now() / 1000;
   const listEl = document.getElementById("list");
 
