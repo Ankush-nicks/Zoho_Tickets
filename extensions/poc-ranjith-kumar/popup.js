@@ -1,4 +1,4 @@
-const state = { tickets: [], summary: null, sort: "risk", error: null };
+const state = { tickets: [], summary: null, sort: "risk", error: null, isRetryable: false };
 
 const PRIORITY_ORDER = { P1: 0, P2: 1, P3: 2, P4: 3 };
 
@@ -96,7 +96,11 @@ function render() {
 
   if (state.error) {
     document.getElementById("summary").innerHTML = "";
-    listEl.innerHTML = `<div class="empty-state error">${state.error}</div>`;
+    const retryButton = state.isRetryable ? `<button id="retry-btn" style="margin-top: 12px; padding: 8px 16px; background: #1a1a1a; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 12px;">Retry</button>` : "";
+    listEl.innerHTML = `<div class="empty-state error">${state.error}${retryButton}</div>`;
+    if (state.isRetryable) {
+      document.getElementById("retry-btn").addEventListener("click", load);
+    }
     return;
   }
 
@@ -125,6 +129,7 @@ function setupTabs() {
 async function load() {
   if (!POC_CONFIG.token || POC_CONFIG.token.startsWith("REPLACE_WITH")) {
     state.error = "This extension isn't configured yet — set a real token in config.js.";
+    state.isRetryable = false;
     render();
     return;
   }
@@ -134,6 +139,7 @@ async function load() {
     });
     if (!response.ok) {
       state.error = `Server returned ${response.status}. Check the token and server URL in config.js.`;
+      state.isRetryable = true;
       render();
       return;
     }
@@ -141,9 +147,11 @@ async function load() {
     state.tickets = data.tickets;
     state.summary = data.summary;
     state.error = null;
+    state.isRetryable = false;
     render();
   } catch (err) {
     state.error = "Couldn't reach the server. Is it running, and is the URL in config.js correct?";
+    state.isRetryable = true;
     render();
   }
 }
