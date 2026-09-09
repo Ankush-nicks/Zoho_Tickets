@@ -42,7 +42,10 @@ CREATE TABLE IF NOT EXISTS tickets (
     resolution_sla REAL,               -- SLA, max 2
     resolution_detail REAL,            -- Resolution (detail), max 2
     resolution_evidence TEXT,          -- one-sentence AI critique quote, shown in the Insights tab
-    resolution_scored_at REAL          -- unset means not graded yet (or not closed yet)
+    resolution_scored_at REAL,         -- unset means not graded yet (or not closed yet)
+    acknowledged_at REAL               -- set when a POC acknowledges a ticket in Zoho - nullable,
+                                        -- unpopulated until a future write path exists - see
+                                        -- docs/superpowers/specs/2026-09-09-poc-ticket-queue-extension-design.md
 );
 
 CREATE TABLE IF NOT EXISTS turns (
@@ -141,7 +144,8 @@ def init_db():
                 except Exception:
                     pass
             for col in ("resolution_score", "resolution_ack", "resolution_investigation",
-                        "resolution_root_cause", "resolution_sla", "resolution_detail", "resolution_scored_at"):
+                        "resolution_root_cause", "resolution_sla", "resolution_detail", "resolution_scored_at",
+                        "acknowledged_at"):
                 try:
                     conn.execute(f"ALTER TABLE tickets ADD COLUMN {col} REAL")
                 except Exception:
