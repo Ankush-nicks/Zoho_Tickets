@@ -23,3 +23,6 @@ __pycache__/
 
 # Editor/tooling
 .claude/
+
+# Local git worktrees used for isolated feature work
+.worktrees/
