@@ -350,17 +350,17 @@
   #pulseView .callout .dot, #statsView .callout .dot{ width:7px; height:7px; border-radius:50%; background:var(--p-warning); margin-top:6px; flex-shrink:0; }
   #pulseView .empty-state, #statsView .empty-state{ font-size:13px; color:var(--p-text-muted); padding:24px 0; text-align:center; }
 
-  #pulseView .trend-chart{ display:flex; align-items:flex-end; gap:14px; height:190px; padding:4px 4px 10px; overflow-x:auto; overflow-y:hidden; }
-  #pulseView .trend-col{ flex:1 0 44px; display:flex; flex-direction:column; align-items:center; height:100%; max-width:90px; }
-  #pulseView .trend-bar-track{ flex:1; width:100%; max-width:46px; display:flex; flex-direction:column-reverse; justify-content:flex-start; border-bottom:1px solid var(--p-baseline); }
-  #pulseView .trend-seg{ width:100%; }
+  #pulseView .trend-chart{ display:flex; align-items:flex-end; gap:14px; min-height:212px; padding:4px 4px 10px; overflow-x:auto; overflow-y:visible; }
+  #pulseView .trend-col{ flex:1 0 44px; display:flex; flex-direction:column; align-items:center; max-width:90px; }
+  #pulseView .trend-bar-track{ flex-shrink:0; width:100%; max-width:46px; display:flex; flex-direction:column-reverse; justify-content:flex-start; border-bottom:1px solid var(--p-baseline); }
+  #pulseView .trend-seg{ width:100%; flex-shrink:0; }
   #pulseView .trend-seg.breached{ background:var(--p-critical); }
   #pulseView .trend-seg.within{ background:var(--p-good); }
   #pulseView .trend-seg.pending{ background:var(--p-baseline); }
   #pulseView .trend-seg.yettopick{ background:var(--p-warning); }
   #pulseView .trend-seg.top{ border-radius:3px 3px 0 0; }
-  #pulseView .trend-col-label{ font-size:11px; color:var(--p-text-muted); margin-top:8px; font-variant-numeric:tabular-nums; }
-  #pulseView .trend-col-total{ font-size:12px; font-weight:700; color:var(--p-text-primary); margin-top:1px; }
+  #pulseView .trend-col-label{ font-size:11px; color:var(--p-text-muted); margin-top:8px; font-variant-numeric:tabular-nums; flex-shrink:0; white-space:nowrap; }
+  #pulseView .trend-col-total{ font-size:12px; font-weight:700; color:var(--p-text-primary); margin-top:1px; flex-shrink:0; white-space:nowrap; }
   #pulseView .legend-row{ display:flex; gap:18px; margin-top:14px; padding-top:14px; border-top:1px solid var(--p-border); font-size:12px; color:var(--p-text-secondary); flex-wrap:wrap; }
   #pulseView .legend-item{ display:flex; align-items:center; gap:6px; }
   #pulseView .legend-swatch{ width:10px; height:10px; border-radius:3px; flex-shrink:0; }
