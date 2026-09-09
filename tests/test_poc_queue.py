@@ -231,3 +231,23 @@ def test_resolve_poc_email_with_unknown_or_missing_token(isolated_db, monkeypatc
     assert poc_queue.resolve_poc_email("wrong-token") is None
     assert poc_queue.resolve_poc_email(None) is None
     assert poc_queue.resolve_poc_email("") is None
+
+
+def test_assigned_team_comes_from_taxonomy_leaf(isolated_db):
+    now = 1_000_000.0
+    _make_ticket(created_at=now - 3600)  # G01-S01's assigned_team is "IAS/SET"
+
+    ticket = poc_queue.build_poc_queue(POC_EMAIL, now=now)["tickets"][0]
+
+    assert ticket["assigned_team"] == "IAS/SET"
+
+
+def test_issue_summary_is_the_ticket_text_truncated_to_200_chars(isolated_db):
+    now = 1_000_000.0
+    long_text = "x" * 500
+    ticket_id = db.create_ticket(long_text, created_at=now - 3600)
+    db.update_ticket(ticket_id, status="classified", category_id="G01-S01")
+
+    ticket = poc_queue.build_poc_queue(POC_EMAIL, now=now)["tickets"][0]
+
+    assert ticket["issue_summary"] == "x" * 200

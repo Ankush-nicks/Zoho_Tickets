@@ -164,11 +164,14 @@ def build_poc_queue(poc_email: str, now: float | None = None) -> dict:
             continue
 
         raw_payload = t.get("raw_payload") or {}
+        issue_text = (t.get("full_context") or t.get("original_text") or "").strip()
         entry = {
             "id": t["id"],
             "zoho_ticket_id": t.get("zoho_ticket_id"),
             "category_group_code": leaf["parent_id"],
             "category_group_name": leaf["parent_name"],
+            "assigned_team": leaf.get("assigned_team"),
+            "issue_summary": issue_text[:200],
             "created_at": t["created_at"],
             **_compute_ack(t["created_at"], t.get("acknowledged_at"), now),
             **_compute_sla(t["created_at"], leaf["parent_id"], now),

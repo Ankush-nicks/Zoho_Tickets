@@ -1,8 +1,14 @@
 # Ticket Queue extension — ranjith.kumar@nxtwave.co.in
 
-Read-only popup showing this POC's open QA Report tickets. See
+Read-only side panel showing this POC's open QA Report tickets. See
 `docs/superpowers/specs/2026-09-09-poc-ticket-queue-extension-design.md`
 for the full design.
+
+Runs as a Chrome **side panel** (not a popup) so it can use the full height
+of the browser window - click the extension's toolbar icon to open/close it.
+Chrome itself decides which edge of the window the panel docks to (some
+Chrome versions let the user move this in Settings); the extension has no
+control over left vs. right placement.
 
 ## One-time setup
 
@@ -13,13 +19,14 @@ for the full design.
    the token into the copy (`token` field). `config.js` is gitignored -
    never commit a real token.
 5. Set `config.js`'s `apiBaseUrl` to wherever the server runs
-   (`http://localhost:8000` for local dev, or the deployed URL).
+   (`http://localhost:8000` for local dev, or the deployed URL), and
+   `pocDisplayName` to the name shown in the header.
 
 ## Load it in Chrome
 
 1. Go to `chrome://extensions`, enable "Developer mode" (top right).
 2. Click "Load unpacked" and select this folder (`extensions/poc-ranjith-kumar/`).
-3. Click the extension's icon to open the popup.
+3. Click the extension's toolbar icon to open the side panel.
 
 ## Known limitations (Step 1)
 

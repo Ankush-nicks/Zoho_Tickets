@@ -39,18 +39,19 @@ function sortTickets(tickets, mode, now) {
 function ackLine(ticket, now) {
   if (ticket.ack_state === "acknowledged") {
     return {
-      text: `Acknowledged · ${formatDuration(ticket.acknowledged_at - ticket.created_at)} after raise`,
+      text: `✓ Acknowledged · ${formatDuration(ticket.acknowledged_at - ticket.created_at)} after raise`,
       cls: "ok",
     };
   }
   if (ticket.ack_state === "missed") {
     return {
-      text: `Ack window missed · ${formatDuration(now - ticket.ack_deadline_at)} overdue`,
+      text: `! Ack window missed · ${formatDuration(now - ticket.ack_deadline_at)} overdue`,
       cls: "bad",
     };
   }
+  const icon = ticket.ack_urgent ? "⏰" : "•";
   return {
-    text: `Ack due in ${formatDuration(ticket.ack_deadline_at - now)}`,
+    text: `${icon} Ack due in ${formatDuration(ticket.ack_deadline_at - now)}`,
     cls: ticket.ack_urgent ? "warn" : "neutral",
   };
 }
@@ -62,30 +63,76 @@ function slaLine(ticket, now) {
   if (ticket.sla_state === "at_risk") {
     return { text: `SLA at risk · ${formatDuration(ticket.sla_deadline_at - now)} left`, cls: "warn" };
   }
-  return { text: `On track · ${formatDuration(ticket.sla_deadline_at - now)} left`, cls: "ok" };
+  return { text: `SLA on track · ${formatDuration(ticket.sla_deadline_at - now)} left`, cls: "ok" };
+}
+
+// Drives both the card's left-border accent and the progress bar fill color.
+// Based on the same signals as the risk sort, collapsed to three buckets.
+function severity(ticket) {
+  if (ticket.sla_state === "breached") return "critical";
+  if (ticket.sla_state === "at_risk" || ticket.ack_state === "missed" || ticket.ack_urgent) return "warning";
+  return "good";
+}
+
+function progressFraction(ticket, now) {
+  const total = ticket.sla_deadline_at - ticket.created_at;
+  if (total <= 0) return 1;
+  const elapsed = now - ticket.created_at;
+  return Math.max(0, Math.min(1, elapsed / total));
 }
 
 function renderSummary(summary) {
   document.getElementById("summary").innerHTML = `
     <div class="summary-stat breached"><span class="count">${summary.breached}</span><span class="label">Out of SLA</span></div>
-    <div class="summary-stat needs-ack"><span class="count">${summary.needs_ack_now}</span><span class="label">Needs ack now</span></div>
+    <div class="summary-stat needs-ack"><span class="count">${summary.needs_ack_now}</span><span class="label">Need ack now</span></div>
     <div class="summary-stat on-track"><span class="count">${summary.on_track}</span><span class="label">On track</span></div>
   `;
+}
+
+function renderHeaderMeta() {
+  const now = new Date();
+  document.getElementById("asOf").textContent =
+    `as of ${now.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })} · ` +
+    now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+
+  document.getElementById("pocName").textContent = POC_CONFIG.pocDisplayName || "";
+  const team = state.tickets.find((t) => t.assigned_team)?.assigned_team;
+  document.getElementById("pocTeam").textContent = team || "";
+  document.getElementById("pocCount").textContent =
+    state.tickets.length > 0 ? `${state.tickets.length} assigned` : "";
 }
 
 function renderTicketCard(ticket, now) {
   const ack = ackLine(ticket, now);
   const sla = slaLine(ticket, now);
+  const sev = severity(ticket);
+  const fraction = Math.round(progressFraction(ticket, now) * 100);
   const priorityHtml = ticket.priority ? `<span class="priority-pill">${ticket.priority}</span>` : "";
+  const issueHtml = ticket.issue_summary
+    ? `<div class="issue-summary">${ticket.issue_summary}</div>`
+    : "";
   return `
-    <div class="ticket-card">
+    <div class="ticket-card severity-${sev}">
       <div class="ticket-card-top">
-        <span class="ticket-id">${ticket.zoho_ticket_id || ticket.id}</span>
+        <span class="ticket-id">#${ticket.zoho_ticket_id || ticket.id}</span>
         ${priorityHtml}
       </div>
-      <div class="ticket-category">${ticket.category_group_code} · ${ticket.category_group_name}</div>
-      <div class="pill ${ack.cls}">${ack.text}</div>
-      <div class="pill ${sla.cls}">${sla.text}</div>
+      <div class="ticket-category">
+        <span class="category-pill">${ticket.category_group_code}</span>
+        <span class="category-name">${ticket.category_group_name}</span>
+      </div>
+      ${issueHtml}
+      <div class="pill-row">
+        <div class="pill ${ack.cls}">${ack.text}</div>
+      </div>
+      <div class="sla-line">
+        <span class="pill ${sla.cls}">${sla.text}</span>
+        <span class="sla-hours-total">${ticket.sla_hours}h total</span>
+      </div>
+      <div class="progress-track"><div class="progress-fill ${sla.cls}" style="width:${fraction}%"></div></div>
+      <div class="card-footer">
+        <button class="open-in-zoho" disabled title="Not available yet - no Zoho record URL configured">Open in Zoho ↗</button>
+      </div>
     </div>
   `;
 }
@@ -98,7 +145,7 @@ function render() {
 
   if (state.error) {
     document.getElementById("summary").innerHTML = "";
-    const retryButton = state.isRetryable ? `<button id="retry-btn" style="margin-top: 12px; padding: 8px 16px; background: #1a1a1a; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 12px;">Retry</button>` : "";
+    const retryButton = state.isRetryable ? `<button class="retry-btn" id="retry-btn">Retry</button>` : "";
     listEl.innerHTML = `<div class="empty-state error">${state.error}${retryButton}</div>`;
     if (state.isRetryable) {
       document.getElementById("retry-btn").addEventListener("click", load);
@@ -107,6 +154,7 @@ function render() {
   }
 
   renderSummary(state.summary);
+  renderHeaderMeta();
 
   if (state.tickets.length === 0) {
     listEl.innerHTML = `<div class="empty-state">Queue is empty — nothing open right now.</div>`;

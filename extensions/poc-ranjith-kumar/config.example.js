@@ -4,4 +4,5 @@
 const POC_CONFIG = {
   apiBaseUrl: "http://localhost:8000",
   token: "REPLACE_WITH_THE_SAME_VALUE_AS_POC_TOKEN_RANJITH_KUMAR_IN_THE_SERVER_ENV",
+  pocDisplayName: "Ranjith Kumar",
 };
