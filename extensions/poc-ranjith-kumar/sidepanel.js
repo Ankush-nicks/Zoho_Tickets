@@ -1,4 +1,13 @@
-const state = { tickets: [], summary: null, sort: "risk", filter: null, error: null, isRetryable: false };
+const state = {
+  tickets: [],
+  summary: null,
+  sort: "risk",
+  filter: null,
+  expandedId: null,
+  showOlder: false,
+  error: null,
+  isRetryable: false,
+};
 
 const PRIORITY_ORDER = { P1: 0, P2: 1, P3: 2, P4: 3 };
 
@@ -11,6 +20,11 @@ const TILE_FILTERS = {
   "needs-ack": (t) => t.ack_state === "missed" || t.ack_urgent,
   "on-track": (t) => t.sla_state === "on_track",
 };
+
+// Tickets raised within this many days are shown by default; older ones
+// are hidden behind the "Show older tickets" toggle so the list stays
+// focused on what's new instead of the full backlog.
+const RECENT_DAYS = 3;
 
 function formatDuration(totalSeconds) {
   const abs = Math.max(0, Math.round(totalSeconds));
@@ -76,8 +90,10 @@ function slaLine(ticket, now) {
   return { text: `SLA on track · ${formatDuration(ticket.sla_deadline_at - now)} left`, cls: "ok" };
 }
 
-// Drives both the card's left-border accent and the progress bar fill color.
-// Based on the same signals as the risk sort, collapsed to three buckets.
+// Drives the collapsed ticket-id color, the card's left-border accent, and
+// the progress bar fill color - the same three buckets the summary tiles
+// use (breached / needs-ack / on-track), so a collapsed card's color always
+// means the same thing as the tile it would count under.
 function severity(ticket) {
   if (ticket.sla_state === "breached") return "critical";
   if (ticket.sla_state === "at_risk" || ticket.ack_state === "missed" || ticket.ack_urgent) return "warning";
@@ -113,7 +129,21 @@ function renderHeaderMeta() {
     state.tickets.length > 0 ? `${state.tickets.length} assigned` : "";
 }
 
-function renderTicketCard(ticket, now) {
+function renderCollapsedCard(ticket) {
+  const sev = severity(ticket);
+  return `
+    <div class="ticket-card collapsed" data-id="${ticket.id}">
+      <div class="ticket-card-header" data-id="${ticket.id}">
+        <div class="header-left">
+          <span class="ticket-id sev-${sev}">#${ticket.zoho_ticket_id || ticket.id}</span>
+        </div>
+        <span class="chevron">›</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderExpandedCard(ticket, now) {
   const ack = ackLine(ticket, now);
   const sla = slaLine(ticket, now);
   const sev = severity(ticket);
@@ -123,10 +153,13 @@ function renderTicketCard(ticket, now) {
     ? `<div class="issue-summary">${ticket.issue_summary}</div>`
     : "";
   return `
-    <div class="ticket-card severity-${sev}">
-      <div class="ticket-card-top">
-        <span class="ticket-id">#${ticket.zoho_ticket_id || ticket.id}</span>
-        ${priorityHtml}
+    <div class="ticket-card severity-${sev} expanded" data-id="${ticket.id}">
+      <div class="ticket-card-header" data-id="${ticket.id}">
+        <div class="header-left">
+          <span class="ticket-id sev-${sev}">#${ticket.zoho_ticket_id || ticket.id}</span>
+          ${priorityHtml}
+        </div>
+        <span class="chevron open">›</span>
       </div>
       <div class="ticket-category">
         <span class="category-pill">${ticket.category_group_code}</span>
@@ -146,6 +179,10 @@ function renderTicketCard(ticket, now) {
       </div>
     </div>
   `;
+}
+
+function renderTicketCard(ticket, now) {
+  return ticket.id === state.expandedId ? renderExpandedCard(ticket, now) : renderCollapsedCard(ticket);
 }
 
 function render() {
@@ -180,7 +217,29 @@ function render() {
   }
 
   const sorted = sortTickets(filtered, state.sort, now);
-  listEl.innerHTML = sorted.map((t) => renderTicketCard(t, now)).join("");
+  const recentCutoff = now - RECENT_DAYS * 24 * 3600;
+  const recent = sorted.filter((t) => t.created_at >= recentCutoff);
+  const older = sorted.filter((t) => t.created_at < recentCutoff);
+
+  // If every ticket in this filter happens to be "old", showing an empty
+  // recent list plus a toggle would just be confusing - show them all
+  // directly instead of forcing an extra click.
+  const recentHtml = recent.length > 0
+    ? recent.map((t) => renderTicketCard(t, now)).join("")
+    : older.map((t) => renderTicketCard(t, now)).join("");
+
+  let olderHtml = "";
+  if (recent.length > 0 && older.length > 0) {
+    const label = state.showOlder
+      ? "Hide older tickets"
+      : `Show ${older.length} older ticket${older.length === 1 ? "" : "s"}`;
+    olderHtml = `<button class="show-older-btn">${label}</button>`;
+    if (state.showOlder) {
+      olderHtml += older.map((t) => renderTicketCard(t, now)).join("");
+    }
+  }
+
+  listEl.innerHTML = recentHtml + olderHtml;
 }
 
 function setupSummaryClicks() {
@@ -188,6 +247,8 @@ function setupSummaryClicks() {
     tile.addEventListener("click", () => {
       const key = tile.dataset.filter;
       state.filter = state.filter === key ? null : key;
+      state.expandedId = null;
+      state.showOlder = false;
       render();
     });
   });
@@ -201,6 +262,26 @@ function setupTabs() {
       state.sort = btn.dataset.sort;
       render();
     });
+  });
+}
+
+// Delegated once on the (persistent) list container, since its children are
+// fully replaced every render() - re-attaching per-card listeners on every
+// render would still work but this is simpler and never leaks listeners.
+function setupListDelegation() {
+  document.getElementById("list").addEventListener("click", (event) => {
+    const showOlderBtn = event.target.closest(".show-older-btn");
+    if (showOlderBtn) {
+      state.showOlder = !state.showOlder;
+      render();
+      return;
+    }
+    const header = event.target.closest(".ticket-card-header");
+    if (header) {
+      const id = header.dataset.id;
+      state.expandedId = state.expandedId === id ? null : id;
+      render();
+    }
   });
 }
 
@@ -235,4 +316,5 @@ async function load() {
 }
 
 setupTabs();
+setupListDelegation();
 load();
