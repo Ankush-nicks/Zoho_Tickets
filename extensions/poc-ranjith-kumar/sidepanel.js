@@ -1,6 +1,16 @@
-const state = { tickets: [], summary: null, sort: "risk", error: null, isRetryable: false };
+const state = { tickets: [], summary: null, sort: "risk", filter: null, error: null, isRetryable: false };
 
 const PRIORITY_ORDER = { P1: 0, P2: 1, P3: 2, P4: 3 };
+
+// Keys match each tile's data-filter attribute (set in renderSummary) and
+// the same predicates the backend used to compute summary.breached /
+// needs_ack_now / on_track, so a tile's count always matches what clicking
+// it reveals.
+const TILE_FILTERS = {
+  breached: (t) => t.sla_state === "breached",
+  "needs-ack": (t) => t.ack_state === "missed" || t.ack_urgent,
+  "on-track": (t) => t.sla_state === "on_track",
+};
 
 function formatDuration(totalSeconds) {
   const abs = Math.max(0, Math.round(totalSeconds));
@@ -82,10 +92,11 @@ function progressFraction(ticket, now) {
 }
 
 function renderSummary(summary) {
+  const active = (key) => (state.filter === key ? " active" : "");
   document.getElementById("summary").innerHTML = `
-    <div class="summary-stat breached"><span class="count">${summary.breached}</span><span class="label">Out of SLA</span></div>
-    <div class="summary-stat needs-ack"><span class="count">${summary.needs_ack_now}</span><span class="label">Need ack now</span></div>
-    <div class="summary-stat on-track"><span class="count">${summary.on_track}</span><span class="label">On track</span></div>
+    <div class="summary-stat breached${active("breached")}" data-filter="breached"><span class="count">${summary.breached}</span><span class="label">Out of SLA</span></div>
+    <div class="summary-stat needs-ack${active("needs-ack")}" data-filter="needs-ack"><span class="count">${summary.needs_ack_now}</span><span class="label">Need ack now</span></div>
+    <div class="summary-stat on-track${active("on-track")}" data-filter="on-track"><span class="count">${summary.on_track}</span><span class="label">On track</span></div>
   `;
 }
 
@@ -155,14 +166,31 @@ function render() {
 
   renderSummary(state.summary);
   renderHeaderMeta();
+  setupSummaryClicks();
 
   if (state.tickets.length === 0) {
     listEl.innerHTML = `<div class="empty-state">Queue is empty — nothing open right now.</div>`;
     return;
   }
 
-  const sorted = sortTickets(state.tickets, state.sort, now);
+  const filtered = state.filter ? state.tickets.filter(TILE_FILTERS[state.filter]) : state.tickets;
+  if (filtered.length === 0) {
+    listEl.innerHTML = `<div class="empty-state">No tickets in this filter — click the tile again to show all.</div>`;
+    return;
+  }
+
+  const sorted = sortTickets(filtered, state.sort, now);
   listEl.innerHTML = sorted.map((t) => renderTicketCard(t, now)).join("");
+}
+
+function setupSummaryClicks() {
+  document.querySelectorAll(".summary-stat").forEach((tile) => {
+    tile.addEventListener("click", () => {
+      const key = tile.dataset.filter;
+      state.filter = state.filter === key ? null : key;
+      render();
+    });
+  });
 }
 
 function setupTabs() {

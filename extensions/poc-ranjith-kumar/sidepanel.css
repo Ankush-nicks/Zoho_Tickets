@@ -102,7 +102,22 @@ header {
   padding: 10px 12px;
   text-align: center;
   border: 1px solid transparent;
+  cursor: pointer;
+  transition: box-shadow .12s, border-color .12s;
+  user-select: none;
 }
+
+.summary-stat:hover {
+  border-color: var(--border-strong);
+}
+
+.summary-stat.active {
+  box-shadow: inset 0 0 0 2px currentColor;
+}
+
+.summary-stat.breached.active { color: var(--critical); }
+.summary-stat.needs-ack.active { color: var(--warning-text); }
+.summary-stat.on-track.active { color: var(--good); }
 
 .summary-stat .count {
   display: block;
