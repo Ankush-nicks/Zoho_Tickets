@@ -104,7 +104,7 @@ function renderHeatDetail() {
   const visible = heatState.detailShowAll ? sub.tickets : sub.tickets.slice(0, HEAT_CHIP_CAP);
   const remaining = sub.tickets.length - visible.length;
   const chips = visible
-    .map((t) => `<button class="ticket-chip" data-zoho-id="${t.zoho_ticket_id || ""}" title="Opens the Assigned Tickets report in Zoho and searches for this ticket ID">#${t.zoho_ticket_id || t.id} ↗</button>`)
+    .map((t) => `<button class="ticket-chip" data-zoho-id="${t.zoho_ticket_id || ""}" title="Opens the ticket report in Zoho and searches for this ticket ID">#${t.zoho_ticket_id || t.id} ↗</button>`)
     .join("");
   const moreBtn = remaining > 0
     ? `<button class="show-more-chips-btn">+${remaining} more</button>`

@@ -21,8 +21,8 @@ control over left vs. right placement.
 5. Set `config.js`'s `apiBaseUrl` to wherever the server runs
    (`http://localhost:8000` for local dev, or the deployed URL), and
    `pocDisplayName` to the name shown in the header.
-6. `zohoReportUrl` opens the Zoho Assigned Tickets report - update it if
-   that report URL ever changes.
+6. `zohoReportUrl` opens this Zoho report (currently "All Instructors
+   Ticketing System Report") - update it if that report URL ever changes.
 
 ## Load it in Chrome
 
@@ -35,8 +35,8 @@ control over left vs. right placement.
 Clicking "Open in Zoho" (on a ticket card or a heat grid chip) reuses an
 already-open Zoho tab if one exists (matched by origin, so it works
 regardless of which report/record that tab is currently showing) instead
-of opening a new tab every click - it re-points that tab at the Assigned
-Tickets report, brings its window to the front, and then attempts to
+of opening a new tab every click - it re-points that tab at the
+configured report, brings its window to the front, and then attempts to
 automatically: open Advanced Search, check the "Ticket ID" filter, type
 the ticket's Zoho ID into the search field, select it from the resulting
 autocomplete dropdown (Ticket ID is a select2 lookup field, not free text

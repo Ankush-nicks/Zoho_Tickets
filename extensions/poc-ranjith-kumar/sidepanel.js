@@ -189,7 +189,7 @@ function renderExpandedCard(ticket, now) {
       </div>
       <div class="progress-track"><div class="progress-fill ${sla.cls}" style="width:${fraction}%"></div></div>
       <div class="card-footer">
-        <button class="open-in-zoho" data-zoho-id="${ticket.zoho_ticket_id || ""}" title="Opens the Assigned Tickets report in Zoho and searches for this ticket ID">Open in Zoho ↗</button>
+        <button class="open-in-zoho" data-zoho-id="${ticket.zoho_ticket_id || ""}" title="Opens the ticket report in Zoho and searches for this ticket ID">Open in Zoho ↗</button>
       </div>
     </div>
   `;
