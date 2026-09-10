@@ -30,13 +30,32 @@ control over left vs. right placement.
 2. Click "Load unpacked" and select this folder (`extensions/poc-ranjith-kumar/`).
 3. Click the extension's toolbar icon to open the side panel.
 
+## "Open in Zoho" search automation
+
+Clicking "Open in Zoho" (on a ticket card or a heat grid chip) opens the
+Assigned Tickets report and then attempts to automatically: open Advanced
+Search, check the "Ticket ID" filter, type the ticket's Zoho ID into the
+search field, and click Search - so you land on that specific ticket
+instead of the full unfiltered report.
+
+This requires two new permissions (`scripting`, `tabs`) and a host
+permission for `niat.zohocreatorportal.in`, since it's a different origin
+than this extension's own API. The click sequence lives in
+`background.js` (`zohoSearchForTicketId`), built directly from a markup
+snippet of that Zoho Creator page - **it has not been verified against
+the real, authenticated portal**, since building this extension has no
+login there. It polls for each element (search toggle → "Ticket ID"
+checkbox → search input → Search button) rather than using a fixed delay,
+and fails silently (leaves you on the opened report, filters not applied)
+if any step's element isn't found within ~8 seconds - if Zoho's page
+structure or field IDs differ from what's captured here, that's the
+failure mode to expect. Please try it live and report back if any step
+doesn't work as expected.
+
 ## Known limitations (Step 1)
 
 - Acknowledgement is never populated yet - every ticket shows as
   "not yet acknowledged" even if it was acknowledged in Zoho (design doc §2).
-- "Open in Zoho" opens the Assigned Tickets report, not the specific
-  ticket - Zoho doesn't give us a per-record deep-link URL yet (design
-  doc §2), so every ticket/chip opens the same report page.
 - Tickets Zoho marks "Closed" are not currently recognized as closed by this
   queue (only "Resolved By POC" and "Resolution Acknowledged" are) - they
   may continue to appear here after being closed in Zoho.

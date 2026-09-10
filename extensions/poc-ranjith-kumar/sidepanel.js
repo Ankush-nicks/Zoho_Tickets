@@ -26,6 +26,20 @@ const TILE_FILTERS = {
 // focused on what's new instead of the full backlog.
 const RECENT_DAYS = 3;
 
+// Shared by sidepanel.js and heatgrid.js (both load into the same page, no
+// module system, so a plain global is enough) - opens the Zoho Assigned
+// Tickets report and asks the background service worker to search it for
+// this specific ticket ID once the tab finishes loading. See background.js
+// for the actual click-sequence automation; this just sends the request.
+function openZohoTicketSearch(zohoTicketId) {
+  if (!POC_CONFIG.zohoReportUrl) return;
+  chrome.runtime.sendMessage({
+    type: "openZohoTicketSearch",
+    zohoReportUrl: POC_CONFIG.zohoReportUrl,
+    ticketId: zohoTicketId || null,
+  });
+}
+
 function formatDuration(totalSeconds) {
   const abs = Math.max(0, Math.round(totalSeconds));
   const hours = Math.floor(abs / 3600);
@@ -175,7 +189,7 @@ function renderExpandedCard(ticket, now) {
       </div>
       <div class="progress-track"><div class="progress-fill ${sla.cls}" style="width:${fraction}%"></div></div>
       <div class="card-footer">
-        <button class="open-in-zoho" title="Opens the Assigned Tickets report in Zoho - not a direct link to this specific ticket">Open in Zoho ↗</button>
+        <button class="open-in-zoho" data-zoho-id="${ticket.zoho_ticket_id || ""}" title="Opens the Assigned Tickets report in Zoho and searches for this ticket ID">Open in Zoho ↗</button>
       </div>
     </div>
   `;
@@ -270,8 +284,9 @@ function setupTabs() {
 // render would still work but this is simpler and never leaks listeners.
 function setupListDelegation() {
   document.getElementById("list").addEventListener("click", (event) => {
-    if (event.target.closest(".open-in-zoho")) {
-      if (POC_CONFIG.zohoReportUrl) window.open(POC_CONFIG.zohoReportUrl, "_blank");
+    const zohoBtn = event.target.closest(".open-in-zoho");
+    if (zohoBtn) {
+      openZohoTicketSearch(zohoBtn.dataset.zohoId);
       return;
     }
     const showOlderBtn = event.target.closest(".show-older-btn");
