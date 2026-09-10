@@ -89,6 +89,36 @@ function zohoSearchForTicketId(ticketId) {
     }
     searchInput.dispatchEvent(new Event("change", { bubbles: true }));
 
+    // Ticket ID is a select2 autocomplete field, not free text: typing
+    // opens a dropdown of matching suggestions, and the value only
+    // "counts" as a real search criterion once one is clicked - the
+    // Search button ignores whatever is still just sitting in the text
+    // box otherwise. Select2 v3's dropdown (matches the v3-style classes
+    // already seen on this page - select2-choices, select2-input,
+    // select2-offscreen) renders as <ul class="select2-results"> inside
+    // a <div class="select2-drop">, one <li class="select2-result"> per
+    // suggestion. Prefer an option whose text matches the typed ticket
+    // ID; fall back to the first option if none matches exactly (still
+    // typically correct, since typing an ID usually narrows to one hit).
+    // This step is best-effort: if no dropdown ever appears, proceed to
+    // Search anyway rather than getting stuck.
+    const dropdownOption = await waitFor(() => {
+      const options = document.querySelectorAll(
+        ".select2-drop-active .select2-results li, .select2-drop .select2-results li, .select2-results li"
+      );
+      if (options.length === 0) return null;
+      for (const opt of options) {
+        if (opt.textContent && opt.textContent.trim() === String(ticketId)) return opt;
+      }
+      for (const opt of options) {
+        if (opt.textContent && opt.textContent.includes(String(ticketId))) return opt;
+      }
+      return options[0];
+    }, 5000);
+    if (dropdownOption) {
+      dropdownOption.click();
+    }
+
     // The search button is already in the DOM at this point (same static
     // panel), so waitFor below would resolve immediately - this grace
     // delay is for Zoho's own debounced input-processing, not for the

@@ -38,8 +38,11 @@ regardless of which report/record that tab is currently showing) instead
 of opening a new tab every click - it re-points that tab at the Assigned
 Tickets report, brings its window to the front, and then attempts to
 automatically: open Advanced Search, check the "Ticket ID" filter, type
-the ticket's Zoho ID into the search field, and click Search - so you land
-on that specific ticket instead of the full unfiltered report.
+the ticket's Zoho ID into the search field, select it from the resulting
+autocomplete dropdown (Ticket ID is a select2 lookup field, not free text
+- typing alone doesn't count as a search criterion until a suggestion is
+clicked), and click Search - so you land on that specific ticket instead
+of the full unfiltered report.
 
 This requires two new permissions (`scripting`, `tabs`) and a host
 permission for `niat.zohocreatorportal.in`, since it's a different origin
