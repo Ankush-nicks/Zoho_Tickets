@@ -47,15 +47,21 @@ of the full unfiltered report.
 This requires two new permissions (`scripting`, `tabs`) and a host
 permission for `niat.zohocreatorportal.in`, since it's a different origin
 than this extension's own API. The click sequence lives in
-`background.js` (`zohoSearchForTicketId`), built directly from a markup
-snippet of that Zoho Creator page - **it has not been verified against
-the real, authenticated portal**, since building this extension has no
-login there. It polls for each element (search toggle → "Ticket ID"
+`background.js` (`zohoSearchForTicketId`), and **has since been verified
+live against the real, authenticated portal** (searching ticket 2590
+end-to-end). It polls for each element (search toggle → "Ticket ID"
 checkbox → search input → Search button) rather than using a fixed delay,
 and fails silently (leaves you on the opened report, filters not applied)
-if any step's element isn't found within ~8 seconds - if Zoho's page
-structure or field IDs differ from what's captured here, that's the
-failure mode to expect.
+if any step's element isn't found within ~8 seconds.
+
+Selecting the autocomplete suggestion needed real debugging: select2 v3
+binds selection to a `mousedown`/`mouseup`/`click` sequence on the
+result's inner `.select2-result-label`, not a plain `click` on the
+suggestion `<li>` - and `HTMLElement.click()` (what earlier versions of
+this used) only ever fires a `click` event, never `mousedown`/`mouseup`,
+so select2 never actually registered a selection attempt. The fix
+dispatches the full three-event sequence with real `MouseEvent`
+properties (`button`/`buttons`/`which`/`clientX`/`clientY`) instead.
 
 The autocomplete-dropdown step specifically waits for the suggestion list
 to *settle* (no "searching" indicator active, and the same candidate

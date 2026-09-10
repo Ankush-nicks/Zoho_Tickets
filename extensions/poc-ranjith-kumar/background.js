@@ -151,7 +151,30 @@ function zohoSearchForTicketId(ticketId) {
 
     const dropdownOption = await waitForSettledDropdownOption(8000);
     if (dropdownOption) {
-      dropdownOption.click();
+      // Confirmed live against the real portal: select2 v3 binds selection
+      // to a mousedown/mouseup/click sequence on the result's inner
+      // .select2-result-label (not a plain "click" on the <li>, and NOT
+      // satisfied by calling .click() - HTMLElement.click() only ever
+      // fires a "click" event, never mousedown/mouseup, so select2 never
+      // saw a selection attempt at all). Dispatching the full sequence
+      // with real MouseEvent properties (button/buttons/which/clientX/Y -
+      // jQuery's event normalization reads these) on the label reproduces
+      // exactly what a genuine click does, without needing OS-level input.
+      const target = dropdownOption.querySelector(".select2-result-label") || dropdownOption;
+      const rect = target.getBoundingClientRect();
+      const mouseEventProps = {
+        bubbles: true,
+        cancelable: true,
+        view: window,
+        clientX: rect.left + 5,
+        clientY: rect.top + 5,
+        button: 0,
+        buttons: 1,
+        which: 1,
+      };
+      target.dispatchEvent(new MouseEvent("mousedown", mouseEventProps));
+      target.dispatchEvent(new MouseEvent("mouseup", mouseEventProps));
+      target.dispatchEvent(new MouseEvent("click", mouseEventProps));
       // Give select2 a moment to actually commit the selection into its
       // internal state before touching the Search button - clicking an
       // option and immediately clicking Search is its own smaller race.
