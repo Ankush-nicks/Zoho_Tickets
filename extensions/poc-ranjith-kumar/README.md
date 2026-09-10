@@ -32,11 +32,14 @@ control over left vs. right placement.
 
 ## "Open in Zoho" search automation
 
-Clicking "Open in Zoho" (on a ticket card or a heat grid chip) opens the
-Assigned Tickets report and then attempts to automatically: open Advanced
-Search, check the "Ticket ID" filter, type the ticket's Zoho ID into the
-search field, and click Search - so you land on that specific ticket
-instead of the full unfiltered report.
+Clicking "Open in Zoho" (on a ticket card or a heat grid chip) reuses an
+already-open Zoho tab if one exists (matched by origin, so it works
+regardless of which report/record that tab is currently showing) instead
+of opening a new tab every click - it re-points that tab at the Assigned
+Tickets report, brings its window to the front, and then attempts to
+automatically: open Advanced Search, check the "Ticket ID" filter, type
+the ticket's Zoho ID into the search field, and click Search - so you land
+on that specific ticket instead of the full unfiltered report.
 
 This requires two new permissions (`scripting`, `tabs`) and a host
 permission for `niat.zohocreatorportal.in`, since it's a different origin

@@ -104,22 +104,60 @@ function zohoSearchForTicketId(ticketId) {
   })();
 }
 
+function runZohoSearch(tabId, ticketId) {
+  if (!ticketId) return; // no ticket id to search for - just leave the report open
+  chrome.scripting.executeScript({
+    target: { tabId },
+    func: zohoSearchForTicketId,
+    args: [ticketId],
+  });
+}
+
 chrome.runtime.onMessage.addListener((message) => {
   if (message.type !== "openZohoTicketSearch") return;
 
-  chrome.tabs.create({ url: message.zohoReportUrl }, (tab) => {
-    if (!message.ticketId || !tab.id) return; // no ticket id to search for - just leave the report open
+  // Reuse an already-open Zoho tab instead of opening a new one every
+  // click. Match by origin only (not the full URL with its #Report:...
+  // fragment) - match patterns don't consider the fragment anyway, and
+  // any tab already on this Zoho app is the right one to reuse regardless
+  // of which report/record it's currently showing.
+  const zohoOrigin = new URL(message.zohoReportUrl).origin + "/*";
 
-    const tabId = tab.id;
-    function onUpdated(updatedTabId, changeInfo) {
-      if (updatedTabId !== tabId || changeInfo.status !== "complete") return;
-      chrome.tabs.onUpdated.removeListener(onUpdated);
-      chrome.scripting.executeScript({
-        target: { tabId },
-        func: zohoSearchForTicketId,
-        args: [message.ticketId],
-      });
+  chrome.tabs.query({ url: zohoOrigin }, (existingTabs) => {
+    const existing = existingTabs[0];
+
+    if (existing) {
+      chrome.windows.update(existing.windowId, { focused: true });
+      chrome.tabs.update(existing.id, { active: true, url: message.zohoReportUrl });
+
+      let injected = false;
+      const injectOnce = () => {
+        if (injected) return;
+        injected = true;
+        chrome.tabs.onUpdated.removeListener(onUpdated);
+        runZohoSearch(existing.id, message.ticketId);
+      };
+      function onUpdated(updatedTabId, changeInfo) {
+        if (updatedTabId !== existing.id || changeInfo.status !== "complete") return;
+        injectOnce();
+      }
+      chrome.tabs.onUpdated.addListener(onUpdated);
+      // Re-pointing a tab at the exact URL it's already on (same fragment
+      // included) typically doesn't fire a real navigation/onUpdated event
+      // at all - don't wait forever for something that may never happen.
+      setTimeout(injectOnce, 1200);
+      return;
     }
-    chrome.tabs.onUpdated.addListener(onUpdated);
+
+    chrome.tabs.create({ url: message.zohoReportUrl }, (tab) => {
+      if (!tab.id) return;
+      const tabId = tab.id;
+      function onNewTabUpdated(updatedTabId, changeInfo) {
+        if (updatedTabId !== tabId || changeInfo.status !== "complete") return;
+        chrome.tabs.onUpdated.removeListener(onNewTabUpdated);
+        runZohoSearch(tabId, message.ticketId);
+      }
+      chrome.tabs.onUpdated.addListener(onNewTabUpdated);
+    });
   });
 });
