@@ -68,9 +68,39 @@ to *settle* (no "searching" indicator active, and the same candidate
 option's text unchanged for ~350ms), not just for an `<li>` to exist -
 select2 renders a "Searching…" placeholder immediately and replaces it
 once its lookup actually resolves, so reading the list too early clicks
-the placeholder instead of the real match (this was the cause of an
-earlier version only working on the 2nd or 3rd click). Please try it live
-and report back if any step doesn't work as expected.
+the placeholder instead of the real match.
+
+Even after that fix, live debugging against the real portal (searching
+ticket 2590, then repeated attempts around ticket 1830) turned up three
+further, distinct causes of the same "takes 2-3 clicks" symptom, all now
+fixed:
+
+- **Checkbox toggle bug**: Zoho persists the "Ticket ID" checkbox's
+  checked state across page loads. The old code unconditionally clicked
+  it, which meant a session that already had it checked got it
+  **unchecked** instead - confirmed live (`checkboxChecked: false` right
+  after our own click, on a box that had started checked). The click now
+  only fires when the checkbox isn't already checked.
+- **Chip accumulation bug**: the Ticket ID field is a multi-select select2
+  widget - it adds a chip per selected suggestion rather than replacing
+  the previous one. Any ticket ID chip left over from an earlier search
+  stayed selected and got OR'd into the next search - confirmed live as a
+  search silently running as `"Ticket ID is either '2698' or '2606'"`,
+  both stale IDs from an unrelated earlier attempt. The automation now
+  removes every existing chip (scoped to this field's own chip list) using
+  the same real mousedown/mouseup/click sequence needed to select a
+  suggestion, before typing the new ticket ID.
+- **Transient widget-not-ready race**: right after toggling the checkbox,
+  a search sometimes returned zero suggestions with zero network requests
+  fired at all - confirmed live: the same ticket ID failed once
+  immediately after a checkbox toggle, then worked normally moments later
+  with nothing else changed. A settle delay after the checkbox click
+  narrows this window but doesn't close it, so the automation now retries
+  the type-and-wait step once if the first attempt finds no settled
+  suggestion.
+
+Please try it live again and report back if any step still doesn't work
+as expected.
 
 ## Acknowledgement status
 

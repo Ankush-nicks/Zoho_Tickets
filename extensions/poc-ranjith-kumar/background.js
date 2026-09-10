@@ -52,13 +52,64 @@ function zohoSearchForTicketId(ticketId) {
       return null;
     }, 8000);
     if (!ticketIdCheckbox) return;
-    ticketIdCheckbox.click();
+    // Zoho persists this checkbox's state across page loads - unconditionally
+    // clicking it (as an earlier version of this did) toggles it OFF when a
+    // prior session had already left it checked, which then breaks every
+    // later step. Only click when it's actually unchecked. (Confirmed live:
+    // an unconditional click flipped a previously-checked box to
+    // `checkboxChecked: false`.)
+    if (!ticketIdCheckbox.checked) {
+      ticketIdCheckbox.click();
+      // Give the widget a moment to finish wiring up the now-visible search
+      // field before we touch it - toggling it can leave a brief window
+      // where the field exists in the DOM but isn't fully live yet (seen
+      // live as a search that returned zero suggestions and fired zero
+      // network requests, immediately after a checkbox toggle).
+      await new Promise((r) => setTimeout(r, 400));
+    }
 
     const searchInput = await waitFor(
       () => document.querySelector(".select2-search-field input.select2-input"),
       8000
     );
     if (!searchInput) return;
+
+    // This is a multi-select select2 field: it accumulates a chip per
+    // selected suggestion rather than replacing the previous one. Any chip
+    // left over from an earlier search (a different ticket ID) stays
+    // selected and gets OR'd into the search criteria alongside whatever we
+    // pick next - confirmed live as a search silently running as
+    // "Ticket ID is either '2698' or '2606'" using stale IDs from an
+    // entirely earlier attempt. Clear every existing chip first, scoped to
+    // this field's own chip list (not the whole page), removing each one
+    // the same way select2 expects a real removal click: a full
+    // mousedown/mouseup/click sequence on its "x" close control, not
+    // .click() (which never fires mousedown/mouseup - the same reason plain
+    // .click() didn't work for selecting a dropdown option either).
+    const choicesList = searchInput.closest("ul.select2-choices");
+    if (choicesList) {
+      const existingChips = Array.from(choicesList.querySelectorAll(".select2-search-choice"));
+      for (const chip of existingChips) {
+        const closeBtn = chip.querySelector(".select2-search-choice-close") || chip;
+        const rect = closeBtn.getBoundingClientRect();
+        const chipMouseProps = {
+          bubbles: true,
+          cancelable: true,
+          view: window,
+          clientX: rect.left + 2,
+          clientY: rect.top + 2,
+          button: 0,
+          buttons: 1,
+          which: 1,
+        };
+        closeBtn.dispatchEvent(new MouseEvent("mousedown", chipMouseProps));
+        closeBtn.dispatchEvent(new MouseEvent("mouseup", chipMouseProps));
+        closeBtn.dispatchEvent(new MouseEvent("click", chipMouseProps));
+      }
+      if (existingChips.length > 0) {
+        await new Promise((r) => setTimeout(r, 200));
+      }
+    }
 
     // select2-style widgets generally don't react to a bulk `.value = X`
     // assignment plus one synthetic event - they're built to react to
@@ -71,23 +122,27 @@ function zohoSearchForTicketId(ticketId) {
     // synthetic event. Fall back to a manual per-character keydown/input/
     // keyup sequence if execCommand didn't actually land the text (e.g.
     // if it's unsupported or the widget still ignored it).
-    searchInput.click();
-    searchInput.focus();
-    searchInput.value = "";
-
-    const usedExecCommand =
-      document.execCommand && document.execCommand("insertText", false, ticketId);
-
-    if (!usedExecCommand || searchInput.value !== ticketId) {
+    function typeTicketId() {
+      searchInput.click();
+      searchInput.focus();
       searchInput.value = "";
-      for (const ch of String(ticketId)) {
-        searchInput.dispatchEvent(new KeyboardEvent("keydown", { key: ch, bubbles: true }));
-        searchInput.value += ch;
-        searchInput.dispatchEvent(new Event("input", { bubbles: true }));
-        searchInput.dispatchEvent(new KeyboardEvent("keyup", { key: ch, bubbles: true }));
+
+      const usedExecCommand =
+        document.execCommand && document.execCommand("insertText", false, ticketId);
+
+      if (!usedExecCommand || searchInput.value !== ticketId) {
+        searchInput.value = "";
+        for (const ch of String(ticketId)) {
+          searchInput.dispatchEvent(new KeyboardEvent("keydown", { key: ch, bubbles: true }));
+          searchInput.value += ch;
+          searchInput.dispatchEvent(new Event("input", { bubbles: true }));
+          searchInput.dispatchEvent(new KeyboardEvent("keyup", { key: ch, bubbles: true }));
+        }
       }
+      searchInput.dispatchEvent(new Event("change", { bubbles: true }));
     }
-    searchInput.dispatchEvent(new Event("change", { bubbles: true }));
+
+    typeTicketId();
 
     // Ticket ID is a select2 autocomplete field, not free text: typing
     // opens a dropdown of matching suggestions fetched via an async
@@ -149,7 +204,18 @@ function zohoSearchForTicketId(ticketId) {
       return null;
     }
 
-    const dropdownOption = await waitForSettledDropdownOption(8000);
+    // Even with the checkbox-ready delay above, the widget occasionally
+    // isn't actually listening yet right after the "Ticket ID" checkbox is
+    // toggled on - confirmed live: the exact same ticket ID that returned
+    // zero suggestions and fired zero network requests on one attempt
+    // worked reliably moments later with no other change. A bare settle
+    // delay didn't fully close this window, so retype and wait again once
+    // rather than give up after a single silent failure.
+    let dropdownOption = await waitForSettledDropdownOption(8000);
+    if (!dropdownOption) {
+      typeTicketId();
+      dropdownOption = await waitForSettledDropdownOption(8000);
+    }
     if (dropdownOption) {
       // Confirmed live against the real portal: select2 v3 binds selection
       // to a mousedown/mouseup/click sequence on the result's inner
