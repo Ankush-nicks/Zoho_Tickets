@@ -55,10 +55,19 @@ structure or field IDs differ from what's captured here, that's the
 failure mode to expect. Please try it live and report back if any step
 doesn't work as expected.
 
+## Acknowledgement status
+
+`acknowledged_at` (the db column) is still never written by anything - but
+the queue now resolves real acknowledgement from Zoho's own data instead of
+always showing "not yet acknowledged": it parses the first "Updated On"
+timestamp out of `raw_payload.acknowledgement_history` (a real, consistently
+formatted line Zoho includes in that field), falling back to the ticket's
+`updated_at` on the rare ticket that has ack text but no parseable
+timestamp in it, and only shows "not yet acknowledged" when there's truly
+no ack text logged at all. See `app/poc_queue.py`'s `_resolve_acknowledged_at`.
+
 ## Known limitations (Step 1)
 
-- Acknowledgement is never populated yet - every ticket shows as
-  "not yet acknowledged" even if it was acknowledged in Zoho (design doc §2).
 - Tickets Zoho marks "Closed" are not currently recognized as closed by this
   queue (only "Resolved By POC" and "Resolution Acknowledged" are) - they
   may continue to appear here after being closed in Zoho.

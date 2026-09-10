@@ -310,3 +310,82 @@ def test_subcategory_heat_ticket_entries_carry_id_and_zoho_ticket_id(isolated_db
     assert bucket["tickets"] == [{"id": ticket_id, "zoho_ticket_id": "Z-9001"}]
     assert bucket["category_code"] == "G01"
     assert bucket["category_name"] == "QA Report / Instructor Evaluation"
+
+
+def test_ack_resolved_from_real_acknowledgement_history_timestamp(isolated_db):
+    now = 1_000_000.0
+    history = (
+        "--------------------------------\n"
+        "Updated By : catherine.joannamathews@nxtwave.co.in\n"
+        "Updated On : 12-Aug-2026 04:57 PM\n"
+        "Acknowledgement:\n"
+        "Hi, can you provide the report link."
+    )
+    _make_ticket(created_at=now - 3600, raw_payload={"acknowledgement_history": history})
+
+    ticket = poc_queue.build_poc_queue(POC_EMAIL, now=now)["tickets"][0]
+
+    assert ticket["ack_state"] == "acknowledged"
+    # 12-Aug-2026 04:57 PM IST -> 11:27 UTC same day
+    import datetime as dt
+    expected = dt.datetime(2026, 8, 12, 11, 27, tzinfo=dt.timezone.utc).timestamp()
+    assert ticket["acknowledged_at"] == pytest.approx(expected)
+
+
+def test_ack_resolved_uses_earliest_entry_when_history_has_multiple_updates(isolated_db):
+    now = 1_000_000.0
+    history = (
+        "--------------------------------\n"
+        "Updated By : someone@nxtwave.co.in\n"
+        "Updated On : 12-Aug-2026 04:57 PM\n"
+        "Acknowledgement:\nfirst note\n"
+        "--------------------------------\n"
+        "Updated By : someone@nxtwave.co.in\n"
+        "Updated On : 03-Sep-2026 01:13 PM\n"
+        "Acknowledgement:\nfollow-up note\n"
+    )
+    _make_ticket(created_at=now - 3600, raw_payload={"acknowledgement_history": history})
+
+    ticket = poc_queue.build_poc_queue(POC_EMAIL, now=now)["tickets"][0]
+
+    import datetime as dt
+    expected_first_entry = dt.datetime(2026, 8, 12, 11, 27, tzinfo=dt.timezone.utc).timestamp()
+    assert ticket["acknowledged_at"] == pytest.approx(expected_first_entry)
+
+
+def test_ack_falls_back_to_updated_at_when_ack_text_has_no_parseable_timestamp(isolated_db):
+    now = 1_000_000.0
+    ticket_id = _make_ticket(
+        created_at=now - 3600,
+        raw_payload={"acknowledgement_from_the_poc": "Approved and already closed"},
+    )
+    stored = db.get_ticket(ticket_id)
+
+    ticket = poc_queue.build_poc_queue(POC_EMAIL, now=now)["tickets"][0]
+
+    assert ticket["ack_state"] == "acknowledged"
+    assert ticket["acknowledged_at"] == stored["updated_at"]
+
+
+def test_ack_state_still_missed_with_no_ack_fields_at_all(isolated_db):
+    now = 1_000_000.0
+    _make_ticket(created_at=now - (4 * 3600 + 60))  # 1 minute past the 4h window, no ack fields
+
+    ticket = poc_queue.build_poc_queue(POC_EMAIL, now=now)["tickets"][0]
+
+    assert ticket["ack_state"] == "missed"
+    assert ticket["acknowledged_at"] is None
+
+
+def test_ack_db_column_still_wins_over_acknowledgement_history_if_ever_set(isolated_db):
+    now = 1_000_000.0
+    history = "Updated On : 12-Aug-2026 04:57 PM\nAcknowledgement:\nnote"
+    ticket_id = _make_ticket(
+        created_at=now - 3600,
+        raw_payload={"acknowledgement_history": history},
+    )
+    db.update_ticket(ticket_id, acknowledged_at=now - 100)
+
+    ticket = poc_queue.build_poc_queue(POC_EMAIL, now=now)["tickets"][0]
+
+    assert ticket["acknowledged_at"] == now - 100

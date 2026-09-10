@@ -9,10 +9,13 @@ Deliberately has no write path: nothing here ever calls db.update_ticket.
 import re
 import secrets
 import time
+from datetime import datetime, timedelta, timezone
 
 from . import config, db
 from .quality_scorer import CLOSED_STATUSES
 from .taxonomy import taxonomy
+
+IST = timezone(timedelta(hours=5, minutes=30))
 
 ACK_ACKNOWLEDGED = "acknowledged"
 ACK_PENDING = "pending"
@@ -90,6 +93,64 @@ def _is_closed(raw_payload: dict | None) -> bool:
         return False
     status = raw_payload.get("ticket_status")
     return bool(status) and status in CLOSED_STATUSES
+
+
+_ACK_UPDATED_ON_RE = re.compile(r"Updated On\s*:\s*([^\n]+)")
+
+
+def _parse_ack_history_datetime(s: str) -> float | None:
+    """
+    Zoho's acknowledgement_history is a free-text log, but each entry has a
+    consistent "Updated On : DD-Mon-YYYY HH:MM AM/PM" line (confirmed
+    against real production data) - IST, same as quality_scorer.py's own
+    Zoho-datetime parsing. Returns None on anything that doesn't match;
+    callers should treat that as "timestamp unknown", not an error.
+    """
+    try:
+        dt = datetime.strptime(s.strip(), "%d-%b-%Y %I:%M %p").replace(tzinfo=IST)
+        return dt.astimezone(timezone.utc).timestamp()
+    except ValueError:
+        return None
+
+
+def _resolve_acknowledged_at(ticket: dict) -> float | None:
+    """
+    acknowledged_at (the db column) is never written yet - see the module
+    docstring - so this derives it from what Zoho actually sends:
+
+    1. The db column itself, if some future write path ever populates it -
+       this stays the source of truth once one exists, never overridden.
+    2. The FIRST "Updated On" timestamp embedded in
+       raw_payload.acknowledgement_history - acknowledgement_history is a
+       chronological (oldest-first, confirmed against real production
+       data) log of every ack update, so the first entry is when the POC
+       first acknowledged the ticket - the moment this field actually
+       means. Later entries are follow-up notes, not the initial ack.
+    3. If there's ack text (acknowledgement_from_the_poc or
+       acknowledgement_history) but no parseable "Updated On" timestamp
+       (~7 real production tickets, no other source of a real timestamp
+       exists) - the ticket's own updated_at as a best-effort
+       approximation. Deliberately imprecise: updated_at reflects the last
+       webhook update, not necessarily the moment the ack was written.
+    4. No ack text at all - None (genuinely not yet acknowledged).
+    """
+    if ticket.get("acknowledged_at") is not None:
+        return ticket["acknowledged_at"]
+
+    raw_payload = ticket.get("raw_payload") or {}
+    history = (raw_payload.get("acknowledgement_history") or "").strip()
+    if history:
+        match = _ACK_UPDATED_ON_RE.search(history)
+        if match:
+            parsed = _parse_ack_history_datetime(match.group(1))
+            if parsed is not None:
+                return parsed
+
+    has_ack_text = history or (raw_payload.get("acknowledgement_from_the_poc") or "").strip()
+    if has_ack_text:
+        return ticket["updated_at"]
+
+    return None
 
 
 def _compute_ack(created_at: float, acknowledged_at: float | None, now: float) -> dict:
@@ -173,7 +234,7 @@ def build_poc_queue(poc_email: str, now: float | None = None) -> dict:
             "assigned_team": leaf.get("assigned_team"),
             "issue_summary": issue_text[:200],
             "created_at": t["created_at"],
-            **_compute_ack(t["created_at"], t.get("acknowledged_at"), now),
+            **_compute_ack(t["created_at"], _resolve_acknowledged_at(t), now),
             **_compute_sla(t["created_at"], leaf["parent_id"], now),
         }
         priority = raw_payload.get("priority_level")
