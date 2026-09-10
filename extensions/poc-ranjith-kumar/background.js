@@ -59,11 +59,35 @@ function zohoSearchForTicketId(ticketId) {
       8000
     );
     if (!searchInput) return;
+
+    // select2-style widgets generally don't react to a bulk `.value = X`
+    // assignment plus one synthetic event - they're built to react to
+    // genuine typing (per-character key events, or a real insertText
+    // input event), not a property write. Click first (many widgets only
+    // "arm" their input handling after a real pointer event, not just
+    // .focus()), then try document.execCommand("insertText", ...), which
+    // Chromium still supports and which fires a real `input` event with
+    // inputType "insertText" - closer to actual typing than any purely
+    // synthetic event. Fall back to a manual per-character keydown/input/
+    // keyup sequence if execCommand didn't actually land the text (e.g.
+    // if it's unsupported or the widget still ignored it).
+    searchInput.click();
     searchInput.focus();
-    searchInput.value = ticketId;
-    searchInput.dispatchEvent(new Event("input", { bubbles: true }));
+    searchInput.value = "";
+
+    const usedExecCommand =
+      document.execCommand && document.execCommand("insertText", false, ticketId);
+
+    if (!usedExecCommand || searchInput.value !== ticketId) {
+      searchInput.value = "";
+      for (const ch of String(ticketId)) {
+        searchInput.dispatchEvent(new KeyboardEvent("keydown", { key: ch, bubbles: true }));
+        searchInput.value += ch;
+        searchInput.dispatchEvent(new Event("input", { bubbles: true }));
+        searchInput.dispatchEvent(new KeyboardEvent("keyup", { key: ch, bubbles: true }));
+      }
+    }
     searchInput.dispatchEvent(new Event("change", { bubbles: true }));
-    searchInput.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true }));
 
     // The search button is already in the DOM at this point (same static
     // panel), so waitFor below would resolve immediately - this grace
