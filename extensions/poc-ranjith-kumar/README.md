@@ -55,8 +55,16 @@ checkbox → search input → Search button) rather than using a fixed delay,
 and fails silently (leaves you on the opened report, filters not applied)
 if any step's element isn't found within ~8 seconds - if Zoho's page
 structure or field IDs differ from what's captured here, that's the
-failure mode to expect. Please try it live and report back if any step
-doesn't work as expected.
+failure mode to expect.
+
+The autocomplete-dropdown step specifically waits for the suggestion list
+to *settle* (no "searching" indicator active, and the same candidate
+option's text unchanged for ~350ms), not just for an `<li>` to exist -
+select2 renders a "Searching…" placeholder immediately and replaces it
+once its lookup actually resolves, so reading the list too early clicks
+the placeholder instead of the real match (this was the cause of an
+earlier version only working on the 2nd or 3rd click). Please try it live
+and report back if any step doesn't work as expected.
 
 ## Acknowledgement status
 

@@ -90,40 +90,73 @@ function zohoSearchForTicketId(ticketId) {
     searchInput.dispatchEvent(new Event("change", { bubbles: true }));
 
     // Ticket ID is a select2 autocomplete field, not free text: typing
-    // opens a dropdown of matching suggestions, and the value only
-    // "counts" as a real search criterion once one is clicked - the
-    // Search button ignores whatever is still just sitting in the text
-    // box otherwise. Select2 v3's dropdown (matches the v3-style classes
-    // already seen on this page - select2-choices, select2-input,
-    // select2-offscreen) renders as <ul class="select2-results"> inside
-    // a <div class="select2-drop">, one <li class="select2-result"> per
-    // suggestion. Prefer an option whose text matches the typed ticket
-    // ID; fall back to the first option if none matches exactly (still
-    // typically correct, since typing an ID usually narrows to one hit).
-    // This step is best-effort: if no dropdown ever appears, proceed to
-    // Search anyway rather than getting stuck.
-    const dropdownOption = await waitFor(() => {
-      const options = document.querySelectorAll(
-        ".select2-drop-active .select2-results li, .select2-drop .select2-results li, .select2-results li"
-      );
-      if (options.length === 0) return null;
-      for (const opt of options) {
-        if (opt.textContent && opt.textContent.trim() === String(ticketId)) return opt;
+    // opens a dropdown of matching suggestions fetched via an async
+    // (likely AJAX-backed) search, and the value only "counts" as a real
+    // search criterion once a suggestion is clicked - the Search button
+    // ignores whatever is still just sitting in the text box otherwise.
+    //
+    // The naive version of this step (grab whatever <li> exists the
+    // moment the dropdown appears) is a real race: select2 renders a
+    // "Searching…" placeholder immediately, then replaces it with the
+    // real match(es) once the request resolves - reading too early clicks
+    // the placeholder, not the actual ticket, which is exactly the "works
+    // on the 2nd or 3rd click" symptom (the request has often already
+    // finished/cached by a later attempt). waitForSettledDropdownOption
+    // instead requires: no "searching" indicator active, AND the same
+    // candidate option text observed continuously for a short window -
+    // i.e. the list has actually stopped changing, not just "has an item
+    // right now".
+    async function waitForSettledDropdownOption(timeoutMs) {
+      const start = Date.now();
+      let lastText = null;
+      let stableSince = null;
+      const isPlaceholder = (text) => /searching|no matches|loading/i.test(text);
+
+      while (Date.now() - start < timeoutMs) {
+        const stillSearching = document.querySelector(
+          ".select2-drop-active.select2-searching, .select2-drop.select2-searching, .select2-active"
+        );
+        if (!stillSearching) {
+          const options = Array.from(
+            document.querySelectorAll(
+              ".select2-drop-active .select2-results li, .select2-drop .select2-results li, .select2-results li"
+            )
+          ).filter((opt) => {
+            const text = (opt.textContent || "").trim();
+            return text && !isPlaceholder(text);
+          });
+
+          const exact = options.find((opt) => opt.textContent.trim() === String(ticketId));
+          const partial = options.find((opt) => opt.textContent.includes(String(ticketId)));
+          const candidate = exact || partial || options[0] || null;
+
+          if (candidate) {
+            const text = candidate.textContent.trim();
+            if (text === lastText && stableSince && Date.now() - stableSince > 350) {
+              return candidate;
+            }
+            if (text !== lastText) {
+              lastText = text;
+              stableSince = Date.now();
+            }
+          } else {
+            lastText = null;
+            stableSince = null;
+          }
+        }
+        await new Promise((r) => setTimeout(r, 150));
       }
-      for (const opt of options) {
-        if (opt.textContent && opt.textContent.includes(String(ticketId))) return opt;
-      }
-      return options[0];
-    }, 5000);
-    if (dropdownOption) {
-      dropdownOption.click();
+      return null;
     }
 
-    // The search button is already in the DOM at this point (same static
-    // panel), so waitFor below would resolve immediately - this grace
-    // delay is for Zoho's own debounced input-processing, not for the
-    // button's existence.
-    await new Promise((r) => setTimeout(r, 400));
+    const dropdownOption = await waitForSettledDropdownOption(8000);
+    if (dropdownOption) {
+      dropdownOption.click();
+      // Give select2 a moment to actually commit the selection into its
+      // internal state before touching the Search button - clicking an
+      // option and immediately clicking Search is its own smaller race.
+      await new Promise((r) => setTimeout(r, 500));
+    }
 
     const searchButton = await waitFor(
       () => document.querySelector('a[elname="zc-advSearchReportEl"]'),
