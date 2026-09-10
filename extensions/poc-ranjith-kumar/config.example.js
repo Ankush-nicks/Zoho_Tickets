@@ -9,4 +9,8 @@ const POC_CONFIG = {
   // `medium` is "low", [medium, high) is "medium", `high` and up is "high".
   // Tune per category/team - these are deliberately not literals in the view code.
   heatTierThresholds: { medium: 30, high: 50 },
+  // "Open in Zoho" opens this report (no per-ticket record URL exists yet,
+  // so every ticket/chip opens the same Assigned Tickets report - not a
+  // deep link to the specific record).
+  zohoReportUrl: "https://niat.zohocreatorportal.in/#Report:Assigned_Tickets",
 };

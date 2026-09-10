@@ -21,6 +21,8 @@ control over left vs. right placement.
 5. Set `config.js`'s `apiBaseUrl` to wherever the server runs
    (`http://localhost:8000` for local dev, or the deployed URL), and
    `pocDisplayName` to the name shown in the header.
+6. `zohoReportUrl` opens the Zoho Assigned Tickets report - update it if
+   that report URL ever changes.
 
 ## Load it in Chrome
 
@@ -32,8 +34,9 @@ control over left vs. right placement.
 
 - Acknowledgement is never populated yet - every ticket shows as
   "not yet acknowledged" even if it was acknowledged in Zoho (design doc §2).
-- No "Open in Zoho" link yet - no safe, browser-viewable Zoho record URL
-  exists (design doc §2).
+- "Open in Zoho" opens the Assigned Tickets report, not the specific
+  ticket - Zoho doesn't give us a per-record deep-link URL yet (design
+  doc §2), so every ticket/chip opens the same report page.
 - Tickets Zoho marks "Closed" are not currently recognized as closed by this
   queue (only "Resolved By POC" and "Resolution Acknowledged" are) - they
   may continue to appear here after being closed in Zoho.

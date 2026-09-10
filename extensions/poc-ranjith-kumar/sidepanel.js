@@ -175,7 +175,7 @@ function renderExpandedCard(ticket, now) {
       </div>
       <div class="progress-track"><div class="progress-fill ${sla.cls}" style="width:${fraction}%"></div></div>
       <div class="card-footer">
-        <button class="open-in-zoho" disabled title="Not available yet - no Zoho record URL configured">Open in Zoho ↗</button>
+        <button class="open-in-zoho" title="Opens the Assigned Tickets report in Zoho - not a direct link to this specific ticket">Open in Zoho ↗</button>
       </div>
     </div>
   `;
@@ -270,6 +270,10 @@ function setupTabs() {
 // render would still work but this is simpler and never leaks listeners.
 function setupListDelegation() {
   document.getElementById("list").addEventListener("click", (event) => {
+    if (event.target.closest(".open-in-zoho")) {
+      if (POC_CONFIG.zohoReportUrl) window.open(POC_CONFIG.zohoReportUrl, "_blank");
+      return;
+    }
     const showOlderBtn = event.target.closest(".show-older-btn");
     if (showOlderBtn) {
       state.showOlder = !state.showOlder;

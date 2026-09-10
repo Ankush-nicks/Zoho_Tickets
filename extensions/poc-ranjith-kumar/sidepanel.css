@@ -358,12 +358,17 @@ header {
 
 .open-in-zoho {
   font-size: 12px;
-  color: var(--border-strong);
+  color: var(--accent);
+  font-weight: 600;
   background: none;
   border: none;
-  cursor: not-allowed;
+  cursor: pointer;
   font-family: inherit;
   padding: 0;
+}
+
+.open-in-zoho:hover {
+  text-decoration: underline;
 }
 
 .show-older-btn {
@@ -593,12 +598,16 @@ header {
   font-family: var(--mono);
   font-size: 11px;
   font-weight: 600;
-  color: var(--border-strong);
+  color: var(--accent);
   background: var(--panel-2);
   border: 1px solid var(--border);
   border-radius: 5px;
   padding: 4px 8px;
-  cursor: not-allowed;
+  cursor: pointer;
+}
+
+.ticket-chip:hover {
+  border-color: var(--accent);
 }
 
 .show-more-chips-btn {
