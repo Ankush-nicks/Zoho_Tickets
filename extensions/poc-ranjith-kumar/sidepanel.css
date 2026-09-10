@@ -17,13 +17,19 @@
   --critical: #B0342E;
   --critical-soft: #FBE4E1;
 
-  /* Sequential ramp for the subcategory heat grid - one hue, monotone
-     lightness, light->dark. Deliberately a different hue from --critical
-     so the high-volume badge (which reuses --critical) never reads as a
-     4th step of this ramp. */
-  --heat-low: #86b6ef;
-  --heat-medium: #2a78d6;
-  --heat-high: #0d366b;
+  /* Sequential ramp for the subcategory heat grid, in the app's own wine
+     hue (same family as --accent) rather than an unrelated color - one
+     hue, monotone lightness light->dark (~71% -> 48% -> 30% HSL lightness,
+     each step >20% apart), light end at ~2.5:1 contrast against white.
+     --heat-high IS --accent - the brand's own "important" color doubles
+     as "high volume" here. The high-volume badge uses a white chip with a
+     --critical border/text (see .heat-badge) rather than a solid critical
+     fill, specifically because a solid red would sit at very low contrast
+     on top of this dark wine tile - white pops on every tier regardless
+     of hue, so the badge never blends into the ramp under it. */
+  --heat-low: #D98FA8;
+  --heat-medium: #A94D6C;
+  --heat-high: var(--accent);
 
   --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
   --sans: 'IBM Plex Sans', system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -550,8 +556,9 @@ header {
   align-items: center;
   gap: 3px;
   margin-top: 8px;
-  background: var(--critical);
-  color: #fff;
+  background: #fff;
+  color: var(--critical);
+  border: 1px solid var(--critical);
   font-size: 10px;
   font-weight: 700;
   border-radius: 4px;
