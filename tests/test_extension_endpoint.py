@@ -37,3 +37,26 @@ def test_valid_token_returns_this_pocs_queue(isolated_db, monkeypatch):
     assert len(body["tickets"]) == 1
     assert body["tickets"][0]["category_group_code"] == "G01"
     assert "summary" in body
+
+
+def test_subcategory_heat_missing_token_returns_401(isolated_db, monkeypatch):
+    monkeypatch.setitem(config.POC_TOKENS, POC_EMAIL, "secret-token")
+    client = TestClient(app)
+
+    response = client.get("/api/extension/my-subcategory-heat")
+
+    assert response.status_code == 401
+
+
+def test_subcategory_heat_valid_token_returns_this_pocs_subcategories(isolated_db, monkeypatch):
+    monkeypatch.setitem(config.POC_TOKENS, POC_EMAIL, "secret-token")
+    ticket_id = db.create_ticket("some issue text", created_at=1_000_000.0 - 3600)
+    db.update_ticket(ticket_id, status="classified", category_id="G01-S01")
+    client = TestClient(app)
+
+    response = client.get("/api/extension/my-subcategory-heat", headers={"X-POC-Token": "secret-token"})
+
+    assert response.status_code == 200
+    body = response.json()
+    codes = {s["subcategory_code"]: s["open_count"] for s in body["subcategories"]}
+    assert codes == {"G01-S01": 1, "G01-S02": 0, "G01-S03": 0}

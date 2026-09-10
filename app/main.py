@@ -104,6 +104,12 @@ def get_my_tickets(poc_email: str = Depends(require_poc_token)):
     return poc_queue.build_poc_queue(poc_email)
 
 
+@app.get("/api/extension/my-subcategory-heat")
+def get_my_subcategory_heat(poc_email: str = Depends(require_poc_token)):
+    """Open-ticket counts per subcategory for one POC's Chrome extension. Never writes anything."""
+    return poc_queue.build_subcategory_heat(poc_email)
+
+
 @app.on_event("startup")
 async def startup():
     db.init_db()

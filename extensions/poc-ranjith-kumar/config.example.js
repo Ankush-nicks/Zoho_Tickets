@@ -5,4 +5,8 @@ const POC_CONFIG = {
   apiBaseUrl: "http://localhost:8000",
   token: "REPLACE_WITH_THE_SAME_VALUE_AS_POC_TOKEN_RANJITH_KUMAR_IN_THE_SERVER_ENV",
   pocDisplayName: "Ranjith Kumar",
+  // Heat grid tier thresholds (open-ticket count per subcategory): below
+  // `medium` is "low", [medium, high) is "medium", `high` and up is "high".
+  // Tune per category/team - these are deliberately not literals in the view code.
+  heatTierThresholds: { medium: 30, high: 50 },
 };

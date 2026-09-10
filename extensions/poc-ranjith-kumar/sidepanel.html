@@ -18,20 +18,41 @@
     </div>
   </header>
 
-  <div id="summary" class="summary-row"></div>
-
-  <div class="sort-row">
-    <span class="sort-label">Sort</span>
-    <div class="sort-tabs" id="sortTabs">
-      <button class="sort-tab active" data-sort="risk">Risk</button>
-      <button class="sort-tab" data-sort="priority">Priority</button>
-      <button class="sort-tab" data-sort="sla">SLA left</button>
-    </div>
+  <div class="view-tabs" id="viewTabs">
+    <button class="view-tab active" data-view="queue">Queue</button>
+    <button class="view-tab" data-view="heatgrid">Heat Grid</button>
   </div>
 
-  <div id="list" class="ticket-list"><div class="empty-state">Loading&hellip;</div></div>
+  <div id="queueView" class="view">
+    <div id="summary" class="summary-row"></div>
+
+    <div class="sort-row">
+      <span class="sort-label">Sort</span>
+      <div class="sort-tabs" id="sortTabs">
+        <button class="sort-tab active" data-sort="risk">Risk</button>
+        <button class="sort-tab" data-sort="priority">Priority</button>
+        <button class="sort-tab" data-sort="sla">SLA left</button>
+      </div>
+    </div>
+
+    <div id="list" class="ticket-list"><div class="empty-state">Loading&hellip;</div></div>
+  </div>
+
+  <div id="heatgridView" class="view" hidden>
+    <div class="heat-controls">
+      <select id="categorySelect" class="category-select"></select>
+      <span id="categoryTotal" class="category-total"></span>
+    </div>
+
+    <div class="heat-legend" id="heatLegend"></div>
+
+    <div id="heatGrid" class="heat-grid"><div class="empty-state">Loading&hellip;</div></div>
+
+    <div id="heatDetail" class="heat-detail"></div>
+  </div>
 
   <script src="config.js"></script>
   <script src="sidepanel.js"></script>
+  <script src="heatgrid.js"></script>
 </body>
 </html>

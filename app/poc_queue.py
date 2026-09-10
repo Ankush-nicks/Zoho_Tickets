@@ -189,3 +189,51 @@ def build_poc_queue(poc_email: str, now: float | None = None) -> dict:
         "on_track": sum(1 for x in tickets_out if x["sla_state"] == SLA_ON_TRACK),
     }
     return {"tickets": tickets_out, "summary": summary}
+
+
+def build_subcategory_heat(poc_email: str) -> dict:
+    """
+    Open-ticket counts per subcategory, for every subcategory whose taxonomy
+    leaf routes to poc_email - same selection rules as build_poc_queue
+    (status in OPEN_STATUSES, poc_primary match, not closed per
+    quality_scorer.CLOSED_STATUSES), aggregated instead of listed per ticket.
+
+    Iterates taxonomy leaves (not just ticket rows) so a subcategory with
+    zero currently-open tickets still gets an entry (a "nothing piling up
+    here" zero is real information for a prioritization view) - while never
+    including a subcategory this poc_email doesn't own, since we have no
+    visibility into other POCs' ticket counts by design.
+    """
+    open_tickets_by_subcategory: dict[str, list[dict]] = {}
+    for t in db.list_all_tickets():
+        if t["status"] not in OPEN_STATUSES:
+            continue
+        category_id = t.get("category_id")
+        if not category_id:
+            continue
+        leaf = taxonomy.get(category_id)
+        if not leaf:
+            continue
+        if not _poc_matches(leaf.get("poc_primary"), poc_email):
+            continue
+        if _is_closed(t.get("raw_payload")):
+            continue
+        open_tickets_by_subcategory.setdefault(category_id, []).append(
+            {"id": t["id"], "zoho_ticket_id": t.get("zoho_ticket_id")}
+        )
+
+    subcategories = []
+    for group in taxonomy.groups:
+        for sub in group.get("subcategories", []):
+            if not _poc_matches(sub.get("poc_primary"), poc_email):
+                continue
+            tickets = open_tickets_by_subcategory.get(sub["id"], [])
+            subcategories.append({
+                "subcategory_code": sub["id"],
+                "subcategory_name": sub["name"],
+                "category_code": group["id"],
+                "category_name": group["name"],
+                "open_count": len(tickets),
+                "tickets": tickets,
+            })
+    return {"subcategories": subcategories}

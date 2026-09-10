@@ -17,6 +17,14 @@
   --critical: #B0342E;
   --critical-soft: #FBE4E1;
 
+  /* Sequential ramp for the subcategory heat grid - one hue, monotone
+     lightness, light->dark. Deliberately a different hue from --critical
+     so the high-volume badge (which reuses --critical) never reads as a
+     4th step of this ramp. */
+  --heat-low: #86b6ef;
+  --heat-medium: #2a78d6;
+  --heat-high: #0d366b;
+
   --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
   --sans: 'IBM Plex Sans', system-ui, -apple-system, "Segoe UI", sans-serif;
 }
@@ -394,4 +402,206 @@ header {
   font-size: 12px;
   font-family: inherit;
   font-weight: 600;
+}
+
+/* --- View tabs (Queue / Heat Grid) --- */
+
+.view-tabs {
+  display: flex;
+  gap: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 3px;
+  background: var(--panel-2);
+  margin-bottom: 16px;
+}
+
+.view-tab {
+  flex: 1;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  padding: 7px 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.view-tab.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* --- Heat grid --- */
+
+.heat-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.category-select {
+  flex: 1;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 7px 10px;
+}
+
+.category-total {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.heat-legend {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.legend-swatch.tier-low { background: var(--heat-low); }
+.legend-swatch.tier-medium { background: var(--heat-medium); }
+.legend-swatch.tier-high { background: var(--heat-high); }
+
+.heat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.heat-tile {
+  border-radius: 10px;
+  padding: 12px 10px;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: border-color .12s;
+  text-align: left;
+}
+
+.heat-tile:hover {
+  border-color: var(--accent);
+}
+
+.heat-tile.tier-low {
+  background: var(--heat-low);
+  color: var(--text);
+}
+
+.heat-tile.tier-medium {
+  background: var(--heat-medium);
+  color: #fff;
+}
+
+.heat-tile.tier-high {
+  background: var(--heat-high);
+  color: #fff;
+}
+
+.heat-tile-count {
+  font-size: 24px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.heat-tile-code {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  margin-top: 6px;
+  opacity: .9;
+}
+
+.heat-tile-name {
+  font-size: 11px;
+  margin-top: 2px;
+  opacity: .85;
+  line-height: 1.3;
+}
+
+.heat-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 8px;
+  background: var(--critical);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
+.heat-detail {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.heat-detail:empty {
+  display: none;
+  border: none;
+  padding: 0;
+}
+
+.heat-detail-header {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ticket-chip {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--border-strong);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 4px 8px;
+  cursor: not-allowed;
+}
+
+.show-more-chips-btn {
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  background: none;
+  border: 1px dashed var(--border-strong);
+  border-radius: 5px;
+  padding: 4px 8px;
+  cursor: pointer;
 }

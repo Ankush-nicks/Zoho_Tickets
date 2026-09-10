@@ -315,6 +315,18 @@ async function load() {
   }
 }
 
+function setupViewTabs() {
+  document.querySelectorAll(".view-tab").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".view-tab").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      document.querySelectorAll(".view").forEach((v) => (v.hidden = true));
+      document.getElementById(`${btn.dataset.view}View`).hidden = false;
+    });
+  });
+}
+
 setupTabs();
 setupListDelegation();
+setupViewTabs();
 load();

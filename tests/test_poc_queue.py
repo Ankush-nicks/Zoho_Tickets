@@ -251,3 +251,62 @@ def test_issue_summary_is_the_ticket_text_truncated_to_200_chars(isolated_db):
     ticket = poc_queue.build_poc_queue(POC_EMAIL, now=now)["tickets"][0]
 
     assert ticket["issue_summary"] == "x" * 200
+
+
+def test_subcategory_heat_includes_zero_count_subcategories_owned_by_poc(isolated_db):
+    result = poc_queue.build_subcategory_heat(POC_EMAIL)
+
+    codes = {s["subcategory_code"]: s["open_count"] for s in result["subcategories"]}
+    assert codes == {"G01-S01": 0, "G01-S02": 0, "G01-S03": 0}
+
+
+def test_subcategory_heat_counts_open_tickets_per_subcategory(isolated_db):
+    now = 1_000_000.0
+    _make_ticket(created_at=now - 3600, category_id="G01-S01")
+    _make_ticket(created_at=now - 3600, category_id="G01-S01")
+    _make_ticket(created_at=now - 3600, category_id="G01-S02")
+
+    result = poc_queue.build_subcategory_heat(POC_EMAIL)
+
+    codes = {s["subcategory_code"]: s["open_count"] for s in result["subcategories"]}
+    assert codes == {"G01-S01": 2, "G01-S02": 1, "G01-S03": 0}
+
+
+def test_subcategory_heat_never_includes_a_subcategory_not_owned_by_this_poc(isolated_db):
+    result = poc_queue.build_subcategory_heat(POC_EMAIL)
+
+    codes = {s["subcategory_code"] for s in result["subcategories"]}
+    assert "G03-S01" not in codes  # routes to catherine/gauthami/ankon, not ranjith
+    assert all(code.startswith("G01-") for code in codes)
+
+
+def test_subcategory_heat_excludes_non_open_status_tickets(isolated_db):
+    now = 1_000_000.0
+    _make_ticket(created_at=now - 3600, category_id="G01-S01", status="needs_human_review")
+
+    result = poc_queue.build_subcategory_heat(POC_EMAIL)
+
+    codes = {s["subcategory_code"]: s["open_count"] for s in result["subcategories"]}
+    assert codes["G01-S01"] == 0
+
+
+def test_subcategory_heat_excludes_closed_tickets(isolated_db):
+    now = 1_000_000.0
+    _make_ticket(created_at=now - 3600, category_id="G01-S01", raw_payload={"ticket_status": "Resolved By POC"})
+
+    result = poc_queue.build_subcategory_heat(POC_EMAIL)
+
+    codes = {s["subcategory_code"]: s["open_count"] for s in result["subcategories"]}
+    assert codes["G01-S01"] == 0
+
+
+def test_subcategory_heat_ticket_entries_carry_id_and_zoho_ticket_id(isolated_db):
+    now = 1_000_000.0
+    ticket_id = _make_ticket(created_at=now - 3600, category_id="G01-S01", zoho_ticket_id="Z-9001")
+
+    result = poc_queue.build_subcategory_heat(POC_EMAIL)
+
+    bucket = next(s for s in result["subcategories"] if s["subcategory_code"] == "G01-S01")
+    assert bucket["tickets"] == [{"id": ticket_id, "zoho_ticket_id": "Z-9001"}]
+    assert bucket["category_code"] == "G01"
+    assert bucket["category_name"] == "QA Report / Instructor Evaluation"
