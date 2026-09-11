@@ -296,6 +296,22 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
     refreshes the stored data - no polling, no round trip back through
     ZOHO_INVOKE_URL.
 
+    zoho_ticket_id is OPTIONAL, which puts this endpoint in one of two
+    modes:
+
+    - Present -> persist mode (the original behavior): upserts by
+      zoho_ticket_id, classifying + storing a real ticket the first time an
+      id is seen, and refreshing raw_payload/zoho_category/zoho_subcategory/
+      original_text in place on every call after that.
+    - Absent -> suggestion mode: for a "Suggest category" action in Zoho
+      that runs BEFORE a record is submitted/saved - i.e. before Zoho has
+      generated a Ticket_ID for it. Classifies whatever draft
+      issue_in_detail text is passed in and returns a preview. Nothing is
+      written to the tickets table in this mode (db.get_ticket_by_zoho_id /
+      create_ticket / update_ticket are never called) - there's no stable
+      identity yet to store it under, and this may be called more than once
+      per eventual ticket as the draft text changes while an agent edits it.
+
     Auth is a shared secret (X-Webhook-Secret, see require_webhook_secret)
     rather than the session login the UI uses, since Deluge can't hold a
     browser session. Classification runs with the server-side
@@ -312,11 +328,18 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
     acknowledgement_from_the_poc, worklog_from_the_poc, etc.) just rides
     along in raw_payload and shows up in the portal's "Ticket Details" table.
 
-    Intentionally returns only a bare ack, not the classification result
-    (category/team/confidence/etc.) - Zoho doesn't need to parse or display
-    any of that; a human checks the outcome in this portal's own UI. Keeping
-    the contract this thin means Zoho's side never has to change even if the
-    result shape here does.
+    Returns the model's own classification alongside the ack, in every
+    branch: {"ok": true, "category_of_the_issue": "<parent group NAME, e.g.
+    "QA Report / Instructor Evaluation">", "sub_category_of_the_issue":
+    "<leaf NAME, e.g. "Feedback Too Generic or Vague">"} - human-readable
+    names, not taxonomy ids. Both come from the same taxonomy.get(category_id)
+    lookup - category_of_the_issue is its ["parent_name"], sub_category_of_the_issue
+    is its ["name"] - neither is a separate model output, so Zoho's Deluge
+    script can read them back with response.get("category_of_the_issue") /
+    response.get("sub_category_of_the_issue") and apply them to the record.
+    In the persist-mode update branch (an already-known zoho_ticket_id) these
+    reflect whatever category is already stored for that ticket rather than
+    a fresh prediction - see the note below on why edits never reclassify.
 
     Upserts by zoho_ticket_id: the first time a ticket id is seen, it's
     created and classified as before. Every call after that (an edit, or a
@@ -326,12 +349,28 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
     category_id/confidence/reasoning/status, so an unrelated status change
     in Zoho can never silently undo a human's correction in this portal.
     """
-    zoho_ticket_id = str(payload.get("zoho_ticket_id") or "").strip()
-    if not zoho_ticket_id:
-        raise HTTPException(400, "zoho_ticket_id is required")
     issue_text = str(payload.get("issue_in_detail") or "").strip()
     if not issue_text:
         raise HTTPException(400, "issue_in_detail is required")
+
+    zoho_ticket_id = str(payload.get("zoho_ticket_id") or "").strip()
+
+    if not zoho_ticket_id:
+        # Suggestion mode - see docstring above. No DB writes of any kind.
+        if not config.OPENROUTER_API_KEY:
+            raise HTTPException(
+                500,
+                "OPENROUTER_API_KEY is not set in the server's .env - required for "
+                "webhook-triggered classification since there's no UI operator "
+                "to supply a per-request key.",
+            )
+        result = classifier.classify(issue_text, config.OPENROUTER_API_KEY)
+        leaf = taxonomy.get(result.category_id)
+        return {
+            "ok": True,
+            "category_of_the_issue": leaf["parent_name"] if leaf else None,
+            "sub_category_of_the_issue": leaf["name"] if leaf else None,
+        }
 
     zoho_category = str(payload.get("category_of_the_issue") or "").strip() or None
     zoho_subcategory = str(payload.get("sub_category_of_the_issue") or "").strip() or None
@@ -346,7 +385,14 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
             zoho_subcategory=zoho_subcategory,
             raw_payload=payload,
         )
-        return {"ok": True, "updated": True, "ticket_id": existing["id"]}
+        leaf = taxonomy.get(existing["category_id"]) if existing.get("category_id") else None
+        return {
+            "ok": True,
+            "updated": True,
+            "ticket_id": existing["id"],
+            "category_of_the_issue": leaf["parent_name"] if leaf else None,
+            "sub_category_of_the_issue": leaf["name"] if leaf else None,
+        }
 
     if not config.OPENROUTER_API_KEY:
         raise HTTPException(
@@ -363,9 +409,16 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
         zoho_subcategory=zoho_subcategory,
         raw_payload=payload,
     )
-    _run_classification_and_persist(ticket_id, issue_text, clarification_turns=0, api_key=config.OPENROUTER_API_KEY)
+    result = _run_classification_and_persist(
+        ticket_id, issue_text, clarification_turns=0, api_key=config.OPENROUTER_API_KEY
+    )
+    leaf = taxonomy.get(result.category_id)
 
-    return {"ok": True}
+    return {
+        "ok": True,
+        "category_of_the_issue": leaf["parent_name"] if leaf else None,
+        "sub_category_of_the_issue": leaf["name"] if leaf else None,
+    }
 
 
 def _normalize_label(s: str) -> str:
