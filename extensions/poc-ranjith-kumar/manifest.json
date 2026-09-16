@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "Ticket Queue — Ranjith Kumar",
+  "version": "1.2.0",
+  "description": "Read-only queue of QA Report tickets awaiting acknowledgement or approaching SLA, for ranjith.kumar@nxtwave.co.in.",
+  "action": {},
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": ["sidePanel", "scripting", "tabs"],
+  "host_permissions": [
+    "http://localhost:8000/*",
+    "https://zoho-tickets.onrender.com/*",
+    "https://niat.zohocreatorportal.in/*"
+  ]
+}

@@ -93,6 +93,13 @@ TAXONOMY_PATH = BASE_DIR / "taxonomy.json"
 ADMIN_USERNAME = _env("ADMIN_USERNAME", "admin")
 ADMIN_PASSWORD = _env("ADMIN_PASSWORD", "admin")
 
+# Second gate in front of the Taxonomy tab specifically - everyone logged
+# into the app can view it, but editing/saving needs this password too
+# (checked both at the "Unlock to edit" prompt and again on every PUT
+# /api/taxonomy, so the second check can't be skipped by calling the API
+# directly). Set in .env for anything beyond local/dev use.
+TAXONOMY_EDIT_PASSWORD = _env("TAXONOMY_EDIT_PASSWORD", "changeme")
+
 # Signs the session cookie. Not a config value - generated once and cached on
 # disk (outside git) so logins survive restarts but nothing secret is checked in.
 _SESSION_SECRET_PATH = DATA_DIR / ".session_secret"
@@ -139,3 +146,35 @@ ZOHO_FIELD_ISSUE_DETAIL = _env("ZOHO_FIELD_ISSUE_DETAIL", "Issue_in_Detail")
 # Empty by default so the webhook endpoint is refused (fails closed) until
 # you set a real value in .env.
 ZOHO_WEBHOOK_SECRET = _env("ZOHO_WEBHOOK_SECRET")
+
+# --- POC ticket-queue extension (read-only queue popup) -------------------
+# One small Chrome extension per POC (see docs/superpowers/specs/
+# 2026-09-09-poc-ticket-queue-extension-design.md) authenticates with a
+# single per-POC bearer token instead of the session-cookie login the main
+# UI uses - matches ADMIN_USERNAME/PASSWORD and ZOHO_WEBHOOK_SECRET's
+# existing "secret lives in one env var" pattern. Add one more _env() line
+# here (and a matching env var) for each future POC extension.
+POC_TOKENS: dict[str, str] = {
+    "ranjith.kumar@nxtwave.co.in": _env("POC_TOKEN_RANJITH_KUMAR"),
+}
+
+# How long a POC has to acknowledge a new ticket before it counts as missed.
+ACK_WINDOW_HOURS = 4.0
+# Inside the last this-many minutes of an still-open ack window, the UI
+# flags it "urgent" rather than just "due".
+ACK_URGENT_MINUTES = 15.0
+# Inside the last this fraction of the SLA window, the UI flags "at risk"
+# rather than "on track".
+SLA_AT_RISK_FRACTION = 0.15
+
+# SLA hours per top-level taxonomy group code. Zoho never sends its own SLA
+# deadline (only a categorical sla_breach_status string), so this table is
+# the only source of the SLA countdown shown in a POC queue extension. Only
+# G01 is populated today since it's the only group
+# ranjith.kumar@nxtwave.co.in (the only POC extension built so far) is
+# routed to - add more rows here as more POC extensions are built for other
+# taxonomy groups.
+CATEGORY_SLA_HOURS: dict[str, float] = {
+    "G01": 24.0,
+}
+CATEGORY_SLA_HOURS_DEFAULT = 48.0

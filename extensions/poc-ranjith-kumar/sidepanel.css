@@ -1,0 +1,623 @@
+:root {
+  /* Same palette as the main Ticket Router app (app/static/index.html :root) */
+  --bg: #FFFFFF;
+  --panel-2: #F6EFE8;
+  --border: #E7DED4;
+  --border-strong: #D8CCC0;
+  --text: #241318;
+  --muted: #8B7680;
+  --accent: #7A2039;
+  --accent-soft: #F0DCE1;
+
+  --good: #1B8A3A;
+  --good-soft: #E3F1E4;
+  --warning: #DB9A1F;
+  --warning-text: #8A5C00;
+  --warning-soft: #FBEFD8;
+  --critical: #B0342E;
+  --critical-soft: #FBE4E1;
+
+  /* Sequential ramp for the subcategory heat grid, in the app's own wine
+     hue (same family as --accent) rather than an unrelated color - one
+     hue, monotone lightness light->dark (~71% -> 48% -> 30% HSL lightness,
+     each step >20% apart), light end at ~2.5:1 contrast against white.
+     --heat-high IS --accent - the brand's own "important" color doubles
+     as "high volume" here. The high-volume badge uses a white chip with a
+     --critical border/text (see .heat-badge) rather than a solid critical
+     fill, specifically because a solid red would sit at very low contrast
+     on top of this dark wine tile - white pops on every tier regardless
+     of hue, so the badge never blends into the ramp under it. */
+  --heat-low: #D98FA8;
+  --heat-medium: #A94D6C;
+  --heat-high: var(--accent);
+
+  --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
+  --sans: 'IBM Plex Sans', system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  padding: 16px;
+  font-family: var(--sans);
+  color: var(--text);
+  background: var(--bg);
+  line-height: 1.4;
+}
+
+header {
+  margin-bottom: 14px;
+}
+
+.brand-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.brand-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+
+.brand-row h1 {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0;
+  flex: 1;
+}
+
+.as-of {
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.poc-row {
+  margin-top: 6px;
+  font-size: 12.5px;
+  color: var(--muted);
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.poc-name {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.poc-team:not(:empty)::before,
+.poc-count:not(:empty)::before {
+  content: "·";
+  margin-right: 6px;
+  color: var(--border-strong);
+}
+
+/* --- Summary tiles --- */
+
+.summary-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.summary-stat {
+  flex: 1;
+  border-radius: 10px;
+  padding: 10px 12px;
+  text-align: center;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: box-shadow .12s, border-color .12s;
+  user-select: none;
+}
+
+.summary-stat:hover {
+  border-color: var(--border-strong);
+}
+
+.summary-stat.active {
+  box-shadow: inset 0 0 0 2px currentColor;
+}
+
+.summary-stat.breached.active { color: var(--critical); }
+.summary-stat.needs-ack.active { color: var(--warning-text); }
+.summary-stat.on-track.active { color: var(--good); }
+
+.summary-stat .count {
+  display: block;
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.summary-stat .label {
+  display: block;
+  font-size: 10.5px;
+  margin-top: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.summary-stat.breached { background: var(--critical-soft); border-color: rgba(176, 52, 46, .25); }
+.summary-stat.breached .count { color: var(--critical); }
+.summary-stat.breached .label { color: var(--critical); opacity: .8; }
+
+.summary-stat.needs-ack { background: var(--warning-soft); border-color: rgba(219, 154, 31, .3); }
+.summary-stat.needs-ack .count { color: var(--warning-text); }
+.summary-stat.needs-ack .label { color: var(--warning-text); opacity: .8; }
+
+.summary-stat.on-track { background: var(--good-soft); border-color: rgba(27, 138, 58, .25); }
+.summary-stat.on-track .count { color: var(--good); }
+.summary-stat.on-track .label { color: var(--good); opacity: .8; }
+
+/* --- Sort row --- */
+
+.sort-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.sort-label {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.sort-tabs {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 3px;
+  background: var(--panel-2);
+}
+
+.sort-tab {
+  flex: 1;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  padding: 6px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.sort-tab.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* --- Ticket list --- */
+
+.ticket-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ticket-card {
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: #fff;
+}
+
+.ticket-card.collapsed {
+  padding: 9px 14px;
+}
+
+.ticket-card.expanded.severity-critical { border-left-color: var(--critical); }
+.ticket-card.expanded.severity-warning { border-left-color: var(--warning); }
+.ticket-card.expanded.severity-good { border-left-color: var(--good); }
+
+.ticket-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ticket-id {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.ticket-id.sev-critical { color: var(--critical); }
+.ticket-id.sev-warning { color: var(--warning-text); }
+.ticket-id.sev-good { color: var(--good); }
+
+.chevron {
+  color: var(--border-strong);
+  font-size: 16px;
+  transition: transform .12s;
+}
+
+.chevron.open {
+  transform: rotate(90deg);
+  color: var(--muted);
+}
+
+.priority-pill {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: var(--muted);
+  border-radius: 4px;
+  padding: 2px 6px;
+  text-transform: uppercase;
+}
+
+.ticket-category {
+  margin: 6px 0 4px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.category-pill {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
+.category-name {
+  color: var(--muted);
+}
+
+.issue-summary {
+  font-size: 13px;
+  color: var(--text);
+  margin: 4px 0 8px;
+}
+
+.pill-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 8px;
+}
+
+.pill {
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.pill.bad { color: var(--critical); font-weight: 600; }
+.pill.warn { color: var(--warning-text); font-weight: 600; }
+.pill.ok { color: var(--good); font-weight: 600; }
+.pill.neutral { color: var(--muted); }
+
+.sla-line {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.sla-hours-total {
+  color: var(--muted);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.progress-track {
+  height: 5px;
+  border-radius: 3px;
+  background: var(--border);
+  overflow: hidden;
+  margin: 4px 0 10px;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 3px;
+}
+
+.progress-fill.bad { background: var(--critical); }
+.progress-fill.warn { background: var(--warning); }
+.progress-fill.ok { background: var(--good); }
+
+.card-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.open-in-zoho {
+  font-size: 12px;
+  color: var(--accent);
+  font-weight: 600;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 0;
+}
+
+.open-in-zoho:hover {
+  text-decoration: underline;
+}
+
+.show-older-btn {
+  display: block;
+  width: 100%;
+  text-align: center;
+  background: var(--panel-2);
+  border: 1px dashed var(--border-strong);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  padding: 8px;
+  cursor: pointer;
+}
+
+.show-older-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.empty-state {
+  text-align: center;
+  color: var(--muted);
+  font-size: 12.5px;
+  padding: 28px 8px;
+}
+
+.empty-state.error {
+  color: var(--critical);
+}
+
+.empty-state .retry-btn {
+  margin-top: 12px;
+  padding: 7px 16px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+  font-weight: 600;
+}
+
+/* --- View tabs (Queue / Heat Grid) --- */
+
+.view-tabs {
+  display: flex;
+  gap: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 3px;
+  background: var(--panel-2);
+  margin-bottom: 16px;
+}
+
+.view-tab {
+  flex: 1;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  padding: 7px 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.view-tab.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* --- Heat grid --- */
+
+.heat-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.category-select {
+  flex: 1;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 7px 10px;
+}
+
+.category-total {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.heat-legend {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.legend-swatch.tier-low { background: var(--heat-low); }
+.legend-swatch.tier-medium { background: var(--heat-medium); }
+.legend-swatch.tier-high { background: var(--heat-high); }
+
+.heat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.heat-tile {
+  border-radius: 10px;
+  padding: 12px 10px;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: border-color .12s;
+  text-align: left;
+}
+
+.heat-tile:hover {
+  border-color: var(--accent);
+}
+
+.heat-tile.tier-low {
+  background: var(--heat-low);
+  color: var(--text);
+}
+
+.heat-tile.tier-medium {
+  background: var(--heat-medium);
+  color: #fff;
+}
+
+.heat-tile.tier-high {
+  background: var(--heat-high);
+  color: #fff;
+}
+
+.heat-tile-count {
+  font-size: 24px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.heat-tile-code {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  margin-top: 6px;
+  opacity: .9;
+}
+
+.heat-tile-name {
+  font-size: 11px;
+  margin-top: 2px;
+  opacity: .85;
+  line-height: 1.3;
+}
+
+.heat-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 8px;
+  background: #fff;
+  color: var(--critical);
+  border: 1px solid var(--critical);
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
+.heat-detail {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.heat-detail:empty {
+  display: none;
+  border: none;
+  padding: 0;
+}
+
+.heat-detail-header {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ticket-chip {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.ticket-chip:hover {
+  border-color: var(--accent);
+}
+
+.show-more-chips-btn {
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  background: none;
+  border: 1px dashed var(--border-strong);
+  border-radius: 5px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
