@@ -266,6 +266,7 @@ def get_zoho_status(user: str = Depends(require_login)):
     return {
         "invoke_url_is_sample": "REPLACE_WITH_REAL_ZOHO_CUSTOM_API" in config.ZOHO_INVOKE_URL,
         "api_key_is_sample": config.ZOHO_API_KEY == "sample-zoho-key",
+        "report_url": config.ZOHO_REPORT_URL,
     }
 
 

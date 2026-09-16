@@ -147,6 +147,15 @@ ZOHO_FIELD_ISSUE_DETAIL = _env("ZOHO_FIELD_ISSUE_DETAIL", "Issue_in_Detail")
 # you set a real value in .env.
 ZOHO_WEBHOOK_SECRET = _env("ZOHO_WEBHOOK_SECRET")
 
+# Zoho Creator report the web UI's "open in Zoho" ticket ID links point at.
+# Not secret (same value the poc-ranjith-kumar extension's config.js hardcodes
+# as zohoReportUrl) - no per-ticket record URL exists in Zoho, so this just
+# opens the report; the ticket ID is copied to the clipboard alongside so it
+# can be pasted into Zoho's own search.
+ZOHO_REPORT_URL = _env(
+    "ZOHO_REPORT_URL", "https://niat.zohocreatorportal.in/#Report:All_Instructors_Ticketing_System_Report"
+)
+
 # --- POC ticket-queue extension (read-only queue popup) -------------------
 # One small Chrome extension per POC (see docs/superpowers/specs/
 # 2026-09-09-poc-ticket-queue-extension-design.md) authenticates with a

@@ -327,6 +327,10 @@
   #pulseView .flip-hint{ font-size:11px; color:var(--p-text-muted); margin-top:2px; }
   #pulseView .flip-ids-list{ display:flex; flex-wrap:wrap; gap:5px; }
   #pulseView .flip-id-chip{ font-family:var(--mono); font-size:11px; color:var(--p-text-primary); background:var(--p-surface-2); border:1px solid var(--p-border); border-radius:5px; padding:2px 7px; }
+  #pulseView .zoho-link{ cursor:pointer; }
+  #pulseView .zoho-link:hover{ border-color:var(--p-accent); color:var(--p-accent); text-decoration:none; }
+  #pulseView td .zoho-link{ text-decoration:underline; text-decoration-style:dotted; text-decoration-color:var(--p-text-muted); }
+  #pulseView td .zoho-link:hover{ text-decoration-color:var(--p-accent); }
 
   #pulseView .tiles, #statsView .tiles{ display:grid; grid-template-columns:repeat(5, 1fr); gap:12px; margin-bottom:32px; }
   #pulseView .tiles-7{ display:grid; grid-template-columns:repeat(7, 1fr); gap:12px; margin-bottom:32px; }
@@ -911,6 +915,7 @@ async function loadZohoStatus() {
     const res = await fetch('/api/zoho/status');
     if (!res.ok) throw new Error(`status ${res.status}`);
     const data = await res.json();
+    ZOHO_REPORT_URL = data.report_url || null;
     const isSample = data.invoke_url_is_sample || data.api_key_is_sample;
     const color = isSample ? 'var(--amber)' : 'var(--accent)';
     const label = isSample ? 'zoho: sample/mock config' : 'zoho: configured';
@@ -920,6 +925,34 @@ async function loadZohoStatus() {
     console.error(e);
   }
 }
+
+// ---- "Open in Zoho" for ticket IDs shown across Pulse tiles/tables -----
+// There's no per-ticket record URL in Zoho (see extensions/poc-ranjith-
+// kumar's README) - its Chrome extension automates the search box via
+// chrome.scripting, a cross-origin capability a plain web page doesn't
+// have. This copies the ticket ID to the clipboard and opens the report
+// tab so pasting it into Zoho's own search gets you there in one more step.
+let ZOHO_REPORT_URL = null;
+function pulseOpenInZoho(chipEl) {
+  const id = chipEl.dataset.zohoId;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    const original = chipEl.textContent;
+    navigator.clipboard.writeText(String(id)).then(() => {
+      chipEl.textContent = 'Copied ✓';
+      setTimeout(() => { chipEl.textContent = original; }, 1200);
+    }).catch(() => {});
+  }
+  if (ZOHO_REPORT_URL) window.open(ZOHO_REPORT_URL, '_blank', 'noopener');
+}
+// Capture phase so this runs (and can stopPropagation) before a clicked
+// chip's ancestor flip-card onclick="pulseToggleFlipCard(this)" fires.
+document.addEventListener('click', (e) => {
+  const chip = e.target.closest('.zoho-link[data-zoho-id]');
+  if (!chip) return;
+  e.preventDefault();
+  e.stopPropagation();
+  pulseOpenInZoho(chip);
+}, true);
 
 function confBand(c) {
   if (c === null || c === undefined) return { color: 'var(--muted)', segs: 0 };
@@ -2239,7 +2272,7 @@ function pulseRenderActionItems(rows) {
       <div class="flip-face flip-face-back">
         <span class="action-tag sev-${c.sev}">${esc(c.tag)}</span>
         <div class="action-title">${c.ids.length} ticket${c.ids.length===1?'':'s'}</div>
-        <div class="flip-ids-list">${c.ids.map(id => `<span class="flip-id-chip">#${esc(id)}</span>`).join('')}</div>
+        <div class="flip-ids-list">${c.ids.map(id => `<span class="flip-id-chip zoho-link" data-zoho-id="${esc(id)}" title="Copy ticket ID &amp; open Zoho report">#${esc(id)}</span>`).join('')}</div>
         <div class="flip-hint">&#8592; Click to go back</div>
       </div>
     </div>`).join('');
@@ -2446,7 +2479,7 @@ function pulseRenderStatusBreakdown(allRows) {
       </div>
       <div class="flip-face flip-face-back">
         <p class="tile-label">${x.label}</p>
-        <div class="flip-ids-list">${ids.length ? ids.map(id => `<span class="flip-id-chip">#${esc(id)}</span>`).join('') : '<span class="flip-hint">No tickets</span>'}</div>
+        <div class="flip-ids-list">${ids.length ? ids.map(id => `<span class="flip-id-chip zoho-link" data-zoho-id="${esc(id)}" title="Copy ticket ID &amp; open Zoho report">#${esc(id)}</span>`).join('') : '<span class="flip-hint">No tickets</span>'}</div>
         <div class="flip-hint">&#8592; back</div>
       </div>
     </div>`;
@@ -2550,7 +2583,7 @@ function pulseRenderUniversities(rows) {
       <div class="flip-face flip-face-back">
         <div class="uni-rank">#${i+1}</div>
         <div class="uni-name">${esc(u.name)}</div>
-        <div class="flip-ids-list">${ids.length ? ids.map(id => `<span class="flip-id-chip">#${esc(id)}</span>`).join('') : '<span class="flip-hint">No open tickets</span>'}</div>
+        <div class="flip-ids-list">${ids.length ? ids.map(id => `<span class="flip-id-chip zoho-link" data-zoho-id="${esc(id)}" title="Copy ticket ID &amp; open Zoho report">#${esc(id)}</span>`).join('') : '<span class="flip-hint">No open tickets</span>'}</div>
         <div class="flip-hint">&#8592; back</div>
       </div>
     </div>`;
@@ -2671,7 +2704,7 @@ function pulseRenderOldest(rows) {
     const days = (pulseAgeHours(r)/24).toFixed(1);
     return `
     <tr>
-      <td>#${esc(r.id)}</td>
+      <td><span class="zoho-link" data-zoho-id="${esc(r.id)}" title="Copy ticket ID &amp; open Zoho report">#${esc(r.id)}</span></td>
       <td>${esc(r.uni)}</td>
       <td>${esc(r.cat)}<div class="p-subtext">${esc(r.sub)}</div></td>
       <td>${esc(r.status)}</td>
