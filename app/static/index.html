@@ -771,6 +771,9 @@
             <h2>Ticket status breakdown</h2>
             <span class="section-note">within selected window</span>
           </div>
+          <div class="p-select-row" style="margin-bottom:12px">
+            <select id="pulseStatusCatSelect"></select>
+          </div>
           <div class="tiles-7" id="pulseStatusTiles"></div>
         </section>
 
@@ -1835,6 +1838,7 @@ let pulseAS_OF = new Date();
 let pulseDATA_MIN = new Date();
 let pulseDATA_MAX = new Date();
 let pulseUNIVERSITIES = [];
+let pulseCATEGORIES = [];
 const PULSE_CLOSED_STATUSES = new Set(['Resolved By POC', 'Resolution Acknowledged', 'Closed']);
 
 function pulseFmtPct(n) { return Math.round(n) + '%'; }
@@ -1859,7 +1863,7 @@ function pulseParseZohoDate(s) {
   return new Date(Date.UTC(yyyy, mm - 1, dd, hh, mi, ss) - (5 * 60 + 30) * 60000);
 }
 
-const pulseState = { from: new Date(), to: new Date(), presetDays: 7, catUni: 'ALL' };
+const pulseState = { from: new Date(), to: new Date(), presetDays: 7, catUni: 'ALL', statusCat: 'ALL' };
 
 function pulseInRange(row) {
   const t = new Date(row.added);
@@ -2242,10 +2246,21 @@ function pulseRenderTrend(rows) {
   }).join('');
 }
 
-// ---- Ticket status breakdown ----
-function pulseRenderStatusBreakdown(rows) {
+// ---- Ticket status breakdown, filterable by category ----
+function pulseInitStatusCatSelect() {
+  const sel = document.getElementById('pulseStatusCatSelect');
+  sel.innerHTML = `<option value="ALL">All categories</option>` +
+    pulseCATEGORIES.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  sel.addEventListener('change', () => { pulseState.statusCat = sel.value; pulseRenderStatusBreakdown(pulseFilteredRows()); });
+}
+
+function pulseRenderStatusBreakdown(allRows) {
   const el = document.getElementById('pulseStatusTiles');
-  if (rows.length === 0) { el.innerHTML = ''; return; }
+  const rows = pulseState.statusCat === 'ALL' ? allRows : allRows.filter(r => r.cat === pulseState.statusCat);
+  if (rows.length === 0) {
+    el.innerHTML = `<p class="empty-state">No tickets${pulseState.statusCat === 'ALL' ? '' : ' in this category'} in this window.</p>`;
+    return;
+  }
   const total = rows.length;
   const closedRows = rows.filter(r => !r.open);
   const openRows = rows.filter(r => r.open);
@@ -2503,12 +2518,14 @@ async function pulseBoot() {
     pulseDATA_MIN = pulseROWS.length ? new Date(Math.min(...pulseROWS.map(r => new Date(r.added)))) : now;
     pulseDATA_MAX = pulseROWS.length ? new Date(Math.max(...pulseROWS.map(r => new Date(r.added)))) : now;
     pulseUNIVERSITIES = [...new Set(pulseROWS.map(r => r.uni))].sort();
+    pulseCATEGORIES = [...new Set(pulseROWS.map(r => r.cat))].sort();
 
     document.getElementById('pulseAsOfMeta').textContent = now.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     loadingEl.style.display = 'none';
 
     pulseInitRangeBar();
     pulseInitCatSelect();
+    pulseInitStatusCatSelect();
     pulseRenderAll();
   } catch (err) {
     loadingEl.textContent = `Couldn't load live ticket data: ${err.message}`;
