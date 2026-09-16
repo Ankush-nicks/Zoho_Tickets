@@ -2455,25 +2455,28 @@ function pulseRenderStatusBreakdown(allRows) {
 
 // ---- Category x status pivot CSV (matches the "Category Of The Issue /
 // Re-open / Awaiting Instructors Response / In Progress / Yet To Pick /
-// Grand Total" report format) ----
+// Resolved / Discarded / Grand Total" report format) ----
 function pulseCategoryStatusReport(rows) {
   const map = {};
   rows.forEach(r => {
-    if (!r.open) return; // this report is about the open backlog only
-    // A reopened ticket is bucketed as "Re-open" regardless of its current
-    // status - takes priority over the other three so every open ticket
-    // lands in exactly one column and the row sums to Grand Total.
+    // Discard and resolved (closed) tickets get their own buckets, checked
+    // first so they can't also match a reopen/in-progress/etc bucket below.
+    // A reopened-but-still-open ticket is bucketed as "Re-open" regardless
+    // of its current status - takes priority over the other three so every
+    // open ticket lands in exactly one column.
     let bucket;
-    if (r.reopenCount > 0) bucket = 'reopen';
+    if (r.status === 'Discard') bucket = 'discarded';
+    else if (!r.open) bucket = 'resolved';
+    else if (r.reopenCount > 0) bucket = 'reopen';
     else if (r.status === 'Awaiting Instructors Response') bucket = 'awaiting';
     else if (r.status === 'In Progress') bucket = 'inProgress';
     else if (r.status === 'Yet To Pick') bucket = 'yetToPick';
-    else return; // e.g. 'Discard' - not part of this report
-    map[r.cat] = map[r.cat] || { reopen: 0, awaiting: 0, inProgress: 0, yetToPick: 0 };
+    else return; // unrecognized status - not part of this report
+    map[r.cat] = map[r.cat] || { reopen: 0, awaiting: 0, inProgress: 0, yetToPick: 0, resolved: 0, discarded: 0 };
     map[r.cat][bucket]++;
   });
   return Object.entries(map)
-    .map(([cat, v]) => ({ cat, ...v, total: v.reopen + v.awaiting + v.inProgress + v.yetToPick }))
+    .map(([cat, v]) => ({ cat, ...v, total: v.reopen + v.awaiting + v.inProgress + v.yetToPick + v.resolved + v.discarded }))
     .sort((a, b) => b.total - a.total);
 }
 
@@ -2484,14 +2487,15 @@ function pulseCsvEscape(val) {
 
 function pulseDownloadCategoryStatusCsv() {
   const report = pulseCategoryStatusReport(pulseFilteredRows());
-  const header = ['Category Of The Issue', 'Re-open', 'Awaiting Instructors Response', 'In Progress', 'Yet To Pick', 'Grand Total'];
+  const header = ['Category Of The Issue', 'Re-open', 'Awaiting Instructors Response', 'In Progress', 'Yet To Pick', 'Resolved', 'Discarded', 'Grand Total'];
   const lines = [header.map(pulseCsvEscape).join(',')];
-  const totals = { reopen: 0, awaiting: 0, inProgress: 0, yetToPick: 0, total: 0 };
+  const totals = { reopen: 0, awaiting: 0, inProgress: 0, yetToPick: 0, resolved: 0, discarded: 0, total: 0 };
   report.forEach(r => {
-    lines.push([r.cat, r.reopen || '', r.awaiting || '', r.inProgress || '', r.yetToPick || '', r.total].map(pulseCsvEscape).join(','));
-    totals.reopen += r.reopen; totals.awaiting += r.awaiting; totals.inProgress += r.inProgress; totals.yetToPick += r.yetToPick; totals.total += r.total;
+    lines.push([r.cat, r.reopen || '', r.awaiting || '', r.inProgress || '', r.yetToPick || '', r.resolved || '', r.discarded || '', r.total].map(pulseCsvEscape).join(','));
+    totals.reopen += r.reopen; totals.awaiting += r.awaiting; totals.inProgress += r.inProgress; totals.yetToPick += r.yetToPick;
+    totals.resolved += r.resolved; totals.discarded += r.discarded; totals.total += r.total;
   });
-  lines.push(['Grand Total', totals.reopen || '', totals.awaiting || '', totals.inProgress || '', totals.yetToPick || '', totals.total].map(pulseCsvEscape).join(','));
+  lines.push(['Grand Total', totals.reopen || '', totals.awaiting || '', totals.inProgress || '', totals.yetToPick || '', totals.resolved || '', totals.discarded || '', totals.total].map(pulseCsvEscape).join(','));
 
   const blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
