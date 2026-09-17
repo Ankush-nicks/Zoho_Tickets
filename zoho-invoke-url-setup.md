@@ -134,7 +134,7 @@ add a route back for it once this section is actually wired up.)
 ## 5. Push direction — Zoho creates a ticket, portal classifies it automatically
 
 This is the other half: instead of your portal pulling a ticket on demand,
-Zoho calls out to `https://zoho-tickets.onrender.com` the moment a new
+Zoho calls out to `https://zoho-tickets-1rrw.onrender.com` the moment a new
 record is added to the Tickets form, and the portal classifies it right
 away — no polling needed.
 
@@ -228,7 +228,7 @@ paramMap.put("campus_city", input.Campus_City);
 
 response = invokeurl
 [
-	url: "https://zoho-tickets.onrender.com/api/webhooks/zoho/tickets"
+	url: "https://zoho-tickets-1rrw.onrender.com/api/webhooks/zoho/tickets"
 	type: POST
 	parameters: paramMap.toString()
 	headers: headerMap

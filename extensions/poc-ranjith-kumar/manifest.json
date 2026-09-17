@@ -13,7 +13,7 @@
   "permissions": ["sidePanel", "scripting", "tabs"],
   "host_permissions": [
     "http://localhost:8000/*",
-    "https://zoho-tickets.onrender.com/*",
+    "https://zoho-tickets-1rrw.onrender.com/*",
     "https://niat.zohocreatorportal.in/*"
   ]
 }
