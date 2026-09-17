@@ -4,6 +4,15 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Ticket Router — Sign in</title>
+<script>
+// Runs before first paint so there's no flash of the wrong theme. Light is
+// the default regardless of OS preference - dark only applies if the user
+// has explicitly opted in before (shares the same localStorage key as the
+// main app, so the choice carries over across login).
+try {
+  if (localStorage.getItem('theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+} catch (e) {}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -26,23 +35,24 @@
     --fs-md: 13px;
     --fs-base: 14px;
 
-    color-scheme: light dark;
+    color-scheme: light;
   }
-  /* Dark Mode - follows the OS/browser preference automatically. Values
-     match app/static/index.html's dark palette (checked against WCAG AA
-     with a contrast calculator, not eyeballed) - --bg (the page backdrop
-     behind the card) stays as-is since it's already dark-toned. */
-  @media (prefers-color-scheme: dark){
-    :root{
-      --panel: #241620;
-      --panel-2: #2E1B24;
-      --border: #43293A;
-      --text: #F3E9E4;
-      --muted: #C9AFBA;
-      --accent: #E0577A;
-      --accent-ink: #1B1013;
-      --coral: #CC4E42;
-    }
+  /* Dark Mode - opt-in via the toggle (stored in localStorage, applied as
+     [data-theme="dark"] on <html>). Light stays the default regardless of
+     OS preference. Values match app/static/index.html's dark palette
+     (checked against WCAG AA with a contrast calculator, not eyeballed) -
+     --bg (the page backdrop behind the card) stays as-is since it's
+     already dark-toned. */
+  :root[data-theme="dark"]{
+    --panel: #241620;
+    --panel-2: #2E1B24;
+    --border: #43293A;
+    --text: #F3E9E4;
+    --muted: #C9AFBA;
+    --accent: #E0577A;
+    --accent-ink: #1B1013;
+    --coral: #CC4E42;
+    color-scheme: dark;
   }
   *{box-sizing:border-box;}
   body{
@@ -84,9 +94,23 @@
   button:hover{ filter:brightness(1.1); }
   button:disabled{ opacity:.5; cursor:not-allowed; }
   .error{ font-family:var(--mono); font-size:var(--fs-sm); color:var(--coral); min-height:16px; margin-top:12px; text-align:center; }
+  .theme-toggle-btn{
+    position:fixed; top:16px; right:16px; width:36px; height:36px; margin:0; padding:0;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--panel); border:1px solid var(--border); border-radius:50%;
+    color:var(--text); cursor:pointer;
+  }
+  .theme-toggle-btn:hover{ filter:none; border-color:var(--accent); color:var(--accent); }
+  .theme-toggle-btn .icon-moon{ display:none; }
+  :root[data-theme="dark"] .theme-toggle-btn .icon-sun{ display:none; }
+  :root[data-theme="dark"] .theme-toggle-btn .icon-moon{ display:flex; }
 </style>
 </head>
 <body>
+<button class="theme-toggle-btn" type="button" onclick="pulseToggleTheme()" aria-pressed="false" aria-label="Toggle dark mode">
+  <svg class="icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+  <svg class="icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg>
+</button>
 <div class="card">
   <div class="brand">
     <div class="logo-badge">N</div>
@@ -108,6 +132,16 @@
 </div>
 
 <script>
+function pulseToggleTheme() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const next = !isDark;
+  if (next) document.documentElement.setAttribute('data-theme', 'dark');
+  else document.documentElement.removeAttribute('data-theme');
+  try { localStorage.setItem('theme', next ? 'dark' : 'light'); } catch (e) {}
+  document.querySelector('.theme-toggle-btn').setAttribute('aria-pressed', String(next));
+}
+document.querySelector('.theme-toggle-btn').setAttribute('aria-pressed', String(document.documentElement.getAttribute('data-theme') === 'dark'));
+
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const btn = document.getElementById('submitBtn');

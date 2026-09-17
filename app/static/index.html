@@ -4,6 +4,14 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Ticket Router</title>
+<script>
+// Runs before first paint so there's no flash of the wrong theme. Light is
+// the default regardless of OS preference - dark only applies if the user
+// has explicitly opted in before (saved in localStorage by pulseToggleTheme).
+try {
+  if (localStorage.getItem('theme') === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+} catch (e) {}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -47,15 +55,16 @@
     --fs-3xl: 24px;
     --fs-title: 27px;
 
-    color-scheme: light dark;
+    color-scheme: light;
   }
-  /* Dark Mode - follows the OS/browser preference automatically (no manual
-     toggle exists in this app). Sidebar tokens are left unchanged: it's
-     already a dark-toned chrome element in light mode, so it doesn't need
-     its own dark variant. Every value below was checked against WCAG AA
-     (4.5:1 for text) with a contrast calculator, not eyeballed. */
-  @media (prefers-color-scheme: dark){
-    :root{
+  /* Dark Mode - opt-in only via the toggle in the sidebar footer (stored in
+     localStorage, applied as [data-theme="dark"] on <html>). Light stays
+     the default regardless of OS preference. Sidebar tokens are left
+     unchanged: it's already a dark-toned chrome element in light mode, so
+     it doesn't need its own dark variant. Every value below was checked
+     against WCAG AA (4.5:1 for text) with a contrast calculator, not
+     eyeballed. */
+  :root[data-theme="dark"]{
       --bg: #1B1013;
       --panel: #241620;
       --panel-2: #2E1B24;
@@ -66,7 +75,7 @@
       --accent-ink: #1B1013;
       --amber: #E8A93D;
       --coral: #E5695C;
-    }
+      color-scheme: dark;
   }
   *{box-sizing:border-box;}
   body{
@@ -145,6 +154,12 @@
   .nav-item.active{ background:var(--sidebar-active-bg); font-weight:600; }
 
   .sidebar-footer{ padding:14px 20px 20px; border-top:1px solid var(--sidebar-border); }
+  .theme-toggle{ margin-bottom:1px; }
+  .theme-toggle .icon-moon{ display:none; }
+  :root[data-theme="dark"] .theme-toggle .icon-sun{ display:none; }
+  :root[data-theme="dark"] .theme-toggle .icon-moon{ display:flex; }
+  .theme-toggle .theme-toggle-label::after{ content:"Dark mode"; }
+  :root[data-theme="dark"] .theme-toggle .theme-toggle-label::after{ content:"Light mode"; }
 
   /* --- Main content --- */
   .main-content{ flex:1; min-width:0; padding:32px 40px 80px; }
@@ -342,25 +357,23 @@
     --p-warning-text: #8A5C00;
     max-width:1400px;
   }
-  @media (prefers-color-scheme: dark){
-    #pulseView, #statsView{
-      --p-surface-3: #3A2530;
-      --p-border-strong: #5A3F4C;
-      --p-baseline: #5A3F4C;
-      --p-accent-soft: #3A1B26;
-      --p-series-3: #34D399;
-      --p-series-6: #86D66B;
-      --p-series-7: #A78BDA;
-      --p-good: #3FBE6C;
-      --p-warning: #E0A83E;
-      --p-serious: #E08659;
-      --p-critical: #C8443B;
-      --p-critical-text: #FF8A80;
-      --p-critical-soft: #442220;
-      --p-warning-soft: #3A2A0A;
-      --p-good-soft: #15321F;
-      --p-warning-text: #F0C065;
-    }
+  :root[data-theme="dark"] #pulseView, :root[data-theme="dark"] #statsView{
+    --p-surface-3: #3A2530;
+    --p-border-strong: #5A3F4C;
+    --p-baseline: #5A3F4C;
+    --p-accent-soft: #3A1B26;
+    --p-series-3: #34D399;
+    --p-series-6: #86D66B;
+    --p-series-7: #A78BDA;
+    --p-good: #3FBE6C;
+    --p-warning: #E0A83E;
+    --p-serious: #E08659;
+    --p-critical: #C8443B;
+    --p-critical-text: #FF8A80;
+    --p-critical-soft: #442220;
+    --p-warning-soft: #3A2A0A;
+    --p-good-soft: #15321F;
+    --p-warning-text: #F0C065;
   }
   #pulseView .p-header, #statsView .p-header{ display:flex; justify-content:space-between; align-items:flex-start; gap:24px; flex-wrap:wrap; margin-bottom:18px; }
   #pulseView .p-eyebrow, #statsView .p-eyebrow{ font-family:var(--mono); font-size:var(--fs-xs); font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--p-accent); margin:0 0 6px; }
@@ -694,6 +707,13 @@
     </nav>
 
     <div class="sidebar-footer">
+      <button class="nav-item theme-toggle" type="button" onclick="pulseToggleTheme()" aria-pressed="false">
+        <span class="nav-icon">
+          <svg class="icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+          <svg class="icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg>
+        </span>
+        <span class="theme-toggle-label"></span>
+      </button>
       <a href="#" class="nav-item" id="logoutLink" onclick="logout(event)">
         <span class="nav-icon">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -1071,6 +1091,20 @@ function pulseToggleSidebar(force) {
 }
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') pulseToggleSidebar(false);
+});
+
+// ---- Theme toggle (light is the default; dark is opt-in, see the inline
+// <head> script that restores it before first paint) --------------------
+function pulseToggleTheme() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const next = !isDark;
+  if (next) document.documentElement.setAttribute('data-theme', 'dark');
+  else document.documentElement.removeAttribute('data-theme');
+  try { localStorage.setItem('theme', next ? 'dark' : 'light'); } catch (e) {}
+  document.querySelectorAll('.theme-toggle').forEach(btn => btn.setAttribute('aria-pressed', String(next)));
+}
+document.querySelectorAll('.theme-toggle').forEach(btn => {
+  btn.setAttribute('aria-pressed', String(document.documentElement.getAttribute('data-theme') === 'dark'));
 });
 
 function confBand(c) {
