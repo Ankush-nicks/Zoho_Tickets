@@ -43,9 +43,15 @@ CREATE TABLE IF NOT EXISTS tickets (
     resolution_detail REAL,            -- Resolution (detail), max 2
     resolution_evidence TEXT,          -- one-sentence AI critique quote, shown in the Insights tab
     resolution_scored_at REAL,         -- unset means not graded yet (or not closed yet)
-    acknowledged_at REAL               -- set when a POC acknowledges a ticket in Zoho - nullable,
+    acknowledged_at REAL,              -- set when a POC acknowledges a ticket in Zoho - nullable,
                                         -- unpopulated until a future write path exists - see
                                         -- docs/superpowers/specs/2026-09-09-poc-ticket-queue-extension-design.md
+    fallback_reason TEXT               -- set ONLY when the Zoho webhook had to force
+                                        -- config.ZOHO_FALLBACK_CATEGORY_ID onto category_of_the_issue/
+                                        -- sub_category_of_the_issue instead of a real classification
+                                        -- (classify() itself failed, or category_id was orphaned by a
+                                        -- later taxonomy edit) - NULL for a normal classification, including
+                                        -- when the model itself legitimately picks the same catch-all leaf
 );
 
 CREATE TABLE IF NOT EXISTS turns (
@@ -152,6 +158,10 @@ def init_db():
                     pass
             try:
                 conn.execute("ALTER TABLE tickets ADD COLUMN resolution_evidence TEXT")
+            except Exception:
+                pass
+            try:
+                conn.execute("ALTER TABLE tickets ADD COLUMN fallback_reason TEXT")
             except Exception:
                 pass
 

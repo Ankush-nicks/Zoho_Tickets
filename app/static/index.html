@@ -2066,6 +2066,7 @@ function pulseMapTicket(t) {
     priority: rp.priority_level || null,
     reopenCount: parseInt(rp.ticket_reopen_count, 10) || 0,
     closedAt: pulseParseZohoDate(rp.ticket_closure_date_time),
+    fallbackReason: t.fallback_reason || null,
   };
 }
 
@@ -2181,6 +2182,27 @@ function pulseRenderActionItems(rows) {
   const unassigned = rows.filter(r => r.team === 'Unassigned');
   const unassignedBreached = unassigned.filter(r => r.sla === 'Breached');
   const unassignedWithSla = unassigned.filter(r => r.sla);
+
+  // A forced fallback means the ticket's category_of_the_issue/
+  // sub_category_of_the_issue sent to Zoho are NOT a real classification -
+  // Zoho treats both as mandatory, so the webhook always fills them with
+  // the taxonomy's catch-all rather than ever sending a blank value (see
+  // app/main.py's _resolve_leaf_for_zoho). This is the one place that gets
+  // surfaced, since otherwise it fails silently.
+  const fallbackRows = rows.filter(r => r.fallbackReason);
+  if (fallbackRows.length > 0) {
+    const neverClassified = fallbackRows.filter(r => r.fallbackReason === 'never_classified').length;
+    const classifyErrors = fallbackRows.filter(r => r.fallbackReason.startsWith('classify_error:')).length;
+    const orphaned = fallbackRows.filter(r => r.fallbackReason.startsWith('orphaned_category_id:')).length;
+    cards.push({
+      sev: 'critical',
+      tag: 'Data integrity',
+      title: `${fallbackRows.length} ticket${fallbackRows.length===1?'':'s'} sent Zoho a fallback category`,
+      detail: `${classifyErrors} classification failure${classifyErrors===1?'':'s'}, ${orphaned} orphaned taxonomy id${orphaned===1?'':'s'} (renamed/deleted after classifying), ${neverClassified} never classified at all - each still got a valid category/subcategory written to Zoho (never blank), just not a real one.`,
+      action: `Reclassify these with "Correct it" so the real category reaches Zoho; check the Taxonomy tab for ids old tickets still use before renaming them again.`,
+      ids: fallbackRows.map(r => r.id),
+    });
+  }
 
   const catMap = {};
   rows.forEach(r => {

@@ -156,6 +156,16 @@ ZOHO_REPORT_URL = _env(
     "ZOHO_REPORT_URL", "https://niat.zohocreatorportal.in/#Report:All_Instructors_Ticketing_System_Report"
 )
 
+# category_of_the_issue/sub_category_of_the_issue are mandatory fields on the
+# Zoho side, so the webhook must never write them back as blank. This is the
+# taxonomy leaf id it falls back to when the real predicted/stored
+# category_id can't be resolved (never classified yet, classify() itself
+# failed, or the id was orphaned by a later Taxonomy tab edit - see
+# taxonomy.py's reload() note) - "G14-S01" is the taxonomy's own catch-all
+# "Insufficient Information / No Routing Required" leaf, already what the
+# classifier's own prompt rules use for a genuinely un-classifiable ticket.
+ZOHO_FALLBACK_CATEGORY_ID = _env("ZOHO_FALLBACK_CATEGORY_ID", "G14-S01")
+
 # --- POC ticket-queue extension (read-only queue popup) -------------------
 # One small Chrome extension per POC (see docs/superpowers/specs/
 # 2026-09-09-poc-ticket-queue-extension-design.md) authenticates with a

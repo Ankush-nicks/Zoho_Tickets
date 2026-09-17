@@ -286,6 +286,41 @@ def get_db_info(user: str = Depends(require_login)):
     }
 
 
+def _resolve_leaf_for_zoho(category_id: str | None) -> tuple[dict, bool]:
+    """
+    Resolves category_id to its taxonomy leaf for the webhook's
+    category_of_the_issue/sub_category_of_the_issue response fields, which
+    are mandatory on the Zoho side - this must never return a leaf that
+    would make those come back blank/null.
+
+    Falls back to config.ZOHO_FALLBACK_CATEGORY_ID (the taxonomy's own
+    catch-all "Insufficient Information" leaf) whenever category_id is
+    missing entirely (never classified yet, or classify() itself failed)
+    or no longer exists in the current taxonomy (orphaned by a later
+    Taxonomy tab edit - see taxonomy.py's reload() note). As an absolute
+    last resort - the fallback id itself somehow missing too - falls back
+    again to the first leaf the current taxonomy has at all, so this simply
+    cannot return a leaf of None.
+
+    Second return value is True whenever a fallback was used, so callers
+    can flag the ticket (fallback_reason) instead of treating this as a
+    real classification.
+    """
+    leaf = taxonomy.get(category_id) if category_id else None
+    if leaf is not None:
+        return leaf, False
+
+    fallback = taxonomy.get(config.ZOHO_FALLBACK_CATEGORY_ID)
+    if fallback is not None:
+        return fallback, True
+
+    for leaf_id in taxonomy.category_ids:
+        any_leaf = taxonomy.get(leaf_id)
+        if any_leaf:
+            return any_leaf, True
+    return {"name": "Unclassified", "parent_name": "Unclassified"}, True
+
+
 @app.post("/api/webhooks/zoho/tickets")
 def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_secret)):
     """
@@ -332,15 +367,27 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
     Returns the model's own classification alongside the ack, in every
     branch: {"ok": true, "category_of_the_issue": "<parent group NAME, e.g.
     "QA Report / Instructor Evaluation">", "sub_category_of_the_issue":
-    "<leaf NAME, e.g. "Feedback Too Generic or Vague">"} - human-readable
-    names, not taxonomy ids. Both come from the same taxonomy.get(category_id)
-    lookup - category_of_the_issue is its ["parent_name"], sub_category_of_the_issue
-    is its ["name"] - neither is a separate model output, so Zoho's Deluge
-    script can read them back with response.get("category_of_the_issue") /
-    response.get("sub_category_of_the_issue") and apply them to the record.
+    "<leaf NAME, e.g. "Feedback Too Generic or Vague">", "needs_review": false}
+    - human-readable names, not taxonomy ids. Both name fields come from the
+    same _resolve_leaf_for_zoho(category_id) lookup - category_of_the_issue
+    is its leaf's ["parent_name"], sub_category_of_the_issue is its ["name"].
     In the persist-mode update branch (an already-known zoho_ticket_id) these
     reflect whatever category is already stored for that ticket rather than
     a fresh prediction - see the note below on why edits never reclassify.
+
+    category_of_the_issue/sub_category_of_the_issue are mandatory fields on
+    the Zoho side, so this endpoint is guaranteed to NEVER send them back
+    null/blank: _resolve_leaf_for_zoho falls back to
+    config.ZOHO_FALLBACK_CATEGORY_ID (the taxonomy's catch-all
+    "Insufficient Information" leaf) whenever the real category_id can't be
+    resolved - never classified yet, classify() itself raised (rate limit
+    exhausted with no Cloudflare fallback, network error, malformed model
+    output, etc. - caught here rather than propagating to a 500), or the
+    stored id was orphaned by a later Taxonomy tab edit. needs_review=true
+    marks exactly those cases so Zoho-side automation (or a human) can tell
+    a forced fallback apart from a genuine classification; the affected
+    ticket also gets fallback_reason set (see db.py's tickets.fallback_reason)
+    so it surfaces in the Pulse tab's action items for reclassification.
 
     Upserts by zoho_ticket_id: the first time a ticket id is seen, it's
     created and classified as before. Every call after that (an edit, or a
@@ -365,12 +412,18 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
                 "webhook-triggered classification since there's no UI operator "
                 "to supply a per-request key.",
             )
-        result = classifier.classify(issue_text, config.OPENROUTER_API_KEY)
-        leaf = taxonomy.get(result.category_id)
+        try:
+            result = classifier.classify(issue_text, config.OPENROUTER_API_KEY)
+            category_id = result.category_id
+        except Exception as e:
+            logger.error(f"Zoho webhook suggestion-mode classify() failed: {e}")
+            category_id = None
+        leaf, used_fallback = _resolve_leaf_for_zoho(category_id)
         return {
             "ok": True,
-            "category_of_the_issue": leaf["parent_name"] if leaf else None,
-            "sub_category_of_the_issue": leaf["name"] if leaf else None,
+            "category_of_the_issue": leaf["parent_name"],
+            "sub_category_of_the_issue": leaf["name"],
+            "needs_review": used_fallback,
         }
 
     zoho_category = str(payload.get("category_of_the_issue") or "").strip() or None
@@ -386,13 +439,24 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
             zoho_subcategory=zoho_subcategory,
             raw_payload=payload,
         )
-        leaf = taxonomy.get(existing["category_id"]) if existing.get("category_id") else None
+        leaf, used_fallback = _resolve_leaf_for_zoho(existing.get("category_id"))
+        if used_fallback:
+            # Either never classified yet, or category_id is set but no
+            # longer resolves (orphaned by a later taxonomy edit) - flag it
+            # so it surfaces for reclassification instead of silently
+            # sending Zoho the fallback category on every future edit too.
+            reason = (
+                f"orphaned_category_id:{existing['category_id']}"
+                if existing.get("category_id") else "never_classified"
+            )
+            db.update_ticket(existing["id"], fallback_reason=reason)
         return {
             "ok": True,
             "updated": True,
             "ticket_id": existing["id"],
-            "category_of_the_issue": leaf["parent_name"] if leaf else None,
-            "sub_category_of_the_issue": leaf["name"] if leaf else None,
+            "category_of_the_issue": leaf["parent_name"],
+            "sub_category_of_the_issue": leaf["name"],
+            "needs_review": used_fallback,
         }
 
     if not config.OPENROUTER_API_KEY:
@@ -410,15 +474,36 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
         zoho_subcategory=zoho_subcategory,
         raw_payload=payload,
     )
-    result = _run_classification_and_persist(
-        ticket_id, issue_text, clarification_turns=0, api_key=config.OPENROUTER_API_KEY
-    )
-    leaf = taxonomy.get(result.category_id)
+
+    classify_failed_reason = None
+    try:
+        result = _run_classification_and_persist(
+            ticket_id, issue_text, clarification_turns=0, api_key=config.OPENROUTER_API_KEY
+        )
+        category_id = result.category_id
+    except Exception as e:
+        logger.error(f"Zoho webhook classify() failed for new ticket {ticket_id}: {e}")
+        classify_failed_reason = f"classify_error:{str(e)[:300]}"
+        db.update_ticket(
+            ticket_id,
+            status="needs_human_review",
+            reasoning=f"Automatic classification failed: {e}",
+            fallback_reason=classify_failed_reason,
+        )
+        category_id = None
+
+    leaf, used_fallback = _resolve_leaf_for_zoho(category_id)
+    if used_fallback and classify_failed_reason is None and category_id:
+        # classify() itself succeeded but the id it returned doesn't resolve
+        # - an extremely narrow race against a concurrent taxonomy edit (see
+        # _resolve_leaf_for_zoho's docstring).
+        db.update_ticket(ticket_id, fallback_reason=f"orphaned_category_id:{category_id}")
 
     return {
         "ok": True,
-        "category_of_the_issue": leaf["parent_name"] if leaf else None,
-        "sub_category_of_the_issue": leaf["name"] if leaf else None,
+        "category_of_the_issue": leaf["parent_name"],
+        "sub_category_of_the_issue": leaf["name"],
+        "needs_review": used_fallback,
     }
 
 
@@ -494,6 +579,7 @@ def _to_state_response(ticket: dict) -> TicketStateResponse:
         resolution_detail=ticket.get("resolution_detail"),
         resolution_evidence=ticket.get("resolution_evidence"),
         resolution_scored_at=ticket.get("resolution_scored_at"),
+        fallback_reason=ticket.get("fallback_reason"),
     )
 
 
@@ -851,6 +937,7 @@ def correct_ticket(
         category_id=req.corrected_category_id,
         confidence=1.0,
         reasoning="Corrected by human reviewer.",
+        fallback_reason=None,  # a human just supplied a real, valid category id - clears any prior fallback flag
     )
     updated = db.get_ticket(ticket_id)
     return _to_state_response(updated)

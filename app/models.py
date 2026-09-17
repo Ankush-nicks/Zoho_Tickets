@@ -70,6 +70,13 @@ class TicketStateResponse(BaseModel):
     # tickets that never came from a Zoho payload. Shown in full in the UI's
     # "Ticket Details" section so nothing Zoho sent is hidden from a reviewer.
     raw_payload: dict | None = None
+    # Set ONLY when the Zoho webhook had to force config.ZOHO_FALLBACK_
+    # CATEGORY_ID onto category_of_the_issue/sub_category_of_the_issue
+    # instead of a real classification (classify() itself failed, or
+    # category_id was orphaned by a later taxonomy edit) - None for a normal
+    # classification, including when the model itself legitimately picks
+    # that same catch-all leaf. See app/main.py's _resolve_leaf_for_zoho.
+    fallback_reason: str | None = None
 
 
 class ResolutionGrade(BaseModel):
