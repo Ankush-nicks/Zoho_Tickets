@@ -730,7 +730,6 @@
             from <input type="date" id="pulseRangeFrom"> to <input type="date" id="pulseRangeTo">
           </div>
           <div class="range-summary" id="pulseRangeSummary"></div>
-          <a class="p-download-link" id="pulseZohoBookmarklet" href="#" title="Drag this to your bookmarks bar (one-time setup). Then: click a ticket ID below (copies it &amp; opens the Zoho report), switch to that tab, and click this bookmark to auto-search for it.">&#10132; Zoho search bookmarklet</a>
           <button class="p-download-link" onclick="pulseDownloadCategoryStatusCsv()">&darr; Category &times; Status CSV</button>
         </div>
 
@@ -916,7 +915,6 @@ async function loadZohoStatus() {
     const res = await fetch('/api/zoho/status');
     if (!res.ok) throw new Error(`status ${res.status}`);
     const data = await res.json();
-    ZOHO_REPORT_URL = data.report_url || null;
     const isSample = data.invoke_url_is_sample || data.api_key_is_sample;
     const color = isSample ? 'var(--amber)' : 'var(--accent)';
     const label = isSample ? 'zoho: sample/mock config' : 'zoho: configured';
@@ -927,23 +925,20 @@ async function loadZohoStatus() {
   }
 }
 
-// ---- "Open in Zoho" for ticket IDs shown across Pulse tiles/tables -----
-// There's no per-ticket record URL in Zoho (see extensions/poc-ranjith-
-// kumar's README) - its Chrome extension automates the search box via
-// chrome.scripting, a cross-origin capability a plain web page doesn't
-// have. This copies the ticket ID to the clipboard and opens the report
-// tab so pasting it into Zoho's own search gets you there in one more step.
-let ZOHO_REPORT_URL = null;
-function pulseOpenInZoho(chipEl) {
+// ---- Ticket ID chips across Pulse tiles/tables: click to copy ----------
+// No per-ticket record URL exists in Zoho, and a plain web page can't
+// reach into a different tab's DOM to run Zoho's own search UI the way
+// the poc-ranjith-kumar Chrome extension does (chrome.scripting is an
+// extension-only capability) - so this just copies the ticket ID (with
+// its "#" prefix, matching how it's displayed) to the clipboard.
+function pulseCopyTicketId(chipEl) {
   const id = chipEl.dataset.zohoId;
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    const original = chipEl.textContent;
-    navigator.clipboard.writeText(String(id)).then(() => {
-      chipEl.textContent = 'Copied ✓';
-      setTimeout(() => { chipEl.textContent = original; }, 1200);
-    }).catch(() => {});
-  }
-  if (ZOHO_REPORT_URL) window.open(ZOHO_REPORT_URL, '_blank', 'noopener');
+  if (!(navigator.clipboard && navigator.clipboard.writeText)) return;
+  const original = chipEl.textContent;
+  navigator.clipboard.writeText(`#${id}`).then(() => {
+    chipEl.textContent = 'Copied ✓';
+    setTimeout(() => { chipEl.textContent = original; }, 1200);
+  }).catch(() => {});
 }
 // Capture phase so this runs (and can stopPropagation) before a clicked
 // chip's ancestor flip-card onclick="pulseToggleFlipCard(this)" fires.
@@ -952,240 +947,8 @@ document.addEventListener('click', (e) => {
   if (!chip) return;
   e.preventDefault();
   e.stopPropagation();
-  pulseOpenInZoho(chip);
+  pulseCopyTicketId(chip);
 }, true);
-
-// ---- Zoho search bookmarklet - finishes what "Open in Zoho" starts ------
-// A plain web page has no way to reach into a *different* tab's DOM (the
-// same cross-origin restriction pulseOpenInZoho's own comment describes) -
-// that's exactly why the poc-ranjith-kumar extension needs chrome.scripting
-// to run its search automation inside the Zoho tab. A bookmarklet doesn't
-// have that problem: it's plain JS the browser runs directly inside
-// whatever tab is active when you click it, so - unlike this page's own
-// script - one CAN touch Zoho's DOM once you're actually on that tab.
-//
-// zohoSearchForTicketId below is a straight, verbatim port of
-// extensions/poc-ranjith-kumar/background.js's function of the same name -
-// every documented fix there (checkbox-toggle, chip-accumulation, select2's
-// mousedown/mouseup/click requirement, the settle-detection race) applies
-// unchanged here, since it's the identical DOM sequence either way. Kept
-// in sync manually - if that automation changes, mirror the change here.
-function zohoSearchForTicketId(ticketId) {
-  function waitFor(findFn, timeoutMs) {
-    return new Promise((resolve) => {
-      const start = Date.now();
-      (function tick() {
-        const el = findFn();
-        if (el) return resolve(el);
-        if (Date.now() - start > timeoutMs) return resolve(null);
-        setTimeout(tick, 150);
-      })();
-    });
-  }
-
-  (async () => {
-    const searchToggle = await waitFor(
-      () => document.querySelector('a[elname="zc-showSearchDivEl"]'),
-      8000
-    );
-    if (!searchToggle) return;
-    searchToggle.click();
-
-    const ticketIdCheckbox = await waitFor(() => {
-      const boxes = document.querySelectorAll('[elname="zc-searchCheckBoxEl"]');
-      for (const box of boxes) {
-        if (box.textContent && box.textContent.includes("Ticket ID")) {
-          // Click the real checkbox input directly, not one of its two
-          // <label for> elements (one is a visually-hidden a11y label with
-          // no text, the other carries the visible "Ticket ID" text) -
-          // this works regardless of which label the custom-checkbox CSS
-          // actually renders.
-          return box.querySelector('input[type="checkbox"]') || box;
-        }
-      }
-      return null;
-    }, 8000);
-    if (!ticketIdCheckbox) return;
-    // Zoho persists this checkbox's state across page loads - unconditionally
-    // clicking it (as an earlier version of this did) toggles it OFF when a
-    // prior session had already left it checked, which then breaks every
-    // later step. Only click when it's actually unchecked.
-    if (!ticketIdCheckbox.checked) {
-      ticketIdCheckbox.click();
-      // Give the widget a moment to finish wiring up the now-visible search
-      // field before we touch it - toggling it can leave a brief window
-      // where the field exists in the DOM but isn't fully live yet.
-      await new Promise((r) => setTimeout(r, 400));
-    }
-
-    const searchInput = await waitFor(
-      () => document.querySelector(".select2-search-field input.select2-input"),
-      8000
-    );
-    if (!searchInput) return;
-
-    // This is a multi-select select2 field: it accumulates a chip per
-    // selected suggestion rather than replacing the previous one. Clear
-    // every existing chip first, scoped to this field's own chip list, the
-    // same way select2 expects a real removal click: a full mousedown/
-    // mouseup/click sequence on its "x" close control, not .click().
-    const choicesList = searchInput.closest("ul.select2-choices");
-    if (choicesList) {
-      const existingChips = Array.from(choicesList.querySelectorAll(".select2-search-choice"));
-      for (const chip of existingChips) {
-        const closeBtn = chip.querySelector(".select2-search-choice-close") || chip;
-        const rect = closeBtn.getBoundingClientRect();
-        const chipMouseProps = {
-          bubbles: true,
-          cancelable: true,
-          view: window,
-          clientX: rect.left + 2,
-          clientY: rect.top + 2,
-          button: 0,
-          buttons: 1,
-          which: 1,
-        };
-        closeBtn.dispatchEvent(new MouseEvent("mousedown", chipMouseProps));
-        closeBtn.dispatchEvent(new MouseEvent("mouseup", chipMouseProps));
-        closeBtn.dispatchEvent(new MouseEvent("click", chipMouseProps));
-      }
-      if (existingChips.length > 0) {
-        await new Promise((r) => setTimeout(r, 200));
-      }
-    }
-
-    // select2-style widgets don't react to a bulk `.value = X` assignment
-    // plus one synthetic event - click first, then try execCommand
-    // ("insertText"), falling back to a manual per-character keydown/
-    // input/keyup sequence if that didn't actually land the text.
-    function typeTicketId() {
-      searchInput.click();
-      searchInput.focus();
-      searchInput.value = "";
-
-      const usedExecCommand =
-        document.execCommand && document.execCommand("insertText", false, ticketId);
-
-      if (!usedExecCommand || searchInput.value !== ticketId) {
-        searchInput.value = "";
-        for (const ch of String(ticketId)) {
-          searchInput.dispatchEvent(new KeyboardEvent("keydown", { key: ch, bubbles: true }));
-          searchInput.value += ch;
-          searchInput.dispatchEvent(new Event("input", { bubbles: true }));
-          searchInput.dispatchEvent(new KeyboardEvent("keyup", { key: ch, bubbles: true }));
-        }
-      }
-      searchInput.dispatchEvent(new Event("change", { bubbles: true }));
-    }
-
-    typeTicketId();
-
-    // Ticket ID is a select2 autocomplete field: the value only "counts"
-    // once a suggestion is clicked. waitForSettledDropdownOption requires
-    // the list to have actually stopped changing, not just "has an item
-    // right now" - select2 shows a "Searching…" placeholder first.
-    async function waitForSettledDropdownOption(timeoutMs) {
-      const start = Date.now();
-      let lastText = null;
-      let stableSince = null;
-      const isPlaceholder = (text) => /searching|no matches|loading/i.test(text);
-
-      while (Date.now() - start < timeoutMs) {
-        const stillSearching = document.querySelector(
-          ".select2-drop-active.select2-searching, .select2-drop.select2-searching, .select2-active"
-        );
-        if (!stillSearching) {
-          const options = Array.from(
-            document.querySelectorAll(
-              ".select2-drop-active .select2-results li, .select2-drop .select2-results li, .select2-results li"
-            )
-          ).filter((opt) => {
-            const text = (opt.textContent || "").trim();
-            return text && !isPlaceholder(text);
-          });
-
-          const exact = options.find((opt) => opt.textContent.trim() === String(ticketId));
-          const partial = options.find((opt) => opt.textContent.includes(String(ticketId)));
-          const candidate = exact || partial || options[0] || null;
-
-          if (candidate) {
-            const text = candidate.textContent.trim();
-            if (text === lastText && stableSince && Date.now() - stableSince > 350) {
-              return candidate;
-            }
-            if (text !== lastText) {
-              lastText = text;
-              stableSince = Date.now();
-            }
-          } else {
-            lastText = null;
-            stableSince = null;
-          }
-        }
-        await new Promise((r) => setTimeout(r, 150));
-      }
-      return null;
-    }
-
-    // Even with the checkbox-ready delay above, the widget occasionally
-    // isn't actually listening yet right after the checkbox toggle - retype
-    // and wait again once rather than give up after a single silent failure.
-    let dropdownOption = await waitForSettledDropdownOption(8000);
-    if (!dropdownOption) {
-      typeTicketId();
-      dropdownOption = await waitForSettledDropdownOption(8000);
-    }
-    if (dropdownOption) {
-      // select2 v3 binds selection to a mousedown/mouseup/click sequence on
-      // the result's inner .select2-result-label, not a plain click -
-      // HTMLElement.click() only ever fires "click", never mousedown/
-      // mouseup, so select2 never sees a selection attempt at all.
-      const target = dropdownOption.querySelector(".select2-result-label") || dropdownOption;
-      const rect = target.getBoundingClientRect();
-      const mouseEventProps = {
-        bubbles: true,
-        cancelable: true,
-        view: window,
-        clientX: rect.left + 5,
-        clientY: rect.top + 5,
-        button: 0,
-        buttons: 1,
-        which: 1,
-      };
-      target.dispatchEvent(new MouseEvent("mousedown", mouseEventProps));
-      target.dispatchEvent(new MouseEvent("mouseup", mouseEventProps));
-      target.dispatchEvent(new MouseEvent("click", mouseEventProps));
-      // Give select2 a moment to actually commit the selection into its
-      // internal state before touching the Search button.
-      await new Promise((r) => setTimeout(r, 500));
-    }
-
-    const searchButton = await waitFor(
-      () => document.querySelector('a[elname="zc-advSearchReportEl"]'),
-      8000
-    );
-    if (!searchButton) return;
-    searchButton.click();
-  })();
-}
-
-function pulseBuildZohoBookmarkletHref() {
-  const fnSrc = zohoSearchForTicketId.toString();
-  return `javascript:(function(){
-  var run = ${fnSrc};
-  function go(id){ if (id) run(String(id).trim()); }
-  if (navigator.clipboard && navigator.clipboard.readText) {
-    navigator.clipboard.readText().then(function(t){ go(t || window.prompt('Ticket ID to search for:')); }).catch(function(){ go(window.prompt('Ticket ID to search for:')); });
-  } else {
-    go(window.prompt('Ticket ID to search for:'));
-  }
-})();`;
-}
-
-(function pulseInitZohoBookmarklet() {
-  const link = document.getElementById('pulseZohoBookmarklet');
-  if (link) link.href = pulseBuildZohoBookmarkletHref();
-})();
 
 function confBand(c) {
   if (c === null || c === undefined) return { color: 'var(--muted)', segs: 0 };
@@ -2527,7 +2290,7 @@ function pulseRenderActionItems(rows) {
       <div class="flip-face flip-face-back">
         <span class="action-tag sev-${c.sev}">${esc(c.tag)}</span>
         <div class="action-title">${c.ids.length} ticket${c.ids.length===1?'':'s'}</div>
-        <div class="flip-ids-list">${c.ids.map(id => `<span class="flip-id-chip zoho-link" data-zoho-id="${esc(id)}" title="Copy ticket ID &amp; open Zoho report">#${esc(id)}</span>`).join('')}</div>
+        <div class="flip-ids-list">${c.ids.map(id => `<span class="flip-id-chip zoho-link" data-zoho-id="${esc(id)}" title="Copy ticket ID">#${esc(id)}</span>`).join('')}</div>
         <div class="flip-hint">&#8592; Click to go back</div>
       </div>
     </div>`).join('');
@@ -2734,7 +2497,7 @@ function pulseRenderStatusBreakdown(allRows) {
       </div>
       <div class="flip-face flip-face-back">
         <p class="tile-label">${x.label}</p>
-        <div class="flip-ids-list">${ids.length ? ids.map(id => `<span class="flip-id-chip zoho-link" data-zoho-id="${esc(id)}" title="Copy ticket ID &amp; open Zoho report">#${esc(id)}</span>`).join('') : '<span class="flip-hint">No tickets</span>'}</div>
+        <div class="flip-ids-list">${ids.length ? ids.map(id => `<span class="flip-id-chip zoho-link" data-zoho-id="${esc(id)}" title="Copy ticket ID">#${esc(id)}</span>`).join('') : '<span class="flip-hint">No tickets</span>'}</div>
         <div class="flip-hint">&#8592; back</div>
       </div>
     </div>`;
@@ -2838,7 +2601,7 @@ function pulseRenderUniversities(rows) {
       <div class="flip-face flip-face-back">
         <div class="uni-rank">#${i+1}</div>
         <div class="uni-name">${esc(u.name)}</div>
-        <div class="flip-ids-list">${ids.length ? ids.map(id => `<span class="flip-id-chip zoho-link" data-zoho-id="${esc(id)}" title="Copy ticket ID &amp; open Zoho report">#${esc(id)}</span>`).join('') : '<span class="flip-hint">No open tickets</span>'}</div>
+        <div class="flip-ids-list">${ids.length ? ids.map(id => `<span class="flip-id-chip zoho-link" data-zoho-id="${esc(id)}" title="Copy ticket ID">#${esc(id)}</span>`).join('') : '<span class="flip-hint">No open tickets</span>'}</div>
         <div class="flip-hint">&#8592; back</div>
       </div>
     </div>`;
@@ -2959,7 +2722,7 @@ function pulseRenderOldest(rows) {
     const days = (pulseAgeHours(r)/24).toFixed(1);
     return `
     <tr>
-      <td><span class="zoho-link" data-zoho-id="${esc(r.id)}" title="Copy ticket ID &amp; open Zoho report">#${esc(r.id)}</span></td>
+      <td><span class="zoho-link" data-zoho-id="${esc(r.id)}" title="Copy ticket ID">#${esc(r.id)}</span></td>
       <td>${esc(r.uni)}</td>
       <td>${esc(r.cat)}<div class="p-subtext">${esc(r.sub)}</div></td>
       <td>${esc(r.status)}</td>

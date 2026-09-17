@@ -147,15 +147,6 @@ ZOHO_FIELD_ISSUE_DETAIL = _env("ZOHO_FIELD_ISSUE_DETAIL", "Issue_in_Detail")
 # you set a real value in .env.
 ZOHO_WEBHOOK_SECRET = _env("ZOHO_WEBHOOK_SECRET")
 
-# Zoho Creator report the web UI's "open in Zoho" ticket ID links point at.
-# Not secret (same value the poc-ranjith-kumar extension's config.js hardcodes
-# as zohoReportUrl) - no per-ticket record URL exists in Zoho, so this just
-# opens the report; the ticket ID is copied to the clipboard alongside so it
-# can be pasted into Zoho's own search.
-ZOHO_REPORT_URL = _env(
-    "ZOHO_REPORT_URL", "https://niat.zohocreatorportal.in/#Report:All_Instructors_Ticketing_System_Report"
-)
-
 # category_of_the_issue/sub_category_of_the_issue are mandatory fields on the
 # Zoho side, so the webhook must never write them back as blank. This is the
 # taxonomy leaf id it falls back to when the real predicted/stored
