@@ -42,7 +42,9 @@ try {
      OS preference. Values match app/static/index.html's dark palette
      (checked against WCAG AA with a contrast calculator, not eyeballed) -
      --bg (the page backdrop behind the card) stays as-is since it's
-     already dark-toned. */
+     already dark-toned. --coral matches index.html's dark value: the
+     previous #CC4E42 only reached 3.91:1 for the .error text on --panel,
+     below the 4.5:1 floor; #E5695C clears 5.37:1 there. */
   :root[data-theme="dark"]{
     --panel: #241620;
     --panel-2: #2E1B24;
@@ -51,7 +53,7 @@ try {
     --muted: #C9AFBA;
     --accent: #E0577A;
     --accent-ink: #1B1013;
-    --coral: #CC4E42;
+    --coral: #E5695C;
     color-scheme: dark;
   }
   *{box-sizing:border-box;}
