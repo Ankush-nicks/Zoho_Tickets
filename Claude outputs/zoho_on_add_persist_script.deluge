@@ -1,0 +1,111 @@
+// ================================================================
+// "On Add of record" workflow - fires AFTER submit, once Ticket_ID
+// is real. This is the call that actually creates the row in the
+// portal's database (the pre-submit script only previews a category
+// and never persists anything).
+// ================================================================
+payload = Map();
+// ------------------------------------------------
+// Identity - REQUIRED for persist mode. Without this the backend
+// stays in "suggestion mode" and writes nothing.
+// ------------------------------------------------
+payload.put("zoho_ticket_id",input.Ticket_ID);
+// ------------------------------------------------
+// Issue Classification
+// ------------------------------------------------
+payload.put("category_of_the_issue",input.Category_Of_The_Issue);
+payload.put("sub_category_of_the_issue",input.Sub_Category_Of_The_Issue);
+payload.put("department_name",input.Department_Name);
+payload.put("subject_name",input.Subject_Name);
+// ------------------------------------------------
+// Ticket Information
+// ------------------------------------------------
+payload.put("priority_level",input.Priority_Level);
+payload.put("ticket_status",input.Ticket_Status);
+payload.put("assigned_team",input.Assigned_Team);
+payload.put("topic_name",input.Topic_Name);
+// ------------------------------------------------
+// Issue Details
+// ------------------------------------------------
+payload.put("issue_in_detail",input.Issue_In_Detail);
+payload.put("is_it_a_recurring_issue",input.Is_it_a_recurring_issue);
+payload.put("resolution_preference",input.What_do_you_think_is_the_best_way_to_resolve_the_issue_ASAP);
+payload.put("report_link",input.Report_Link);
+payload.put("course_link",input.Course_Link);
+payload.put("dependency",input.Dependency);
+payload.put("content_prod_issues",input.Content_Prod_Issues);
+payload.put("transfer_ticket_to",input.Transfer_Ticket_To.Official_Mail_ID);
+payload.put("university_boa",input.University_BOA);
+// ------------------------------------------------
+// Resolution Details
+// ------------------------------------------------
+payload.put("acknowledgement_from_the_poc",input.Acknowledgement_From_The_POC);
+payload.put("worklog_from_the_poc",input.WorkLog_From_The_POC);
+payload.put("resolution_by_the_poc",input.Resolution_By_The_POC);
+// ------------------------------------------------
+// Assignment / Access
+// ------------------------------------------------
+payload.put("assign_ticket_to",input.Assign_Ticket_To1);
+payload.put("view_access",input.View_Access);
+payload.put("ticket_raised_by",input.Ticket_Raised_By_Lookup.Official_Mail_ID);
+payload.put("escalated_to",input.Escalated_To);
+// ------------------------------------------------
+// History
+// ------------------------------------------------
+payload.put("acknowledgement_history",input.Acknowledgement_History);
+payload.put("worklog_history",input.Worklog_History);
+payload.put("leave_wfh_approvals",input.Leave_WFH_approvals);
+// ------------------------------------------------
+// Closure / SLA
+// ------------------------------------------------
+payload.put("ticket_closure_date_time",input.Ticket_Closure_Date_Time);
+payload.put("ticket_closed_by",input.Ticket_Closed_By);
+payload.put("sla_breach_status",input.SLA_Breach_Status);
+// ------------------------------------------------
+// Reopen / Transfer
+// ------------------------------------------------
+payload.put("ticket_reopen_count",input.Ticket_Reopen_count);
+payload.put("last_reopened_on",input.Last_Reopened_On);
+payload.put("ticket_transfer_history",input.Ticket_Transfer_History);
+payload.put("last_transferred_on",input.Last_Transferred_On);
+payload.put("last_transferred_by",input.Last_Transferred_By);
+// ------------------------------------------------
+// Session Details
+// ------------------------------------------------
+payload.put("instructor_id",input.Instructor_ID);
+payload.put("session_section_id",input.session_section_id);
+payload.put("session_id",input.session_id);
+payload.put("session_type",input.session_type);
+payload.put("university",input.Ticket_Raised_By_Lookup.University.Campus_Name);
+payload.put("campus_city",input.Ticket_Raised_By_Lookup.University.Campus_City);
+// ------------------------------------------------
+// Evaluation / QA Details
+// ------------------------------------------------
+payload.put("evaluation_id_qa_report_id",input.evaluation_id);
+payload.put("evaluation_report_link",input.Evaluation_Report_Link);
+// ------------------------------------------------
+// Other Details
+// ------------------------------------------------
+payload.put("url",input.Url);
+payload.put("rating_of_the_ticket",input.Rating_Of_The_Ticket);
+payload.put("comments",input.Comments);
+// ================================================================
+// DEBUG - PAYLOAD
+// ================================================================
+info "========== ON-ADD PERSIST PAYLOAD ==========";
+info payload;
+// ================================================================
+// INVOKE - persist to the portal
+// ================================================================
+headers = Map();
+headers.put("Content-Type","application/json");
+headers.put("X-Webhook-Secret","ZOHO_TEST_SECRET_123"); // MUST equal ZOHO_WEBHOOK_SECRET set in Render
+response = invokeurl
+[
+	url : "https://zoho-tickets-1rrw.onrender.com/api/webhooks/zoho/tickets"
+	type : POST
+	body : payload.toString()
+	headers : headers
+];
+info "========== ON-ADD PERSIST RESPONSE ==========";
+info response;

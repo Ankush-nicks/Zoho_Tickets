@@ -1,0 +1,151 @@
+// ================================================================
+// 1. BUILD PAYLOAD FOR AUTO-CATEGORIZER
+// ================================================================
+// NOTE: This runs BEFORE submit, so Ticket_ID does not exist yet.
+// zoho_ticket_id is intentionally NOT included here - the backend
+// treats a missing zoho_ticket_id as "suggestion mode": it classifies
+// the draft text and returns category/sub-category for the form,
+// without writing anything to the database. Persisting the actual
+// ticket happens separately, from the form's "On Add" workflow
+// (after submit, once Ticket_ID is real) - see the note at the
+// bottom of this file.
+// ================================================================
+payload = Map();
+// ------------------------------------------------
+// Issue Classification
+// ------------------------------------------------
+payload.put("category_of_the_issue",input.Category_Of_The_Issue);
+payload.put("department_name",input.Department_Name);
+payload.put("subject_name",input.Subject_Name);
+// ------------------------------------------------
+// Ticket Information
+// ------------------------------------------------
+payload.put("priority_level",input.Priority_Level);
+payload.put("ticket_status",input.Ticket_Status);
+payload.put("assigned_team",input.Assigned_Team);
+payload.put("topic_name",input.Topic_Name);
+// ------------------------------------------------
+// Issue Details
+// ------------------------------------------------
+payload.put("issue_in_detail",input.Issue_In_Detail);
+payload.put("is_it_a_recurring_issue",input.Is_it_a_recurring_issue);
+payload.put("resolution_preference",input.What_do_you_think_is_the_best_way_to_resolve_the_issue_ASAP);
+payload.put("report_link",input.Report_Link);
+payload.put("course_link",input.Course_Link);
+payload.put("dependency",input.Dependency);
+payload.put("content_prod_issues",input.Content_Prod_Issues);
+payload.put("transfer_ticket_to",input.Transfer_Ticket_To.Official_Mail_ID);
+payload.put("university_boa",input.University_BOA);
+// ------------------------------------------------
+// Resolution Details
+// ------------------------------------------------
+payload.put("acknowledgement_from_the_poc",input.Acknowledgement_From_The_POC);
+payload.put("worklog_from_the_poc",input.WorkLog_From_The_POC);
+payload.put("resolution_by_the_poc",input.Resolution_By_The_POC);
+// ------------------------------------------------
+// Assignment / Access
+// ------------------------------------------------
+payload.put("assign_ticket_to",input.Assign_Ticket_To1);
+payload.put("view_access",input.View_Access);
+payload.put("ticket_raised_by",input.Ticket_Raised_By_Lookup.Official_Mail_ID);
+payload.put("escalated_to",input.Escalated_To);
+// ------------------------------------------------
+// History
+// ------------------------------------------------
+payload.put("acknowledgement_history",input.Acknowledgement_History);
+payload.put("worklog_history",input.Worklog_History);
+payload.put("leave_wfh_approvals",input.Leave_WFH_approvals);
+// ------------------------------------------------
+// Closure / SLA
+// ------------------------------------------------
+payload.put("ticket_closure_date_time",input.Ticket_Closure_Date_Time);
+payload.put("ticket_closed_by",input.Ticket_Closed_By);
+payload.put("sla_breach_status",input.SLA_Breach_Status);
+// ------------------------------------------------
+// Reopen / Transfer
+// ------------------------------------------------
+payload.put("ticket_reopen_count",input.Ticket_Reopen_count);
+payload.put("last_reopened_on",input.Last_Reopened_On);
+payload.put("ticket_transfer_history",input.Ticket_Transfer_History);
+payload.put("last_transferred_on",input.Last_Transferred_On);
+payload.put("last_transferred_by",input.Last_Transferred_By);
+// ------------------------------------------------
+// Session Details
+// ------------------------------------------------
+payload.put("instructor_id",input.Instructor_ID);
+payload.put("session_section_id",input.session_section_id);
+payload.put("session_id",input.session_id);
+payload.put("session_type",input.session_type);
+payload.put("university",input.Ticket_Raised_By_Lookup.University.Campus_Name);
+payload.put("campus_city",input.Ticket_Raised_By_Lookup.University.Campus_City);
+// ------------------------------------------------
+// Evaluation / QA Details
+// ------------------------------------------------
+payload.put("evaluation_id_qa_report_id",input.evaluation_id);
+payload.put("evaluation_report_link",input.Evaluation_Report_Link);
+// ------------------------------------------------
+// Other Details
+// ------------------------------------------------
+payload.put("url",input.Url);
+payload.put("rating_of_the_ticket",input.Rating_Of_The_Ticket);
+payload.put("comments",input.Comments);
+// ================================================================
+// 2. DEBUG - PAYLOAD
+// ================================================================
+info "========== RENDER REQUEST PAYLOAD ==========";
+info payload;
+// ================================================================
+// 3. INVOKE AUTO-CATEGORIZER
+// ================================================================
+headers = Map();
+headers.put("Content-Type","application/json");
+headers.put("X-Webhook-Secret","ZOHO_TEST_SECRET_123");
+response = invokeurl
+[
+	url : "https://zoho-tickets-1rrw.onrender.com/api/webhooks/zoho/tickets"
+	type : POST
+	body : payload.toString()
+	headers : headers
+];
+// ================================================================
+// 4. DEBUG - RENDER RESPONSE
+// ================================================================
+info "========== RENDER RESPONSE ==========";
+info response;
+// ================================================================
+// 5. GET AI CLASSIFICATION
+// ================================================================
+category = response.get("category_of_the_issue");
+subCategory = response.get("sub_category_of_the_issue");
+// ================================================================
+// 6. VALIDATE AI CLASSIFICATION
+// ================================================================
+if(isNull(category) || category == "" || isNull(subCategory) || subCategory == "")
+{
+	alert "Unable to classify this ticket. Please try again.";
+	cancel submit;
+}
+
+// ================================================================
+// 7. WRITE CLASSIFICATION BACK INTO THE FORM
+// ================================================================
+// This runs before the record is actually saved, so setting these
+// input fields here means Category_Of_The_Issue / Sub_Category_Of_The_Issue
+// get submitted along with the record when the user clicks Submit -
+// no manual picking needed, and the "On Add" workflow below will read
+// these same values back off the saved record.
+// Verify these link names match your form (Zoho auto-generates them -
+// check the field's properties panel, or add `info input;` above and
+// look at the execution log) if they don't resolve.
+// ================================================================
+input.Category_Of_The_Issue = category;
+input.Sub_Category_Of_The_Issue = subCategory;
+
+// ================================================================
+// STILL NEEDED SEPARATELY: an "On Add" workflow (fires AFTER submit,
+// once Ticket_ID is real) that POSTs the full record - this time
+// INCLUDING zoho_ticket_id - to the same webhook endpoint. That is
+// the call that actually creates/updates a row in the portal's
+// database. This pre-submit script only gets you the category
+// preview; it does not persist anything by itself.
+// ================================================================
