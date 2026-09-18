@@ -68,6 +68,16 @@ def openai_base_url() -> str | None:
 CONFIDENCE_THRESHOLD = float(_env("CONFIDENCE_THRESHOLD", "0.65"))
 MAX_CLARIFICATION_TURNS = int(_env("MAX_CLARIFICATION_TURNS", "2"))
 FEWSHOT_K = int(_env("FEWSHOT_K", "5"))
+# Cosine similarity floor (1 - chroma's cosine distance, range roughly -1..1)
+# below which a retrieved memory example is dropped rather than forced into
+# the few-shot prompt. Without this, a genuinely novel ticket still gets k
+# "closest but irrelevant" examples, which can bias the model toward a
+# wrong-but-similar-sounding category. 0.15 is a conservative starting
+# floor, not a calibrated value - there's no hand-labeled eval set backing
+# it (same caveat as CONFIDENCE_THRESHOLD). Tune it by looking at real
+# `similarity` values retrieve_similar() returns for known-good vs.
+# known-bad matches once enough correction history exists.
+FEWSHOT_MIN_SIMILARITY = float(_env("FEWSHOT_MIN_SIMILARITY", "0.15"))
 
 DATA_DIR = Path(_env("DATA_DIR", str(BASE_DIR / "data")))
 DATA_DIR.mkdir(parents=True, exist_ok=True)

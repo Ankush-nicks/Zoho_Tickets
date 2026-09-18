@@ -261,6 +261,37 @@ def log_correction(ticket_id: str, predicted_category_id: str | None, corrected_
         )
 
 
+def list_corrections(date_from: str | None = None, date_to: str | None = None) -> list[dict]:
+    """
+    Every human correction ever logged (predicted_category_id -> corrected_
+    category_id), oldest first, optionally restricted to [date_from, date_to]
+    UTC calendar days (inclusive of both ends) - mirrors list_all_tickets()/
+    _filter_tickets_by_date_range's contract so the client can do the same
+    "fetch raw rows, aggregate in the browser" trick it already does for
+    tickets (see /api/tickets/range) to build a confusion matrix and a
+    correction-rate trend, without the server pre-computing either.
+
+    This is the only place predicted_category_id survives after a
+    correction - tickets.category_id gets overwritten with the corrected
+    value, so the confusion matrix has to come from this table, not from
+    the tickets table.
+    """
+    sql = "SELECT * FROM corrections"
+    params: list = []
+    clauses = []
+    if date_from:
+        clauses.append("created_at >= ?")
+        params.append(datetime.strptime(date_from, "%Y-%m-%d").replace(tzinfo=timezone.utc).timestamp())
+    if date_to:
+        clauses.append("created_at < ?")
+        params.append((datetime.strptime(date_to, "%Y-%m-%d").replace(tzinfo=timezone.utc) + timedelta(days=1)).timestamp())
+    if clauses:
+        sql += " WHERE " + " AND ".join(clauses)
+    sql += " ORDER BY created_at ASC"
+    with _conn() as conn:
+        return _fetchall(conn, sql, params)
+
+
 _list_all_cache: dict = {"data": None, "at": 0.0}
 _LIST_ALL_CACHE_TTL_SECONDS = 20
 

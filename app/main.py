@@ -253,6 +253,19 @@ def list_tickets_range(date_from: str | None = None, date_to: str | None = None,
     return [_to_state_response(t) for t in tickets]
 
 
+@app.get("/api/corrections")
+def list_corrections(date_from: str | None = None, date_to: str | None = None, user: str = Depends(require_login)):
+    """
+    Every human correction (predicted -> corrected category) within
+    [date_from, date_to], or all-time when omitted. Powers the Stats tab's
+    "Routing accuracy" confusion matrix and correction-rate trend, computed
+    client-side the same way /api/tickets/range's data is - see
+    db.list_corrections for why this can't be derived from /api/tickets/range
+    alone (a ticket's predicted category is gone once it's corrected).
+    """
+    return db.list_corrections(date_from, date_to)
+
+
 # --- Zoho Creator integration ----------------------------------------------
 
 @app.get("/api/zoho/status")
@@ -392,9 +405,17 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
     created and classified as before. Every call after that (an edit, or a
     retried "On Add" after a slow/cold-start response) updates that same
     row's raw_payload/zoho_category/zoho_subcategory/original_text in place
-    instead of creating a second row - and deliberately never touches
-    category_id/confidence/reasoning/status, so an unrelated status change
-    in Zoho can never silently undo a human's correction in this portal.
+    instead of creating a second row, and otherwise never touches
+    category_id/confidence/reasoning/status - so an unrelated status change
+    in Zoho can never silently undo a human's correction in this portal -
+    with one deliberate exception: if sub_category_of_the_issue actually
+    changed to a different value that resolves to a different taxonomy leaf
+    than what we have stored, that's a real ticket transfer (someone in
+    Zoho moved it to the right team after we routed it wrong), and gets
+    treated as an implicit correction - category_id/status/confidence do
+    update, and the classifier learns from it via memory.add_example(), the
+    same as a manual "Correct" click in this portal. See
+    _detect_zoho_transfer for the exact conditions.
     """
     issue_text = str(payload.get("issue_in_detail") or "").strip()
     if not issue_text:
@@ -430,6 +451,8 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
 
     existing = db.get_ticket_by_zoho_id(zoho_ticket_id)
     if existing:
+        auto_correction = _detect_zoho_transfer(existing, zoho_subcategory)
+
         db.update_ticket(
             existing["id"],
             original_text=issue_text,
@@ -438,6 +461,30 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
             zoho_subcategory=zoho_subcategory,
             raw_payload=payload,
         )
+
+        if auto_correction:
+            # A human moved this ticket to a different category in Zoho -
+            # log and learn from it exactly like the in-portal "Correct"
+            # button does (see correct_ticket below), just detected from
+            # the edit itself instead of a manual click.
+            db.log_correction(existing["id"], existing.get("category_id"), auto_correction, corrected_by="zoho-transfer")
+            try:
+                memory.add_example(
+                    issue_text, auto_correction, config.OPENAI_API_KEY,
+                    source="correction", ticket_id=existing["id"],
+                )
+            except Exception as e:
+                logger.error(f"Zoho-transfer memory.add_example failed for ticket {existing['id']}: {e}")
+            db.update_ticket(
+                existing["id"],
+                status="corrected",
+                category_id=auto_correction,
+                confidence=1.0,
+                reasoning="Category changed in Zoho after our classification - treated as an implicit human correction.",
+                fallback_reason=None,
+            )
+            existing = db.get_ticket(existing["id"])
+
         leaf, used_fallback = _resolve_leaf_for_zoho(existing.get("category_id"))
         if used_fallback:
             # Either never classified yet, or category_id is set but no
@@ -528,6 +575,77 @@ def _labels_loosely_match(a: str | None, b: str | None) -> bool | None:
         return None
     na, nb = _normalize_label(a), _normalize_label(b)
     return na == nb or na in nb or nb in na
+
+
+def _resolve_taxonomy_leaf_by_name(name: str | None) -> str | None:
+    """
+    Best-effort reverse lookup: a Zoho category/subcategory free-text value
+    -> our taxonomy leaf id. Exact normalized match preferred; falls back to
+    the same loose substring match _labels_loosely_match uses for the (much
+    weaker) zoho_agrees display signal, but only when it's unambiguous.
+
+    Returns None rather than guessing when nothing matches or more than one
+    leaf would - this feeds directly into the classifier's training memory
+    (see _detect_zoho_transfer below), so a wrong guess here would quietly
+    poison future classifications, not just mislabel one dashboard cell.
+    """
+    if not name:
+        return None
+    normalized_target = _normalize_label(name)
+    exact = [
+        leaf_id for leaf_id in taxonomy.category_ids
+        if _normalize_label(taxonomy.get(leaf_id)["name"]) == normalized_target
+    ]
+    if len(exact) == 1:
+        return exact[0]
+    if exact:
+        return None  # duplicate names in taxonomy.json - ambiguous, don't guess
+    loose = [
+        leaf_id for leaf_id in taxonomy.category_ids
+        if _labels_loosely_match(taxonomy.get(leaf_id)["name"], name)
+    ]
+    return loose[0] if len(loose) == 1 else None
+
+
+def _detect_zoho_transfer(existing: dict, new_subcategory: str | None) -> str | None:
+    """
+    A ticket "transfer" in Zoho - a human changing sub_category_of_the_issue
+    on a ticket we already classified, because our routing (or whoever
+    originally raised the ticket) sent it to the wrong team - is the
+    strongest correction signal this app ever sees, but until now it never
+    reached app/memory.py: the webhook only ever refreshed zoho_subcategory
+    for display/comparison (see zoho_agrees), and only the in-portal
+    "Correct" button (see correct_ticket below) fed the classifier's
+    learning loop. This detects that same real-world event straight from
+    the Zoho edit itself, so a transfer teaches the classifier exactly like
+    a manual correction does - no one has to also click "Correct" in this
+    portal for the lesson to land.
+
+    Returns the resolved taxonomy leaf id to auto-correct to, or None when
+    nothing qualifies as a real transfer:
+    - the ticket must already have had a real prior zoho_subcategory - its
+      first-ever category isn't a "transfer" from anything.
+    - the old and new subcategory text must actually differ (a same-value
+      edit, or an unrelated field update on the ticket, isn't a transfer).
+    - the new subcategory name must resolve unambiguously to one of our
+      taxonomy leaves (see _resolve_taxonomy_leaf_by_name) - free text that
+      doesn't match anything is left alone rather than guessed at.
+    - that resolved leaf must differ from what we're currently storing as
+      this ticket's category_id - otherwise this is just Zoho's own field
+      catching up to a classification we already made (our webhook response
+      gets written back into the record by Zoho's own workflow), not a
+      human overriding it.
+    """
+    prior_subcategory = existing.get("zoho_subcategory")
+    if not prior_subcategory or not new_subcategory:
+        return None
+    if _normalize_label(prior_subcategory) == _normalize_label(new_subcategory):
+        return None
+
+    resolved = _resolve_taxonomy_leaf_by_name(new_subcategory)
+    if resolved is None or resolved == existing.get("category_id"):
+        return None
+    return resolved
 
 
 def _to_state_response(ticket: dict) -> TicketStateResponse:
@@ -928,7 +1046,10 @@ def correct_ticket(
         raise HTTPException(400, f"unknown category_id '{req.corrected_category_id}'")
 
     db.log_correction(ticket_id, ticket.get("category_id"), req.corrected_category_id, req.corrected_by)
-    memory.add_example(ticket["full_context"], req.corrected_category_id, config.OPENAI_API_KEY, source="correction")
+    memory.add_example(
+        ticket["full_context"], req.corrected_category_id, config.OPENAI_API_KEY,
+        source="correction", ticket_id=ticket_id,
+    )
 
     db.update_ticket(
         ticket_id,

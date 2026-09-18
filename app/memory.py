@@ -45,37 +45,77 @@ def seed_if_empty(seed_examples: list[dict], api_key: str):
     _collection.add(ids=ids, embeddings=embeddings, documents=texts, metadatas=metadatas)
 
 
-def add_example(text: str, category_id: str, api_key: str, source: str = "correction", example_id: str | None = None):
-    """Add a confirmed/corrected example. This is what makes the system 'learn' over time."""
+def add_example(
+    text: str,
+    category_id: str,
+    api_key: str,
+    source: str = "correction",
+    example_id: str | None = None,
+    ticket_id: str | None = None,
+):
+    """
+    Add a confirmed/corrected example. This is what makes the system 'learn' over time.
+
+    ticket_id should be passed for every real correction (see app/main.py's
+    correct_ticket) so that correcting the same ticket a second time - a POC
+    picks category B, then later realizes it's actually C - replaces the
+    stale B example instead of leaving both B and C in memory forever,
+    quietly contradicting each other in future retrievals.
+    """
     import uuid
+
+    if ticket_id:
+        _collection.delete(where={"ticket_id": ticket_id})
+
     embedding = _embed([text], api_key)[0]
     ex_id = example_id or f"{source}-{uuid.uuid4().hex[:12]}"
+    metadata = {"category_id": category_id, "source": source}
+    if ticket_id:
+        metadata["ticket_id"] = ticket_id
     _collection.add(
         ids=[ex_id],
         embeddings=[embedding],
         documents=[text],
-        metadatas=[{"category_id": category_id, "source": source}],
+        metadatas=[metadata],
     )
 
 
-def retrieve_similar(text: str, api_key: str, k: int = config.FEWSHOT_K) -> list[dict]:
-    """Return the k most similar known examples to use as dynamic few-shot context."""
+def retrieve_similar(
+    text: str,
+    api_key: str,
+    k: int = config.FEWSHOT_K,
+    min_similarity: float = config.FEWSHOT_MIN_SIMILARITY,
+) -> list[dict]:
+    """
+    Return up to k most similar known examples to use as dynamic few-shot
+    context, dropping any whose similarity falls below min_similarity - a
+    genuinely novel ticket should get few or zero examples rather than k
+    forced "closest but irrelevant" ones. Over-fetches (k*3, capped at the
+    collection size) before filtering so a few weak matches interspersed
+    among the nearest neighbors don't silently shrink the result below k.
+    """
     if is_empty():
         return []
     query_embedding = _embed([text], api_key)[0]
+    fetch_n = min(k * 3, max(_collection.count(), 1))
     results = _collection.query(
         query_embeddings=[query_embedding],
-        n_results=min(k, max(_collection.count(), 1)),
+        n_results=fetch_n,
     )
     out = []
     docs = results.get("documents", [[]])[0]
     metas = results.get("metadatas", [[]])[0]
     dists = results.get("distances", [[]])[0]
     for doc, meta, dist in zip(docs, metas, dists):
+        similarity = 1 - dist  # cosine distance -> similarity
+        if similarity < min_similarity:
+            continue
         out.append({
             "text": doc,
             "category_id": meta.get("category_id"),
             "source": meta.get("source"),
-            "similarity": 1 - dist,  # cosine distance -> similarity
+            "similarity": similarity,
         })
+        if len(out) >= k:
+            break
     return out

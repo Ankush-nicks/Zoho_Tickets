@@ -799,6 +799,27 @@ try {
         <div class="tiles" id="insightKpiRow"></div>
 
         <section>
+          <div class="section-head">
+            <h2>Routing accuracy</h2>
+            <span class="section-note">how well the AI classifier itself is routing tickets, not resolution quality</span>
+          </div>
+          <p class="section-desc">Correction rate is the share of tickets a human had to re-route to a different category &mdash; the most direct signal of classifier accuracy. Zoho agreement compares our prediction against whatever category the ticket already carried in Zoho, where one exists. Corrections come from two sources: someone clicking "Correct" in this portal, or someone transferring the ticket to a different category/team directly in Zoho &mdash; both teach the classifier the same way, see the "source" breakdown below.</p>
+          <div class="tiles" id="accuracyKpiRow"></div>
+          <div class="section-head" style="margin-top:20px;">
+            <h2 style="font-size:var(--fs-md)">Most-confused categories</h2>
+            <span class="section-note">predicted &rarr; corrected pairs, this window</span>
+          </div>
+          <div class="p-card table-scroll" id="accuracyConfusionCard">
+            <table>
+              <thead>
+                <tr><th>AI predicted</th><th>Corrected to</th><th class="num">Zoho transfer</th><th class="num">Manual correction</th><th class="num">Total</th></tr>
+              </thead>
+              <tbody id="accuracyConfusionTable"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section>
           <div class="section-head"><h2>Team performance</h2></div>
           <div class="perf-grid" id="insightTeamPerf"></div>
         </section>
@@ -1579,6 +1600,12 @@ function switchTab(tab) {
 // ============================================================
 let insightROWS = [];
 let insightState = { windowDays: 7 };
+// Routing-accuracy section shares the same window toggle/state as resolution
+// quality above, but keys off ticket creation time (when the classifier
+// acted), not resolution close time - a ticket can be routed today and
+// stay open for a week.
+let accuracyTicketsALL = [];
+let accuracyCorrections = [];
 const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000;
 
 // Mirrors app/quality_scorer.py's _parse_zoho_datetime - same format,
@@ -1853,9 +1880,110 @@ function insightRenderFooter() {
     `period immediately before it. Grading is AI-assisted, not human-reviewed line by line.`;
 }
 
+// ---- Routing accuracy (how well the classifier itself is doing) --------
+// Ground truth here is entirely human-generated: a correction (a POC
+// overriding the AI's category via the "Correct" flow) or a Zoho-tag
+// agreement check (see app/main.py's _labels_loosely_match) - there's no
+// hand-labeled eval set, so read these as a real but rough signal, same
+// caveat scripts/compare_classifiers.py's docstring gives for its numbers.
+function accuracyWindowRows(days) {
+  const now = new Date();
+  const from = new Date(now); from.setDate(from.getDate() - days);
+  const tickets = accuracyTicketsALL.filter(t => {
+    const createdAt = new Date(t.created_at * 1000);
+    return createdAt >= from && createdAt <= now;
+  });
+  const corrections = accuracyCorrections.filter(c => {
+    const createdAt = new Date(c.created_at * 1000);
+    return createdAt >= from && createdAt <= now;
+  });
+  return { tickets, corrections };
+}
+
+// A correction's corrected_by is the literal string "zoho-transfer" when
+// app/main.py's _detect_zoho_transfer auto-logged it from a Zoho category
+// edit (see app/main.py's webhook docstring) - anything else is a real
+// person, whether their login or an email came through as corrected_by.
+function accuracyIsZohoTransfer(correction) {
+  return correction.corrected_by === 'zoho-transfer';
+}
+
+function accuracyRenderKpis(tickets, corrections) {
+  const el = document.getElementById('accuracyKpiRow');
+  const routed = tickets.filter(t => t.category_id && t.status !== 'awaiting_clarification');
+  if (routed.length === 0) {
+    el.innerHTML = '<div class="empty-state" style="grid-column:1/-1">No routed tickets in this window yet.</div>';
+    return;
+  }
+  const correctedCount = routed.filter(t => t.status === 'corrected').length;
+  const correctionRate = correctedCount / routed.length;
+  const zohoComparable = routed.filter(t => t.zoho_agrees !== null && t.zoho_agrees !== undefined);
+  const zohoAgreeCount = zohoComparable.filter(t => t.zoho_agrees).length;
+  const zohoRate = zohoComparable.length ? zohoAgreeCount / zohoComparable.length : null;
+  const needsReview = tickets.filter(t => t.status === 'needs_human_review').length;
+  const transferCount = corrections.filter(accuracyIsZohoTransfer).length;
+  const manualCount = corrections.length - transferCount;
+
+  const tiles = [
+    { label: 'Tickets routed', value: routed.length, unit: '', sub: 'classified in this window', cls: '' },
+    { label: 'Correction rate', value: `${(correctionRate * 100).toFixed(1)}`, unit: '%', sub: `${correctedCount} of ${routed.length} later re-routed by a human`, cls: correctionRate > 0.15 ? 'critical' : '' },
+    { label: 'Zoho tag agreement', value: zohoRate === null ? '&ndash;' : `${(zohoRate * 100).toFixed(1)}`, unit: zohoRate === null ? '' : '%', sub: zohoComparable.length ? `${zohoAgreeCount} of ${zohoComparable.length} comparable tickets` : 'no comparable Zoho-tagged tickets', cls: zohoRate !== null && zohoRate < 0.7 ? 'critical' : '' },
+    { label: 'Needs human review', value: needsReview, unit: '', sub: `${tickets.length ? Math.round(needsReview / tickets.length * 100) : 0}% of the window`, cls: needsReview / (tickets.length || 1) > 0.2 ? 'critical' : '' },
+    { label: 'Learned from Zoho transfers', value: transferCount, unit: '', sub: corrections.length ? `vs ${manualCount} manual "Correct" clicks` : 'no corrections logged this window', cls: '' },
+  ];
+  el.innerHTML = tiles.map(x => `
+    <div class="tile ${x.cls ? 'flag' : ''}">
+      <p class="tile-label">${x.label}</p>
+      <div class="tile-value ${x.cls}">${x.value}${x.unit ? `<span class="unit">${x.unit}</span>` : ''}</div>
+      <div class="tile-sub">${x.sub}</div>
+    </div>`).join('');
+}
+
+function accuracyRenderConfusion(corrections) {
+  const el = document.getElementById('accuracyConfusionTable');
+  // Nested by predicted then corrected id (rather than a joined string key)
+  // so no delimiter choice can ever collide with a real category id. Each
+  // bucket tracks transfer-detected vs. manually-corrected counts
+  // separately, so the table can show where each correction came from.
+  const pairs = {};
+  corrections.forEach(c => {
+    if (!c.predicted_category_id || c.predicted_category_id === c.corrected_category_id) return;
+    pairs[c.predicted_category_id] = pairs[c.predicted_category_id] || {};
+    const bucket = pairs[c.predicted_category_id];
+    const entry = bucket[c.corrected_category_id] || { transfer: 0, manual: 0 };
+    if (accuracyIsZohoTransfer(c)) entry.transfer += 1; else entry.manual += 1;
+    bucket[c.corrected_category_id] = entry;
+  });
+  const rows = [];
+  Object.entries(pairs).forEach(([predictedId, bucket]) => {
+    Object.entries(bucket).forEach(([correctedId, entry]) => {
+      rows.push({ predictedId, correctedId, ...entry, total: entry.transfer + entry.manual });
+    });
+  });
+  rows.sort((a, b) => b.total - a.total);
+  const top = rows.slice(0, 15);
+  el.innerHTML = top.length
+    ? top.map(r => `
+      <tr>
+        <td>${esc(categoryName(r.predictedId))}</td>
+        <td>${esc(categoryName(r.correctedId))}</td>
+        <td class="num">${r.transfer}</td>
+        <td class="num">${r.manual}</td>
+        <td class="num">${r.total}</td>
+      </tr>`).join('')
+    : '<tr><td colspan="5" class="empty-state">No corrections logged in this window.</td></tr>';
+}
+
+function accuracyRenderAll() {
+  const { tickets, corrections } = accuracyWindowRows(insightState.windowDays);
+  accuracyRenderKpis(tickets, corrections);
+  accuracyRenderConfusion(corrections);
+}
+
 function insightRenderAll() {
   const { current, prior } = insightWindowRows(insightState.windowDays);
   insightRenderKpis(current, prior);
+  accuracyRenderAll();
   insightRenderTeamPerf(current, prior);
   insightRenderIndividualTable(current, prior);
   insightRenderWorstList(current);
@@ -1922,12 +2050,18 @@ async function insightBoot() {
   const loadingEl = document.getElementById('insightLoadingState');
   try {
     insightLoadPendingCount();
-    const res = await fetch('/api/tickets/range');
-    if (res.status === 401) { window.location = '/login'; return; }
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const tickets = await res.json();
+    const [ticketsRes, correctionsRes] = await Promise.all([
+      fetch('/api/tickets/range'),
+      fetch('/api/corrections'),
+    ]);
+    if (ticketsRes.status === 401 || correctionsRes.status === 401) { window.location = '/login'; return; }
+    if (!ticketsRes.ok) throw new Error(`HTTP ${ticketsRes.status}`);
+    if (!correctionsRes.ok) throw new Error(`HTTP ${correctionsRes.status}`);
+    const tickets = await ticketsRes.json();
+    accuracyCorrections = await correctionsRes.json();
 
     insightROWS = tickets.filter(t => t.resolution_scored_at).map(insightMapTicket);
+    accuracyTicketsALL = tickets;
     loadingEl.style.display = 'none';
 
     insightRenderAll();

@@ -17,12 +17,19 @@ app/data/
 # ticket text, personal research artifact not a project asset
 scripts/.compare_results.jsonl
 
+# Same reasoning for scripts/eval_classifier.py's per-run log and its
+# rolling accuracy baseline - environment-specific, not a project asset
+scripts/.eval_results.jsonl
+scripts/.eval_baseline.json
+
 # Python
 __pycache__/
 *.pyc
 
 # Editor/tooling
 .claude/
+.agents/
+skills-lock.json
 
 # Local git worktrees used for isolated feature work
 .worktrees/
