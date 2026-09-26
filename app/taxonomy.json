@@ -489,53 +489,53 @@
         {
           "id": "G08-S01",
           "name": "Any Facility Related Issue (Wi-Fi / AC / Staffrooms)",
-          "description": "General campus physical infrastructure problems — staffroom conditions, AC, ventilation — not covered by specific sub-categories below.",
+          "description": "A physical campus infrastructure problem raised by the instructor that isn't network, laptop or microphone: power cuts, AC or ventilation, classroom display/projector/TV/smart board/HDMI, staffroom not allotted or unusable, cleanliness, washrooms, drinking water, charging points, faculty transport. It counts here even when the instructor's main complaint is what it caused (session couldn't be completed, QA dropped), as long as the root cause is one of these. If the result was that the audio/recording was lost, use Audio Not Captured instead.",
           "assigned_team": "Program Operations",
           "poc_primary": "Respective Campus COS",
           "examples": [
-            "Hi Team, This concern has already been raised collectively by all the instructors through an Outlook email. I am raising the same concerns through the ticketing system for further follow-up. We were p...",
-            "Hi, this is Naveen from Aurora. I would like to raise a concern regarding the faculty bus facility from Pocharam to Bhongir Aurora Campus. Almost 30 faculty members travel daily on this route, and the...",
-            "WI-FI restrictions to the students across all the universities. Students must have the access to the whitelisted websites and no other website links should be accessible.",
-            "Recently we are facing a lot of issues related to power cuts, Wi-Fi, and AC. We are having frequent power cuts which are effecting our efficiency. Due to power cuts, there are fluctuations in network ..."
+            "Hi, I would like to highlight the AC issue at S-VYASA, Bangalore. The AC in some classrooms, especially on the 3rd floor, is not functioning properly, causing discomfort for students and instructors during sessions. Additionally, the 1st-year and 3rd-year classes are currently conducted on different floors, which requires instructors to frequently…",
+            "Hello, Most of the time, the staff room and classrooms are not cleaned by the time we are scheduled to start our sessions. In some cases, the classrooms are not even open, and we have to wait outside until the room is opened and cleaned before we can enter. Due to these recurring issues, we are facing difficulties in completing our Preparedness…",
+            "I have already raised this issue. The smartboards in the classrooms don't work properly. The board gets disconnected from the laptop frequently which breaks the flow of students. In one of my class today. It didn't even work. Please look into it,",
+            "Here at the LIMAT campus, there are no proper washrooms available for staff to use. It is very difficult and uncomfortable for us to use the existing washrooms. Kindly look into this issue and arrange proper washroom facilities for the staff."
           ]
         },
         {
           "id": "G08-S02",
           "name": "Campus Network / Wi-Fi Issue",
-          "description": "Internet connectivity at campus is absent or too slow to conduct sessions or submit recordings.",
+          "description": "Campus internet (Wi-Fi, LAN or mobile network) is absent, slow or keeps dropping, in classrooms, staffrooms or exam halls. This includes when the bad network stops something else working: slides won't load, grooming check or AI assessment fails, students can't take a skill assessment, manager connect drops. If the result was that the session audio wasn't recorded or uploaded, use Audio Not Captured instead. A TeachOS bug on a working network isn't Facilities.",
           "assigned_team": "Program Operations",
           "poc_primary": "Respective Campus COS",
           "examples": [
-            "I had no Wi-Fi connectivity for around 30 minutes during the class. After the connection was restored, I spent approximately 10 minutes taking attendance. Additionally, there were frequent power fluct...",
-            "I was unable to connect to the Wi-Fi because the network was not working. I had to use my personal mobile data instead, but the connection was very slow and unstable. Due to the poor network, I was un...",
-            "In Aurora University there is a concept of a student lecture where each and every week there is a special session for each section where students give the lecture on any of the topics that are covered...",
-            "Not able to submit recording via pportal or Manually"
+            "Hi, I would like to highlight a recurring campus network issue during lecture hours. The Wi-Fi frequently gets disconnected in between sessions, and we have to contact the Wi-Fi team repeatedly to get it resolved. This is also affecting students’ learning outcomes. For example, today, while students were attempting a module quiz, some students…",
+            "From 1 week college is having wi-fi issues we are facing problems while grooming checks and also while loading our slides",
+            "Wifi's are not working in 2nd Floor Staff Room - CDU Campus. All instructors are turning ON their personal hotspot but the 1GB or 2GB data is being exhausted within half an hour itself. We are unable to upskill and do some conceptual research. And success coaches are working with their personal hotspot itself.",
+            "Dear Team, I would like to bring to your attention an issue faced by students during the Skill Assessments conducted on 23rd September at the university. Due to network connectivity issues, students were unable to complete the assessments smoothly. Out of the 6 subjects scheduled for assessment, most students were able to attempt only around 3…"
           ]
         },
         {
           "id": "G08-S03",
           "name": "Laptop / Device Issue",
-          "description": "Work laptop not provided, faulty, or other device issues.",
+          "description": "The instructor's work device is the problem: company laptop not provided yet, or laptop screen, camera, battery, charger, ports or power failing, hanging or needing replacement. If the device failure meant the session audio wasn't recorded, use Audio Not Captured instead.",
           "assigned_team": "Program Operations",
           "poc_primary": "Respective Campus COS",
           "examples": [
-            "I would like to report an issue with my company-issued laptop. The laptop screen is not functioning properly, making it difficult to use the device for my daily work. I request that the laptop be insp...",
-            "problem with microphone as I company has not provided me any laptop untill now",
-            "Since this morning, my office hp laptop has not been switching on. When I press the power button, the light blinks briefly and then turns off. I have tried basic troubleshooting, but it is still not w...",
-            "Since laptop is too far it is unable to catch our resolving doubts . Since it is easy topic, i was not saying on screen. I have cleared doubts from one to one which audio cannot be recognised."
+            "Iam deployed to crescent university in the month of july and now its september still i had not received company laptop, iam just using my personal laptop one which carry less time charge even though it is fully charged. Iam hoping you will send me a laptop asap hoping so Thank you",
+            "I would like to report an issue with my company-issued laptop. The laptop screen is not functioning properly, making it difficult to use the device for my daily work. I request that the laptop be inspected at the earliest convenience. If the issue cannot be resolved through repair, I kindly request a replacement laptop to avoid any disruption to…",
+            "Subject: Request for Laptop Replacement Due to Persistent Camera Issue Dear Support Team, I would like to request a replacement of my company laptop due to a persistent camera issue that has not been resolved despite multiple troubleshooting attempts. For the past few months, I have been experiencing an issue with my laptop camera, where it shows…",
+            "Hi Team, I am facing multiple issues with my laptop. While clicking on the Start Audio Recording option, the recording starts but it is not recording properly. My laptop also went off suddenly and is hanging frequently. I am unable to switch between tabs, and the laptop is not responding properly. Due to these issues, I am unable to complete my…"
           ]
         },
         {
           "id": "G08-S04",
           "name": "Microphone / Recording Equipment Issue",
-          "description": "Microphone is unavailable, not working, has dead batteries, or disconnected mid-session — directly impacting QA recording.",
+          "description": "Classroom audio or recording equipment is missing, too few, or unreliable, and the instructor is asking for it to be provided or fixed: no mic, shared mics, dead or no spare batteries, mic cutting out, speakers not working. Use this for the ongoing equipment request. If a specific session's audio was lost because of it, use Audio Not Captured instead.",
           "assigned_team": "Program Operations",
           "poc_primary": "Respective Campus COS",
           "examples": [
-            "We would like to request individual microphones for each instructor instead of assigning microphones based on classrooms. Currently, our campus has three classrooms, and only three microphones have be...",
-            "I have recorded but the interface have automatically closed before I clicked on \"stop recording \" , the audio not downloaded nor uploaded.",
-            "We are facing an issue with audio recording while resolving students' doubts. Currently, we do not have a proper microphone, so we have to carry a laptop every time we need to record audio, which is i...",
-            "During the practice sessions, we need to explain students' doubts by speaking, but we currently do not have a microphone available. This is affecting our ability to communicate clearly during the sess..."
+            "It has been nearly a month since I moved from the Chevella campus to KKH. At the Chevella campus, we had access to microphones with noise cancellation, which helped ensure clear audio during session recordings. At KKH, due to the limited availability of microphones, the quality of session recordings is sometimes being affected, which is also…",
+            "We have 2 Different types of Mike in out class to take lectures using speakers, both are having cell battery and stops working middle of class , and now we have to take classes without mike.",
+            "We would like to request individual microphones for each instructor instead of assigning microphones based on classrooms. Currently, our campus has three classrooms, and only three microphones have been provided (one per classroom). However, we have five instructors conducting sessions, which creates several operational challenges: If one…",
+            "Subject: Request for Microphone Batteries. There is a shortage of microphone batteries in the server room, and fresh batteries are urgently required. Due to the lack of batteries, the microphones are frequently unavailable, which is affecting our teaching. We are unable to deliver lectures effectively, especially in large classrooms where using a…"
           ]
         },
         {
@@ -554,14 +554,14 @@
         {
           "id": "G08-S06",
           "name": "Audio Not Captured (Equipment / Facility Issue)",
-          "description": "The recording failed specifically because of broken, missing, or dead equipment -- mic not working, mic battery not charged, no mic provided, laptop/USB port issue, or no electricity/network at the campus. A facilities problem, not a product bug.",
+          "description": "A specific session's audio wasn't recorded, was recorded partly or blank, or couldn't be uploaded or submitted, and the instructor says the cause is a facility or equipment problem: no Wi-Fi or slow internet, power cut, mic not working or no mic, dead battery, laptop failure. Use this whichever category the instructor filed under (TeachOS, QA, Scheduling). The ask is usually to accept a mobile recording or excuse the QA score. If no facility cause is mentioned (app crash, upload bug, malpractice flag), it's a TeachOS platform issue, not Facilities.",
           "assigned_team": "Program Operations",
           "poc_primary": "Respective Campus COS",
           "examples": [
-            "Audio has not been recorded properly due to sudden halt in mic functioning, and it has been mentioned that session went off topic and also i have explained about python but the truth is I havent even ...",
-            "Because of N/W issue the session has not been recorded, it was recorder for only 54 seconds",
-            "Due to laptop issue,audio not uploaded.",
-            "Due to laptop audio issue,recording not submitted."
+            "We are unable to record the session due to a power outage and network connectivity issues. Since there is currently no power supply, the Wi-Fi/network connection is also unavailable, which is preventing us from recording the session. We will resume the recording once the power supply and network connection are restored. I will ensure that the…",
+            "The audio was not recorded properly due to a slow internet connection during the session. As a result, the QA evaluation may not accurately reflect my actual performance.",
+            "The laptop is not turning on.So couldn't record.",
+            "The Mic didn't record anything for the entire 50 minutes and this empty audio got 0.0 score as QA Rating"
           ]
         }
       ]
