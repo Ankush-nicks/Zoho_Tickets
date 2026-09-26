@@ -251,127 +251,130 @@
         {
           "id": "G05-S01",
           "name": "Timetable Conflict",
-          "description": "Two sessions are scheduled at the same time for the same instructor, or the same classroom is double-booked.",
+          "description": "Two bookings clash in the same time slot: the same instructor is scheduled for two sessions at once, the same classroom or section is double-booked, another instructor is already taking the class, or the class overlaps with an exam or event for the same students.",
           "assigned_team": "Program operations",
           "poc_primary": "manoj.panchothi@nxtwave.co.in",
           "examples": [
-            "As there is difference in the LMS Portal and Prod Sheet of Semester 2, where there is some topic missed in the Prod Sheet in the Module of Bit Manipulation. And in Semester 3 it is starting from Hashi...",
-            "In TeachOS - Manager connect - tracker, The available filters of completed pre-scheduled, not booked etc. These filters are showing the wrong data.",
-            "Section 1: Topic: Implementing CRUD Operations Part 1(11:00 to 11:50 AM) I would like to raise a concern regarding the QA evaluation for my session at the 42:00 timestamp. The report states that I had...",
-            "Correct answer format is not clear"
+            "Another instructor was taking lecture (Gesture Tech Session). Due to this I am unable to take that session. (Section- c Time- 1:00 - 1:50)",
+            "online Practice session is scheduled for me but at that time some other instructor took it in offline mode and as I have conducted that session recording is not submitted I already discussed with BOA he is also not able to cancel it now need help i it",
+            "During my lecture session, I noticed that a few students were writing a competitive programming exam during class hours. When I enquired about it, the students informed me that they had received an exam link and that there was a time limit to complete it. They mentioned that due to the time constraint, they continued attempting the exam during my…",
+            "Topic- Continuity and Discontinuity I had a session scheduled from 10:30 AM to 11:30 AM. However, we were informed to conclude the session within 30 minutes due to the Web Applications Unit Test scheduled at 11:30 AM, requiring us to wrap up by 11:00 AM. Although I was prepared to complete the session within the given time, attendance procedures…"
           ]
         },
         {
           "id": "G05-S02",
           "name": "Session Rescheduled",
-          "description": "A confirmed session has been moved to a different date or time without adequate notice or consent.",
+          "description": "A session that was already confirmed has been moved or changed (date, time, topic or session type) without adequate notice or consent, often on the same day or during the session. This also covers an instructor asking for a session to be rescheduled.",
           "assigned_team": "Program operations",
           "poc_primary": "manoj.panchothi@nxtwave.co.in",
           "examples": [
-            "even informed prior wrong sessions are being scheduled and moving forward this is very difficult for the taking class. Actually, it has to be practice session of measures of variability due to wrong s...",
-            "The record of my sessions taken at SGU, Kolhapur are missing from the TeachOS platform. I was there from January 2026- June 2026.",
-            "After 20 minutes of starting the session recording, the portal took me to the login page, which terminated the recording also. So now, I don't have the session recording saved."
+            "Hi I am DSA instructor from SGU University, the issue that needs to be addressed is late scheduling of classes that has been happening quite often now. The flow gets disrupted when the sessions are being scheduled late. On date 09/03/2026 according to the schedule I had 5 sessions including 1 Module Quiz, but once my sessions got started after…",
+            "Schedule was changed and I was informed in the middle of the session time.",
+            "Blood Relation Practice Session was Cancelled and Circular Arrangement Practice Session was Scheduled after recording started. Audio Downloaded for Blood Relation Practice Session Only",
+            "Initially it was Scheduled as a Linear Arrangements Lecture Hour and Due to Previous Instructor took 25 minutes more, I was left only 25minutes to deliver the session. Which i've only Completed till Classroom Quiz 1 and after it was again changed to Practice Session while i'm in class. So the recording went for practice session for hall 6 which i…"
           ]
         },
         {
           "id": "G05-S03",
           "name": "Session Cancelled",
-          "description": "A session has been cancelled entirely without a makeup plan or adequate notice.",
+          "description": "A session has been cancelled, by Ops or by circumstances such as no students, a holiday, a power cut or leave, without a make-up plan or adequate notice. This also covers a cancelled or not-conducted session that still shows in TeachOS and asks for a recording.",
           "assigned_team": "Program operations",
           "poc_primary": "manoj.panchothi@nxtwave.co.in",
           "examples": [
-            "I'm unable to record the practice session. The practice session was scheduled as an online session. When I click Start Practice, it redirects me to the Learning Portal, but I don't see any recording o...",
-            "in TeachOS manager connect, when we accept the meet , the google meet is being scheduled which is good but when we are rescheduling the meet, the meet scheduled in google meet is not being cancelled -...",
-            "Incorrect session was scheduled earlier and correct one was assigned later",
-            "I was mapped to a lecture session instead of a practice so I didn't record the session since the rating will drop drastically."
+            "The session was conducted in full as scheduled and continued without any interruption from my end. However, after the session had ended, I was unable to upload the audio recording or mark the session as completed on TeachOS. Later, I came to know that the Ops team had cancelled the session midway, even though I had continued conducting the session…",
+            "I took this class on 29th Aug, but the next day it was showing as cancelled. Also, all the ratings were omitted.",
+            "On 24-08-2026 from 4:00 PM to 5:00PM I have session and it was cancelled and then morning session is again updated in place of actual scheduled session and i cant upload video again if i do that it gives malpractice.",
+            "Aptitude module quiz was scheduled on 01-04-2026, but it got postponed to some other date due to a university exam being held on the same day. The module quiz is not being conducted even after multiple reminders."
           ]
         },
         {
           "id": "G05-S04",
           "name": "Session Mismatch",
-          "description": "The session assigned does not match the instructor's subject expertise or the agreed curriculum.",
+          "description": "The session assigned doesn't match the instructor's subject expertise (not their subject, course, department or campus) or the agreed curriculum (wrong or already-covered topic, or lecture and practice mixed up). A wrong PPT attached to a correctly named topic is a Content issue, not a mismatch.",
           "assigned_team": "Program operations",
           "poc_primary": "manoj.panchothi@nxtwave.co.in",
           "examples": [
-            "Incorrect session was assigned ,this is supposed to be regular session but ps was scheduled as morning class previous to this wasnt taken",
-            "The recording has not been uploaded or downloaded.",
-            "Recording not uploaded completely.",
-            "The audio is not uploaded. So, I tried to upload manually but it's showing like this. I have uploaded the Screen shot"
+            "Scheduled lecture is not the part of my course \"AI in Finance\". May be by mistake someone scheduled it on my name instead of someone's else name.",
+            "the BOA teach has scheduled a class for pratice session for the subject of PROBABILITY and that is not my subject I come from the backend team, so I have informed that please cancel the Probability class from me and reschedule the Math code implementation for Probability because the Probability and math code implementation is NOT same but they are…",
+            "I'm dealing with tech subject, even though it was reflecting EVS (environmental Studies) for practice session in the tech subjects. Kindly look into it.",
+            "Issue Description: For Hall 19, today’s scheduled topic was “Level Order Traversal”, but the session was incorrectly assigned as “Post Order Traversal.” I started the class based on the topic displayed in the portal. However, the students informed me that Post Order Traversal had already been completed. Since the assigned topic was incorrect and…"
           ]
         },
         {
           "id": "G05-S05",
           "name": "Late or Incorrect Schedule Communication",
-          "description": "Schedule was shared with less than 48 hours notice, or contained incorrect information.",
+          "description": "The schedule, a substitution or an extra duty was communicated with less than 48 hours' notice (often the same day or minutes before), or was communicated with incorrect details.",
           "assigned_team": "Program operations",
           "poc_primary": "manoj.panchothi@nxtwave.co.in",
           "examples": [
-            "I have been teaching the concept \"BUILDING AGENT WITH MEMORY\" which is very important as content is more i asked for 2 sessions for one topic and divided it in to 2parts so i have completed with 1 st ...",
-            "This is not my subject and session was schedule without any information.",
-            "in KKH, i have connected with Snehal(scheduling person) - he mentioned that they are scheduling the DSA sessions as PS, But from my end and from instructors end, the schedule is not being reflected at...",
-            "Everyday before getting schedule it is showing to upload the previous audios. Recurring daily we are clicking upload for later . For the next day again same thing is happening."
+            "For 9:30-10:30 time slot, I was informed at 9:40 to take practice session for English since respective instructor was absent and no backup instructor was arranged by that time. And i was not informed about scheduled lecture. Due to delay in communication and scheduling, no recording is present.",
+            "I had been assigned this as replacement instructor on a sudden demand and the institute itself is far hence this class was missed",
+            "Activities, responsibilities, and session schedules are sometimes communicated at the last minute. In some situations, sufficient prior notice is not available for faculty to properly prepare for the session or activity. Last-minute communication makes planning difficult and may affect preparation, coordination, and the overall quality of…",
+            "Incorrect session was scheduled earlier and correct one was assigned later"
           ]
         },
         {
           "id": "G05-S06",
           "name": "Extra Session Required",
-          "description": "Additional sessions beyond the standard schedule are needed to complete the curriculum.",
+          "description": "The standard schedule doesn't give enough sessions or time to complete the curriculum: a topic is too long for one slot, two topics are packed into one session, or catch-up or exam-preparation sessions are needed. A dispute about a QA score alone doesn't belong here.",
           "assigned_team": "Program operations",
           "poc_primary": "manoj.panchothi@nxtwave.co.in",
           "examples": [
-            "You might have avoided the extended Python for loop lecture at ((32:00)) which was unrelated to the aptitude practice — this disrupted the session focus and confused the topic. You could have checked ...",
-            "The evaluation report status for Getting started with ReactJS session shows fail.",
-            "1. On 27th July 2026 at 3:50 PM in section two, there was a DSA quiz scheduled. I was invigilating the quiz, so few students had learning portal access so they were writing the quiz. Others were revis...",
-            "I didn't say anything in the exam except begin the exam and keep the mobiles aside And also it's an aptitude Module Quiz, Why is there an Loops Concept came here About the time reminders, Every Studen..."
+            "File Systems Part - 1, File Systems Part - 2, and Streams, topics has 121, 81, 75 slides respectively. They are under More Node JS Concepts. Each one of these has hands-on also. Hence, I request that more than 1 lecture to be allotted for these topics. Thank you",
+            "I was assigned a 50-minute session in which I was asked to complete both Discrete Random Variables and Continuous Random Variables, along with the classroom quizzes and MCQ practice. I would like to highlight that this is not practically feasible if the objective is to ensure proper student understanding and learning outcomes. Even the recorded…",
+            "I need 2 hours dedicated practice session for preparation of UT for all sections of 3rd sem, ADYPU",
+            "Subject: Request for Support Regarding Web Development Syllabus Delay Dear Team, I am writing to update you on the current status of our Web Development syllabus. Due to unforeseen issues in the first semester, we were unable to complete the syllabus on schedule. As a result, for the first four weeks of this semester, we were still covering…"
           ]
         },
         {
           "id": "G05-S07",
           "name": "Schedule Updated but Not Reflected in System",
-          "description": "A schedule change agreed via email or verbally is not yet updated in the official portal or calendar.",
+          "description": "A schedule change was agreed with Ops/BOA (by email, verbally or in Prod), or the session was delivered correctly, but TeachOS or the calendar still shows the old, missing or wrong session or status.",
           "assigned_team": "Program operations",
           "poc_primary": "manoj.panchothi@nxtwave.co.in",
           "examples": [
-            "Due to Network Issues in Campus and Personnel Hotspots are not working and also extra class scheduled due to some instructors are absent. This leads to Schedule change and the BOA Team didn't notify m...",
-            "On 24th July, the session scheduled in TeachOS was \"C++ Basics Part 1 – Coding Practice.\" When we attempted to start the session, it immediately redirected us to the coding practice in the learning po...",
-            "Nitish's capability manager mapping was recently updated from me to Pradeep. However, Nitish was still able to book a Weeksprint slot on my calendar. Since the mapping has changed, the system should i...",
-            "So on 24/07, we had online classes. I took online classes. When I was taking the class it was showing recording. SO I thought it is the recording. But when I finished the class it was showing not reco..."
+            "Hi Team, Due to a backend issue with updating the schedule, the BOA team was unable to make the necessary changes. This session is actually a PS session. Thank you for your understanding.",
+            "in KKH, i have connected with Snehal(scheduling person) - he mentioned that they are scheduling the DSA sessions as PS, But from my end and from instructors end, the schedule is not being reflected attaching the proof instructor shared me.",
+            "The topic “Lists and Keys” was partially completed for my sections 13, 14, 15, and 18, and I updated the PROD yesterday at 12:56 PM marking it as partially completed. However, in my instructor portal, the next topic is still showing as “State and Events.” I have already informed the concerned team on WhatsApp and they acknowledged the message, but…",
+            "The English Practice session was assigned to me; however, it was not scheduled on TeachOS by the Ops team. I would request you to kindly verify the scheduling details and clarify the reason for this discrepancy."
           ]
         },
         {
           "id": "G05-S08",
           "name": "Session Added (New Session Requirement)",
-          "description": "A completely new session needs to be added to the calendar that was not previously planned.",
+          "description": "A completely new session that isn't in the plan or Prod sequence needs to be added to the calendar, such as a coding practice, module quiz or practice session that doesn't exist for a topic.",
           "assigned_team": "Program operations",
           "poc_primary": "manoj.panchothi@nxtwave.co.in",
           "examples": [
-            "Gradio SDK now marked as “Paid” when creating a new Space. This is showing for new accounts. As for the old accounts the Space hardware CPU basic is also now paid.",
-            "this report is from the 16th of July, section 18. This report says I ma saying something about Rayleigh scattering, which is completely wrong",
-            "When an instructor navigates to a past date (e.g., January 2026) using the calendar to mark previously missed sessions as completed, clicking \"Mark Session as Complete\" automatically redirects the Sch...",
-            "i have expalined two questions to a student but yet my personal computer microphone couldnt able to capture the audio and my doubt clearing session rating is zero nowI explained both of the student's ..."
+            "There is no Coding Practice in the Prod Sequence for topic : Prefix Sum , but its is present in the Portal",
+            "Im from NRI we have completed the lecture and practice sessions for node js till authentication but the module quizzes are not scheduled as I asked the BOA he mentioned that the sequence is not there in the prod.",
+            "In React JS Course, there are no practice sessions scheduled for Components and Props and Components and Props – Part 2 lectures. Instead, we are moving directly to Lists and Keys session in React JS Course. Proceeding in this way may rush through the subject without giving students sufficient time to properly understand and practice these new…",
+            "Hi, this is Rengarasu from the DSA Tech Team. Tomorrow, I have a Prefix Sum lecture scheduled, followed by a Sliding Window and Two-Pointer Technique lecture. However, there is currently no slot allocated for Prefix Sum coding practice between these sessions. I would like to request a coding practice slot for Prefix Sum? It would help students…"
           ]
         },
         {
           "id": "G05-S09",
           "name": "GRIT / BRAVE / MINT Related Concerns",
-          "description": "Scheduling issues specifically related to GRIT, BRAVE, or MINT programme sessions.",
+          "description": "Any scheduling issue where the session is part of the GRIT, BRAVE or MINT programmes (exams, invigilation or programme sessions). Pick this whenever one of these programmes is named as the context.",
           "assigned_team": "Program operations",
           "poc_primary": "manoj.panchothi@nxtwave.co.in",
           "examples": [
-            "since the start of term 3, the scheduling team is been sooo poor. They are not even scheduling the right classes for the instructors. Daily we need to go to the concern member, there we need to update..."
+            "Hi Team, I attended multiple practice sessions that did not have a recording option, as they were only monitoring sessions (GRIT Exam invigilation and Club Activity monitoring). Since these sessions don't have recordings, Teach OS is asking me to upload an audio file, which I don't have. I have already informed the Ops team about this issue. They…",
+            "the date is wrong no classes were schedulded on 8th. Full day we had grit exam Suggesting Malpractice please help me understand how uploading the audio of the lecture is considering as malpractice? and due to network issues the uploading of sessions is not quick and while switcching between the class and tgaking attendence in every class time for…",
+            "There were no register students in hall 19 - so grit exam was not conducted in hall 19"
           ]
         },
         {
           "id": "G05-S10",
           "name": "Any Issue Leading to Session Disruption",
-          "description": "An active, real-time issue is preventing the session from running normally — raise during or within 10 minutes of session start.",
+          "description": "An active, real-time issue stopped the session or cut it short (power, Wi-Fi, projector or display, outside noise or an event, a student incident), raised during or within 10 minutes of the session start. If the instructor only asks afterwards to cancel or reschedule, use Session Cancelled or Session Rescheduled instead.",
           "assigned_team": "Program operations",
           "poc_primary": "manoj.panchothi@nxtwave.co.in",
           "examples": [
-            "Due to network issue session started late since it was raining and it was last session students start going for last minutes for buses.",
-            "these are the reasons for qa dropping You could have explained the MCP protocol concept in more depth at ((20:06)) beyond calling it \"a protocol\" — students would benefit from understanding how it sta...",
-            "In Maths class,tech related topics are reflected even though not discussed in lecture : Scope for Improvement You should avoid mixing unrelated topics in the same session — the discussion about while ...",
-            "Again we are facing sales call issues during practice session. this is a recorring issue for many reports. Kindly please look into this.It is not at all feasible for us to raise a ticket for every rep..."
+            "The WiFi was not working at all, and there were also frequent power cuts. Due to these issues, I was unable to start the class. Therefore, the class could not be conducted.",
+            "Someone has disconnected the Projector, which disrupted the session and caused me to lose approx 20 valuable mins . As a result, I was unable to complete my session as planned.",
+            "I had a session at Hall 17 on the topic of \"Level Order Traversal\". But I was unable to conduct the session due to disturbance outside the class due to Ganesh Chaturthi Celebrations. Now my QA is also affected.",
+            "I did not get the chance to teach the students, as i started the session with revision, few students misbehaved with me, so i took them immediately to our campus manager, it consumed 30 min of the session, the moment i return back to resume the session HOD of the campus kept one sudden meeting so i had to end the session."
           ]
         }
       ]

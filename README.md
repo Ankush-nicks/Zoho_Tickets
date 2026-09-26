@@ -119,16 +119,17 @@ this file at startup. To update it, re-export the same 2-level shape:
   prompt (irrelevant to intent), only surfaced in responses for routing.
   `poc_primary` also drives the POC queue — a subcategory without it won't
   show up in any POC's queue.
-- `examples` are used two ways: they go into the classification prompt for
-  their subcategory, and they bootstrap the vector memory on first run
-  (`memory.seed_if_empty`) so the system has *something* to retrieve before
-  any real corrections exist. A subcategory with zero examples (there's one,
+- `examples` are not put in the classification prompt directly - they
+  bootstrap the vector memory on first run (`memory.seed_if_empty`), and the
+  most similar ones are retrieved into the prompt as few-shot context, so
+  the system has *something* to retrieve before any real corrections exist. A subcategory with zero examples (there's one,
   `G11-S05`) still works — it just relies purely on its `description` until
   corrections start accumulating for it.
-- If you edit taxonomy.json after the vector memory has already been seeded,
-  call `taxonomy.reload()` (or just restart the service) — existing seed
-  embeddings for removed/renamed categories won't be auto-purged; delete
-  `app/data/chroma` if you want a clean re-seed.
+- If you edit taxonomy.json's examples after the vector memory has already
+  been seeded, the service keeps retrieving the old seed examples until you
+  run `python scripts/reseed_memory.py` on the deployed instance. It swaps
+  only the seed entries for the current taxonomy.json ones and keeps every
+  correction — don't delete `app/data/chroma` for this, that loses them all.
 - The rendered taxonomy block in the prompt is currently ~13K characters
   (~3K tokens) for 68 subcategories — comfortably within context for either
   `gpt-4o-mini` or `gpt-4o`. If you grow well past ~150-200 subcategories,

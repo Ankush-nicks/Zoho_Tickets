@@ -45,6 +45,28 @@ def seed_if_empty(seed_examples: list[dict], api_key: str):
     _collection.add(ids=ids, embeddings=embeddings, documents=texts, metadatas=metadatas)
 
 
+def reseed(seed_examples: list[dict], api_key: str) -> tuple[int, int]:
+    """
+    Replace every seed example with the current taxonomy.json ones, leaving
+    corrections untouched. seed_if_empty() only ever runs on an empty store,
+    so edits to taxonomy.json's examples never reach retrieval otherwise -
+    and wiping app/data/chroma to force a re-seed would also throw away
+    every real correction. Embeds before deleting, so a failed embeddings
+    call leaves the old seeds in place rather than an empty seed set.
+    Returns (removed, added).
+    """
+    texts = [e["text"] for e in seed_examples]
+    embeddings = _embed(texts, api_key) if texts else []
+    old_ids = _collection.get(where={"source": "seed"}, include=[])["ids"]
+    if old_ids:
+        _collection.delete(ids=old_ids)
+    if texts:
+        ids = [f"seed-{i}" for i in range(len(texts))]
+        metadatas = [{"category_id": e["category_id"], "source": "seed"} for e in seed_examples]
+        _collection.add(ids=ids, embeddings=embeddings, documents=texts, metadatas=metadatas)
+    return len(old_ids), len(texts)
+
+
 def add_example(
     text: str,
     category_id: str,

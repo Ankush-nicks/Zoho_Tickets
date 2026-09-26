@@ -86,3 +86,21 @@ def test_add_example_without_ticket_id_does_not_dedup(isolated_memory):
     memory.add_example("printer issue B", "cat-printer", api_key="unused", source="seed")
 
     assert isolated_memory.count() == 2
+
+
+def test_reseed_replaces_seeds_but_keeps_corrections(isolated_memory):
+    memory.add_example("printer issue A", "cat-old", api_key="unused", source="seed")
+    memory.add_example("unrelated topic", "cat-old", api_key="unused", source="seed")
+    memory.add_example("billing question", "cat-billing", api_key="unused", source="correction", ticket_id="ticket-1")
+
+    removed, added = memory.reseed(
+        [{"text": "printer issue B", "category_id": "cat-new", "source": "seed"}], api_key="unused"
+    )
+
+    assert (removed, added) == (2, 1)
+    remaining = isolated_memory.get()
+    by_source = {m["source"]: (doc, m["category_id"]) for doc, m in zip(remaining["documents"], remaining["metadatas"])}
+    assert by_source == {
+        "seed": ("printer issue B", "cat-new"),
+        "correction": ("billing question", "cat-billing"),
+    }
