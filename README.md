@@ -81,8 +81,8 @@ ticket and watch it get classified (or asked a clarifying question), and use
 67 routed subcategories — QA/instructor evaluation, curriculum, staffing/HR,
 scheduling, etc., plus a catch-all "Other / Unclear" category for tickets with
 no discernible intent). Classification targets the **subcategory** level, since
-that's what actually determines routing (`assigned_team`, `poc_primary`,
-`poc_cc`) — the classifier picks a `category_id` like `G01-S01`, and the API/UI
+that's what actually determines routing (`assigned_team`, `poc_primary`)
+— the classifier picks a `category_id` like `G01-S01`, and the API/UI
 resolve that back to its parent category, team, and point of contact.
 
 Nothing in the code is hardcoded to this taxonomy's content — the classifier,
@@ -103,9 +103,6 @@ this file at startup. To update it, re-export the same 2-level shape:
           "description": "1-3 sentences the model uses to distinguish this from other subcategories.",
           "assigned_team": "IAS/SET",
           "poc_primary": "someone@company.com",
-          "poc_cc": "someone-else@company.com",
-          "ticket_volume": 33,
-          "data_coverage": "Likely Complete",
           "examples": ["a real historical ticket", "another one"]
         }
       ]
@@ -117,11 +114,11 @@ this file at startup. To update it, re-export the same 2-level shape:
 - Leaf `id` (e.g. `G01-S01`) is what gets stored/routed/corrected on — keep it
   stable once you're in production; renaming an id orphans old corrections
   tied to it.
-- `assigned_team` / `poc_primary` / `poc_cc` / `ticket_volume` / `data_coverage`
-  are optional — omit any of them and the API/UI just won't show that field.
-  They're **not** included in the classification prompt (irrelevant to intent,
-  and volume figures could bias the model toward common categories), only
-  surfaced in responses for routing.
+- `assigned_team` / `poc_primary` are optional — omit either and the API/UI
+  just won't show that field. They're **not** included in the classification
+  prompt (irrelevant to intent), only surfaced in responses for routing.
+  `poc_primary` also drives the POC queue — a subcategory without it won't
+  show up in any POC's queue.
 - `examples` are used two ways: they go into the classification prompt for
   their subcategory, and they bootstrap the vector memory on first run
   (`memory.seed_if_empty`) so the system has *something* to retrieve before

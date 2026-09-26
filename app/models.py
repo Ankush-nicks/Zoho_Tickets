@@ -37,7 +37,6 @@ class TicketStateResponse(BaseModel):
     category_group_name: str | None = None
     assigned_team: str | None = None
     poc_primary: str | None = None
-    poc_cc: str | None = None
     confidence: float | None = None
     reasoning: str | None = None
     clarifying_question: str | None = None

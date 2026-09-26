@@ -637,7 +637,6 @@ try {
     padding:7px 8px; border-bottom:1px solid var(--p-border); white-space:nowrap;
   }
   #taxonomyView td{ padding:4px 8px; border-bottom:1px solid var(--p-border); color:var(--p-text-primary); vertical-align:top; }
-  #taxonomyView td.num{ text-align:right; font-variant-numeric:tabular-nums; }
   #taxonomyView tr.taxo-cat-row td{
     background:var(--p-surface-2); font-weight:700; padding-top:8px; padding-bottom:8px;
   }
@@ -655,12 +654,6 @@ try {
   #taxonomyView [contenteditable="true"]:focus{ background:var(--p-surface-1); box-shadow:inset 0 0 0 1px var(--p-accent); }
   #taxonomyView td.taxo-id-cell{ font-family:var(--mono); font-size:var(--fs-xs); color:var(--p-text-muted); white-space:nowrap; }
   #taxonomyView td.taxo-name-cell [contenteditable]{ font-weight:600; }
-  #taxonomyView input.taxo-num-input{
-    width:48px; font:inherit; font-variant-numeric:tabular-nums; text-align:right; color:var(--p-text-primary);
-    background:transparent; border:1px solid transparent; border-radius:4px; padding:2px 4px;
-  }
-  #taxonomyView input.taxo-num-input:hover{ background:var(--p-surface-2); }
-  #taxonomyView input.taxo-num-input:focus{ outline:none; background:var(--p-surface-1); border-color:var(--p-accent); }
   #taxonomyView select.taxo-cat-select{
     font:inherit; font-size:var(--fs-xs); color:var(--p-text-primary); background:var(--p-surface-1);
     border:1px solid var(--p-border); border-radius:5px; padding:3px 2px; width:60px;
@@ -1022,9 +1015,6 @@ try {
                 <th style="min-width:280px">Description</th>
                 <th style="width:150px">Team</th>
                 <th style="width:170px">POC Primary</th>
-                <th style="width:170px">POC CC</th>
-                <th class="num" style="width:50px">Vol</th>
-                <th style="width:110px">Coverage</th>
                 <th style="min-width:220px">Examples (one per line)</th>
                 <th style="width:30px"></th>
               </tr>
@@ -3177,9 +3167,6 @@ function taxoSubRowHTML(sub) {
       <td><div contenteditable="${ce}" data-sub="${esc(sub.id)}" data-field="description" onblur="taxoFieldEdit(this)">${esc(sub.description || '')}</div></td>
       <td><div contenteditable="${ce}" data-sub="${esc(sub.id)}" data-field="assigned_team" onblur="taxoFieldEdit(this)">${esc(sub.assigned_team || '')}</div></td>
       <td><div contenteditable="${ce}" data-sub="${esc(sub.id)}" data-field="poc_primary" onblur="taxoFieldEdit(this)">${esc(sub.poc_primary || '')}</div></td>
-      <td><div contenteditable="${ce}" data-sub="${esc(sub.id)}" data-field="poc_cc" onblur="taxoFieldEdit(this)">${esc(sub.poc_cc || '')}</div></td>
-      <td class="num"><input class="taxo-num-input" type="number" ${dis} value="${sub.ticket_volume ?? ''}" data-sub="${esc(sub.id)}" data-field="ticket_volume" onblur="taxoFieldEdit(this)"></td>
-      <td><div contenteditable="${ce}" data-sub="${esc(sub.id)}" data-field="data_coverage" onblur="taxoFieldEdit(this)">${esc(sub.data_coverage || '')}</div></td>
       <td><div contenteditable="${ce}" data-sub="${esc(sub.id)}" data-field="examples" onblur="taxoFieldEdit(this)">${esc(examplesText)}</div></td>
       <td>${delBtn}</td>
     </tr>`;
@@ -3195,7 +3182,7 @@ function taxoRender() {
       : '';
     html += `
       <tr class="taxo-cat-row">
-        <td colspan="11">
+        <td colspan="8">
           <span class="taxo-cat-id">${esc(cat.id)}</span>
           <span contenteditable="${ce}" data-cat="${esc(cat.id)}" data-field="__catname" onblur="taxoFieldEdit(this)">${esc(cat.name)}</span>
           ${catDelBtn}
@@ -3205,7 +3192,7 @@ function taxoRender() {
     if (taxoUnlocked) {
       html += `
         <tr class="taxo-add-row">
-          <td colspan="11"><span class="taxo-add-link" onclick="taxoAddSubcategory('${esc(cat.id)}')">+ add subcategory to ${esc(cat.name)}</span></td>
+          <td colspan="8"><span class="taxo-add-link" onclick="taxoAddSubcategory('${esc(cat.id)}')">+ add subcategory to ${esc(cat.name)}</span></td>
         </tr>`;
     }
   });
@@ -3228,13 +3215,6 @@ function taxoFieldEdit(el) {
   if (field === 'examples') {
     const lines = el.textContent.split('\n').map(s => s.trim()).filter(Boolean);
     if (JSON.stringify(sub.examples || []) !== JSON.stringify(lines)) { sub.examples = lines; taxoMarkDirty(); }
-    return;
-  }
-  if (field === 'ticket_volume') {
-    const raw = el.value.trim();
-    const n = raw === '' ? null : parseInt(raw, 10);
-    const normalized = Number.isFinite(n) ? n : null;
-    if ((sub.ticket_volume ?? null) !== normalized) { sub.ticket_volume = normalized; taxoMarkDirty(); }
     return;
   }
   const newVal = el.textContent.trim();
@@ -3298,7 +3278,7 @@ function taxoAddSubcategory(catId) {
   const id = taxoNextSubId(cat);
   cat.subcategories.push({
     id, name: 'New subcategory', description: '', assigned_team: '',
-    poc_primary: '', poc_cc: '', ticket_volume: null, data_coverage: '', examples: [],
+    poc_primary: '', examples: [],
   });
   taxoMarkDirty();
   taxoRender();

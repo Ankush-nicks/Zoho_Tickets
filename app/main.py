@@ -204,16 +204,14 @@ def export_taxonomy_csv(user: str = Depends(require_login)):
     writer.writerow([
         "category_id", "category_name",
         "subcategory_id", "subcategory_name", "description",
-        "assigned_team", "poc_primary", "poc_cc",
-        "ticket_volume", "data_coverage", "example_count",
+        "assigned_team", "poc_primary", "example_count",
     ])
     for group in taxonomy.groups:
         for sub in group.get("subcategories", []):
             writer.writerow([
                 group["id"], group["name"],
                 sub["id"], sub["name"], sub.get("description", ""),
-                sub.get("assigned_team", ""), sub.get("poc_primary", ""), sub.get("poc_cc", ""),
-                sub.get("ticket_volume", ""), sub.get("data_coverage", ""),
+                sub.get("assigned_team", ""), sub.get("poc_primary", ""),
                 len(sub.get("examples", [])),
             ])
     return Response(
@@ -677,7 +675,6 @@ def _to_state_response(ticket: dict) -> TicketStateResponse:
         category_group_name=category_group_name,
         assigned_team=leaf.get("assigned_team") if leaf else None,
         poc_primary=leaf.get("poc_primary") if leaf else None,
-        poc_cc=leaf.get("poc_cc") if leaf else None,
         confidence=ticket.get("confidence"),
         reasoning=ticket.get("reasoning"),
         clarifying_question=ticket.get("clarifying_question"),

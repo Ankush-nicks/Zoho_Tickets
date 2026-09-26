@@ -9,7 +9,7 @@ class Taxonomy:
     """
     Wraps taxonomy.json (2 levels: category group -> subcategory).
     Classification targets the LEAF (subcategory) level, since that's what
-    actually determines routing (assigned_team / poc_primary / poc_cc) in
+    actually determines routing (assigned_team / poc_primary) in
     real taxonomy exports. Loaded once at startup, cached in memory, but
     re-readable via reload() so the taxonomy can be edited/hot-swapped
     without restarting the service.
@@ -56,7 +56,7 @@ class Taxonomy:
 
     def get(self, category_id: str) -> dict | None:
         """Look up a leaf subcategory by id. Includes parent_id/parent_name,
-        assigned_team, poc_primary, poc_cc for routing."""
+        assigned_team, poc_primary for routing."""
         return self._leaf_index.get(category_id)
 
     def seed_examples(self) -> list[dict]:
