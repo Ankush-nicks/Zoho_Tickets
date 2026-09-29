@@ -32,6 +32,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app import classifier, config, db  # noqa: E402
+from app.main import _reporter_hint_from  # noqa: E402
 from openai import RateLimitError  # noqa: E402
 
 IST = timezone(timedelta(hours=5, minutes=30))
@@ -132,7 +133,13 @@ def main():
         result = None
         if not no_classify:
             try:
-                result = classifier.classify(issue_text, api_key)
+                # Historical rows predate auto-fill, so the CSV's category
+                # columns are the instructor's own pick - same hint the
+                # live webhook uses.
+                hint = _reporter_hint_from(
+                    row.get("Category Of The Issue"), row.get("Sub Category Of The Issue")
+                )
+                result = classifier.classify(issue_text, api_key, reporter_hint=hint)
             except RateLimitError as e:
                 # Every remaining row would fail the same way - stop the
                 # whole run rather than churning through them one by one

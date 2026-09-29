@@ -146,10 +146,34 @@ this file at startup. To update it, re-export the same 2-level shape:
 | `CONFIDENCE_THRESHOLD` | `0.65` | Below this, the ticket needs clarification or human review rather than auto-routing. |
 | `MAX_CLARIFICATION_TURNS` | `2` | Caps back-and-forth so the bot doesn't interrogate the user forever; falls back to `needs_human_review`. |
 | `FEWSHOT_K` | `5` | How many retrieved examples get injected as dynamic few-shot context per call. |
+| `FEWSHOT_REPORTER_K` | `2` | Extra few-shot examples pulled from the instructor's picked category (see below). |
+| `REPORTER_OVERRIDE_MIN_CONFIDENCE` | `0.95` | How sure the model must be to override the subcategory the instructor picked. |
 
 Tune `CONFIDENCE_THRESHOLD` down if you're getting too many clarifying questions
 on tickets a human would consider obvious; tune it up if wrong-but-confident
 routes are getting through.
+
+### The instructor's own category pick
+
+Instructors pick a category (and optionally a subcategory) on the Zoho form
+before the pre-submit script classifies and overwrites them. That pick often
+carries intent the issue text leaves out, so the webhook passes it to
+`classify()` as a `ReporterHint`:
+
+- it's shown to the model as a `REPORTER-SELECTED CATEGORY` line with a
+  "strong prior" rule, and few-shot retrieval adds examples from that
+  category's subcategories;
+- `apply_reporter_prior()` then keeps the instructor's subcategory unless
+  the model picks a different one with at least
+  `REPORTER_OVERRIDE_MIN_CONFIDENCE` - agreement skips clarification;
+- a category-only pick narrows the model toward that group (prompt only);
+  an "Other / Unclear" pick is ignored;
+- if classification fails outright (API key/credits exhausted, network
+  error), the webhook returns the instructor's own category and subcategory
+  unchanged, with `needs_review: true`, instead of the catch-all fallback.
+
+The pre-submit Deluge script must send `sub_category_of_the_issue` for this
+to see the subcategory (see `Claude outputs/zoho_invoke_script_fixed.deluge`).
 
 ### OpenRouter vs Gemini accuracy comparison
 

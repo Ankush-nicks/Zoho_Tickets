@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS tickets (
     clarification_turns INTEGER NOT NULL DEFAULT 0,
     zoho_ticket_id TEXT,               -- set only for tickets sourced from a Zoho lookup, else NULL
     zoho_category TEXT,                -- category/sub-category Zoho already had on the record, if any -
-    zoho_subcategory TEXT,             -- kept only to compare against our own prediction, never used to classify
+    zoho_subcategory TEXT,             -- compared against our prediction, and fed to classify() as a reporter hint
     raw_payload TEXT,                  -- full JSON body Zoho's webhook sent (serialized - see _dump_raw_payload/_load_raw_payload)
     created_at REAL NOT NULL,
     updated_at REAL NOT NULL,

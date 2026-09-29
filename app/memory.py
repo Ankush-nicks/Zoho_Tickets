@@ -102,27 +102,12 @@ def add_example(
     )
 
 
-def retrieve_similar(
-    text: str,
-    api_key: str,
-    k: int = config.FEWSHOT_K,
-    min_similarity: float = config.FEWSHOT_MIN_SIMILARITY,
-) -> list[dict]:
-    """
-    Return up to k most similar known examples to use as dynamic few-shot
-    context, dropping any whose similarity falls below min_similarity - a
-    genuinely novel ticket should get few or zero examples rather than k
-    forced "closest but irrelevant" ones. Over-fetches (k*3, capped at the
-    collection size) before filtering so a few weak matches interspersed
-    among the nearest neighbors don't silently shrink the result below k.
-    """
-    if is_empty():
-        return []
-    query_embedding = _embed([text], api_key)[0]
-    fetch_n = min(k * 3, max(_collection.count(), 1))
+def _query(query_embedding: list[float], n: int, min_similarity: float, where: dict | None = None) -> list[dict]:
+    fetch_n = min(n * 3, max(_collection.count(), 1))
     results = _collection.query(
         query_embeddings=[query_embedding],
         n_results=fetch_n,
+        where=where,
     )
     out = []
     docs = results.get("documents", [[]])[0]
@@ -138,6 +123,52 @@ def retrieve_similar(
             "source": meta.get("source"),
             "similarity": similarity,
         })
-        if len(out) >= k:
+        if len(out) >= n:
             break
+    return out
+
+
+def retrieve_similar(
+    text: str,
+    api_key: str,
+    k: int = config.FEWSHOT_K,
+    min_similarity: float = config.FEWSHOT_MIN_SIMILARITY,
+    also_from_categories: list[str] | None = None,
+    also_k: int = config.FEWSHOT_REPORTER_K,
+) -> list[dict]:
+    """
+    Return up to k most similar known examples to use as dynamic few-shot
+    context, dropping any whose similarity falls below min_similarity - a
+    genuinely novel ticket should get few or zero examples rather than k
+    forced "closest but irrelevant" ones. Over-fetches (k*3, capped at the
+    collection size) before filtering so a few weak matches interspersed
+    among the nearest neighbors don't silently shrink the result below k.
+
+    also_from_categories (the leaf ids around what the instructor picked on
+    the Zoho form - see classifier.ReporterHint) additionally pulls up to
+    also_k of the most similar examples restricted to just those leaves,
+    appended after the top-k and deduped against it. Without this, a short
+    ticket like "not working" retrieves whatever sounds closest globally,
+    and the model never sees what the reporter's own subcategory - or its
+    near siblings - actually look like. Reuses the same query embedding, so
+    this costs one extra Chroma query, not an extra embeddings call.
+    """
+    if is_empty():
+        return []
+    query_embedding = _embed([text], api_key)[0]
+    out = _query(query_embedding, k, min_similarity)
+    if also_from_categories and also_k > 0:
+        seen = {ex["text"] for ex in out}
+        where = (
+            {"category_id": also_from_categories[0]}
+            if len(also_from_categories) == 1
+            else {"category_id": {"$in": also_from_categories}}
+        )
+        try:
+            extra = _query(query_embedding, also_k + len(out), min_similarity, where=where)
+        except Exception:
+            # A filtered HNSW query can fail on some chromadb versions when
+            # very few rows match - the unfiltered top-k is still usable.
+            extra = []
+        out.extend([ex for ex in extra if ex["text"] not in seen][:also_k])
     return out

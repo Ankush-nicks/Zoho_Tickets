@@ -14,7 +14,11 @@ payload = Map();
 // ------------------------------------------------
 // Issue Classification
 // ------------------------------------------------
+// What the instructor picked (subcategory is optional) - the backend
+// weighs this heavily and only overrides it when the issue text
+// clearly points elsewhere. Must be sent BEFORE step 7 overwrites it.
 payload.put("category_of_the_issue",input.Category_Of_The_Issue);
+payload.put("sub_category_of_the_issue",input.Sub_Category_Of_The_Issue);
 payload.put("department_name",input.Department_Name);
 payload.put("subject_name",input.Subject_Name);
 // ------------------------------------------------

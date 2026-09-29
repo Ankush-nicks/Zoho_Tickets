@@ -430,11 +430,20 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
                 "webhook-triggered classification since there's no UI operator "
                 "to supply a per-request key.",
             )
+        # Whatever the instructor picked on the form before this pre-submit
+        # call - the whole point of the reporter hint, since this response
+        # overwrites those same fields (see classifier.ReporterHint).
+        hint = _reporter_hint_from(
+            payload.get("category_of_the_issue"), payload.get("sub_category_of_the_issue")
+        )
         try:
-            result = classifier.classify(issue_text, config.OPENROUTER_API_KEY)
+            result = classifier.classify(issue_text, config.OPENROUTER_API_KEY, reporter_hint=hint)
             category_id = result.category_id
         except Exception as e:
             logger.error(f"Zoho webhook suggestion-mode classify() failed: {e}")
+            echo = _reporter_pick_echo(payload)
+            if echo:
+                return {"ok": True, **echo, "needs_review": True}
             category_id = None
         leaf, used_fallback = _resolve_leaf_for_zoho(category_id)
         return {
@@ -519,21 +528,33 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
         raw_payload=payload,
     )
 
+    hint = _reporter_hint_from(zoho_category, zoho_subcategory)
     classify_failed_reason = None
     try:
         result = _run_classification_and_persist(
-            ticket_id, issue_text, clarification_turns=0, api_key=config.OPENROUTER_API_KEY
+            ticket_id, issue_text, clarification_turns=0, api_key=config.OPENROUTER_API_KEY,
+            reporter_hint=hint,
         )
         category_id = result.category_id
     except Exception as e:
         logger.error(f"Zoho webhook classify() failed for new ticket {ticket_id}: {e}")
         classify_failed_reason = f"classify_error:{str(e)[:300]}"
+        # Still route by the instructor's own subcategory when it resolves,
+        # so the ticket reaches that POC's queue while it waits for review.
+        failsafe_leaf = hint.leaf_id if hint else None
         db.update_ticket(
             ticket_id,
             status="needs_human_review",
-            reasoning=f"Automatic classification failed: {e}",
+            category_id=failsafe_leaf,
+            reasoning=(
+                f"Automatic classification failed: {e}"
+                + (" - kept the instructor's own pick." if failsafe_leaf else "")
+            ),
             fallback_reason=classify_failed_reason,
         )
+        echo = _reporter_pick_echo(payload)
+        if echo:
+            return {"ok": True, **echo, "needs_review": True}
         category_id = None
 
     leaf, used_fallback = _resolve_leaf_for_zoho(category_id)
@@ -603,6 +624,58 @@ def _resolve_taxonomy_leaf_by_name(name: str | None) -> str | None:
         if _labels_loosely_match(taxonomy.get(leaf_id)["name"], name)
     ]
     return loose[0] if len(loose) == 1 else None
+
+
+def _reporter_hint_from(category_name, subcategory_name) -> classifier.ReporterHint | None:
+    """
+    Zoho form's Category_Of_The_Issue / optional Sub_Category_Of_The_Issue
+    text -> a ReporterHint for classify(), or None when there's nothing
+    usable. The subcategory wins when it resolves (it's the more specific
+    pick, and its parent is the group); otherwise an exact category-group
+    name match gives a group-only hint. A pick of the catch-all fallback
+    group ("Other / Unclear") carries no intent, so it's dropped rather than
+    anchoring the model to "no routing required".
+    """
+    subcategory_name = str(subcategory_name or "").strip() or None
+    category_name = str(category_name or "").strip() or None
+
+    leaf_id = _resolve_taxonomy_leaf_by_name(subcategory_name)
+    if leaf_id:
+        group_id = taxonomy.get(leaf_id)["parent_id"]
+    else:
+        target = _normalize_label(category_name) if category_name else None
+        matches = [g["id"] for g in taxonomy.groups if target and _normalize_label(g["name"]) == target]
+        if len(matches) != 1:
+            return None
+        group_id = matches[0]
+
+    fallback = taxonomy.get(config.ZOHO_FALLBACK_CATEGORY_ID)
+    if fallback and group_id == fallback["parent_id"]:
+        return None
+    return classifier.ReporterHint(group_id=group_id, leaf_id=leaf_id)
+
+
+def _reporter_pick_echo(payload: dict) -> dict | None:
+    """
+    Failsafe for when classify() itself fails (OpenRouter key/credits
+    exhausted with no Cloudflare fallback, embeddings key exhausted, network
+    error, ...): hand Zoho back exactly the category/subcategory the
+    instructor already picked, verbatim, instead of overwriting them with
+    the catch-all "Insufficient Information" leaf. Those are values Zoho's
+    own dropdowns produced, so they're valid on the Zoho side even if they
+    don't resolve to our taxonomy. Both are mandatory in Zoho, so this only
+    applies when both are present - a category-only pick still falls back
+    to _resolve_leaf_for_zoho as before.
+    """
+    category = str(payload.get("category_of_the_issue") or "").strip()
+    subcategory = str(payload.get("sub_category_of_the_issue") or "").strip()
+    if not category or not subcategory:
+        return None
+    return {"category_of_the_issue": category, "sub_category_of_the_issue": subcategory}
+
+
+def _reporter_hint_for_ticket(ticket: dict) -> classifier.ReporterHint | None:
+    return _reporter_hint_from(ticket.get("zoho_category"), ticket.get("zoho_subcategory"))
 
 
 def _detect_zoho_transfer(existing: dict, new_subcategory: str | None) -> str | None:
@@ -697,8 +770,14 @@ def _to_state_response(ticket: dict) -> TicketStateResponse:
     )
 
 
-def _run_classification_and_persist(ticket_id: str, context_text: str, clarification_turns: int, api_key: str):
-    result = classifier.classify(context_text, api_key)
+def _run_classification_and_persist(
+    ticket_id: str,
+    context_text: str,
+    clarification_turns: int,
+    api_key: str,
+    reporter_hint: classifier.ReporterHint | None = None,
+):
+    result = classifier.classify(context_text, api_key, reporter_hint=reporter_hint)
 
     if classifier.should_finalize(result, clarification_turns):
         if result.confidence < config.CONFIDENCE_THRESHOLD and clarification_turns >= config.MAX_CLARIFICATION_TURNS:
@@ -768,7 +847,7 @@ def _classify_pending_batch(limit: int, api_key: str) -> dict:
         if not context_text:
             continue
         try:
-            result = classifier.classify(context_text, api_key)
+            result = classifier.classify(context_text, api_key, reporter_hint=_reporter_hint_for_ticket(t))
         except RateLimitError as e:
             stopped_early = True
             error = str(e)
@@ -908,7 +987,10 @@ def respond_to_clarification(
     db.append_turn(ticket_id, "user_answer", req.answer.strip())
     new_context = ticket["full_context"] + f"\n\nAdditional info: {req.answer.strip()}"
 
-    _run_classification_and_persist(ticket_id, new_context, clarification_turns=ticket["clarification_turns"], api_key=api_key)
+    _run_classification_and_persist(
+        ticket_id, new_context, clarification_turns=ticket["clarification_turns"], api_key=api_key,
+        reporter_hint=_reporter_hint_for_ticket(ticket),
+    )
     updated = db.get_ticket(ticket_id)
 
     resp = _to_state_response(updated)
