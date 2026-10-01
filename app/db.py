@@ -181,21 +181,95 @@ def create_ticket(
     update_ticket() always stamps updated_at to the current time (correct
     for real edits), so there's no equivalent override for that field.
     """
-    ticket_id = new_id()
-    now = created_at if created_at is not None else time.time()
-
     with _conn() as conn:
-        _exec(
-            conn,
-            """INSERT INTO tickets
-               (id, original_text, full_context, status, clarification_turns,
-                zoho_ticket_id, zoho_category, zoho_subcategory, raw_payload, created_at, updated_at)
-               VALUES (?, ?, ?, 'pending', 0, ?, ?, ?, ?, ?, ?)""",
-            (ticket_id, original_text, original_text, zoho_ticket_id, zoho_category,
-             zoho_subcategory, _dump_raw_payload(raw_payload), now, now),
+        ticket_id = _insert_ticket(
+            conn, original_text, zoho_ticket_id, zoho_category, zoho_subcategory, raw_payload, created_at
         )
     _invalidate_list_all_cache()
     return ticket_id
+
+
+def _insert_ticket(conn, original_text, zoho_ticket_id, zoho_category, zoho_subcategory, raw_payload, created_at) -> str:
+    ticket_id = new_id()
+    now = created_at if created_at is not None else time.time()
+    _exec(
+        conn,
+        """INSERT INTO tickets
+           (id, original_text, full_context, status, clarification_turns,
+            zoho_ticket_id, zoho_category, zoho_subcategory, raw_payload, created_at, updated_at)
+           VALUES (?, ?, ?, 'pending', 0, ?, ?, ?, ?, ?, ?)""",
+        (ticket_id, original_text, original_text, zoho_ticket_id, zoho_category,
+         zoho_subcategory, _dump_raw_payload(raw_payload), now, now),
+    )
+    return ticket_id
+
+
+BULK_IMPORT_CHUNK_SIZE = 25
+
+
+def bulk_import_tickets(
+    creates: list[dict],
+    updates: list[tuple[str, dict]],
+    on_progress=None,
+    chunk_size: int = BULK_IMPORT_CHUNK_SIZE,
+) -> dict:
+    """
+    Applies an app/zoho_csv.py ImportPlan (creates are create_ticket()
+    kwargs; updates are (ticket id, fields) pairs in update_ticket()'s
+    shape) for the Taxonomy tab's CSV upload.
+
+    Commits every `chunk_size` writes rather than all at once: on Turso each
+    statement is its own HTTP round trip, so one transaction over thousands
+    of rows would hold the database's write lock for minutes and stall the
+    live Zoho webhook. A failure part-way keeps every chunk already
+    committed (the failing chunk rolls back as a whole) - safe, since
+    re-running the same upload only writes what's still missing/different.
+
+    Inserts skip a zoho_ticket_id that already exists - the webhook can
+    create the same ticket between planning and writing, and that must not
+    become a duplicate row. Returns {"created", "updated", "already_existed"}.
+    on_progress(done, total) is called after each committed chunk.
+    """
+    ops = [("create", c) for c in creates] + [("update", u) for u in updates]
+    total = len(ops)
+    counts = {"created": 0, "updated": 0, "already_existed": 0}
+    now = time.time()
+    try:
+        for start in range(0, total, chunk_size):
+            chunk_counts = {"created": 0, "updated": 0, "already_existed": 0}
+            with _conn() as conn:
+                for kind, op in ops[start:start + chunk_size]:
+                    if kind == "create":
+                        cur = _exec(
+                            conn,
+                            """INSERT INTO tickets
+                               (id, original_text, full_context, status, clarification_turns,
+                                zoho_ticket_id, zoho_category, zoho_subcategory, raw_payload, created_at, updated_at)
+                               SELECT ?, ?, ?, 'pending', 0, ?, ?, ?, ?, ?, ?
+                               WHERE NOT EXISTS (SELECT 1 FROM tickets WHERE zoho_ticket_id = ?)""",
+                            (new_id(), op["original_text"], op["original_text"], op["zoho_ticket_id"],
+                             op.get("zoho_category"), op.get("zoho_subcategory"),
+                             _dump_raw_payload(op.get("raw_payload")),
+                             op.get("created_at") or now, op.get("created_at") or now,
+                             op["zoho_ticket_id"]),
+                        )
+                        chunk_counts["created" if cur.rowcount == 1 else "already_existed"] += 1
+                    else:
+                        ticket_id, fields = op
+                        fields = dict(fields, updated_at=now)
+                        if "raw_payload" in fields:
+                            fields["raw_payload"] = _dump_raw_payload(fields["raw_payload"])
+                        cols = ", ".join(f"{k} = ?" for k in fields)
+                        _exec(conn, f"UPDATE tickets SET {cols} WHERE id = ?", list(fields.values()) + [ticket_id])
+                        chunk_counts["updated"] += 1
+            # Only count a chunk once its commit (the _conn exit) succeeded.
+            for k, v in chunk_counts.items():
+                counts[k] += v
+            if on_progress:
+                on_progress(min(start + chunk_size, total), total)
+    finally:
+        _invalidate_list_all_cache()
+    return counts
 
 
 def get_ticket(ticket_id: str) -> dict | None:

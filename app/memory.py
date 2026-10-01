@@ -24,8 +24,17 @@ _collection = _chroma.get_or_create_collection(
 )
 
 
+# The embedding model rejects inputs over 8,191 tokens. Real Zoho tickets go
+# up to ~45K characters (pasted logs/transcripts) - uncapped, those fail on
+# every classify attempt and sit at the head of the pending queue forever.
+# 8,000 characters stays under the token cap even for non-Latin text, and
+# the opening of a ticket is what similarity search actually needs.
+_EMBED_MAX_CHARS = 8000
+
+
 def _embed(texts: list[str], api_key: str) -> list[list[float]]:
     client = OpenAI(api_key=api_key, base_url=config.openai_base_url())
+    texts = [t[:_EMBED_MAX_CHARS] for t in texts]
     resp = client.embeddings.create(model=config.EMBED_MODEL, input=texts)
     return [d.embedding for d in resp.data]
 

@@ -104,3 +104,23 @@ def test_reseed_replaces_seeds_but_keeps_corrections(isolated_memory):
         "seed": ("printer issue B", "cat-new"),
         "correction": ("billing question", "cat-billing"),
     }
+
+
+def test_embed_caps_input_length(monkeypatch):
+    sent = {}
+
+    class FakeEmbeddings:
+        def create(self, model, input):
+            sent["input"] = input
+
+            class R:
+                data = [type("D", (), {"embedding": [0.0]})() for _ in input]
+            return R()
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            self.embeddings = FakeEmbeddings()
+
+    monkeypatch.setattr(memory, "OpenAI", FakeClient)
+    memory._embed(["x" * 45000, "short"], api_key="unused")
+    assert [len(t) for t in sent["input"]] == [memory._EMBED_MAX_CHARS, 5]

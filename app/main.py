@@ -2,19 +2,21 @@ import asyncio
 import csv
 import io
 import secrets
+import threading
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import logging
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi import Depends, FastAPI, File, Header, HTTPException, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from openai import RateLimitError
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import auth, config, db, memory, classifier, quality_scorer, poc_queue
+from . import auth, config, db, memory, classifier, quality_scorer, poc_queue, zoho_csv
 from .taxonomy import taxonomy
 from .auth import require_login
 from .models import (
@@ -166,6 +168,13 @@ def unlock_taxonomy(req: TaxonomyUnlockRequest, user: str = Depends(require_logi
     return {"ok": True}
 
 
+def _require_taxonomy_password(x_taxonomy_password: str | None) -> None:
+    if not x_taxonomy_password or not secrets.compare_digest(
+        x_taxonomy_password, config.TAXONOMY_EDIT_PASSWORD
+    ):
+        raise HTTPException(403, "Taxonomy editing is locked - incorrect or missing password.")
+
+
 @app.put("/api/taxonomy")
 def update_taxonomy(
     payload: dict,
@@ -186,10 +195,7 @@ def update_taxonomy(
     memory only after a successful unlock and resends it here, so a request
     made straight against the API without the password is rejected too.
     """
-    if not x_taxonomy_password or not secrets.compare_digest(
-        x_taxonomy_password, config.TAXONOMY_EDIT_PASSWORD
-    ):
-        raise HTTPException(403, "Taxonomy editing is locked - incorrect or missing password.")
+    _require_taxonomy_password(x_taxonomy_password)
     try:
         taxonomy.save(payload)
     except ValueError as e:
@@ -219,6 +225,114 @@ def export_taxonomy_csv(user: str = Depends(require_login)):
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=taxonomy.csv"},
     )
+
+
+_IMPORT_CSV_MAX_BYTES = 20 * 1024 * 1024
+_IMPORT_SKIPPED_REPORT_LIMIT = 50
+
+
+@app.post("/api/tickets/import-csv")
+def import_tickets_csv(
+    file: UploadFile = File(...),
+    dry_run: bool = False,
+    user: str = Depends(require_login),
+    x_taxonomy_password: str | None = Header(None),
+):
+    """
+    The Taxonomy tab's "Upload tickets CSV": a Zoho "Instructors Ticketing
+    System" export, upserted by Ticket ID into the tickets table - new ids
+    are created (left pending for the auto-classify loop), known ids get
+    their Zoho-side data refreshed. See app/zoho_csv.py's plan_import for
+    exactly what is and isn't overwritten.
+
+    Behind the same taxonomy-edit password as PUT /api/taxonomy (X-Taxonomy-
+    Password header, checked on every call). dry_run=true returns the same
+    counts without writing anything - the UI previews with it first and
+    asks for confirmation before the real apply.
+    """
+    _require_taxonomy_password(x_taxonomy_password)
+    content = file.file.read(_IMPORT_CSV_MAX_BYTES + 1)
+    if len(content) > _IMPORT_CSV_MAX_BYTES:
+        raise HTTPException(413, f"CSV is larger than {_IMPORT_CSV_MAX_BYTES // (1024 * 1024)} MB.")
+    try:
+        rows = zoho_csv.parse_csv(content)
+    except (ValueError, UnicodeDecodeError, csv.Error) as e:
+        raise HTTPException(400, f"Couldn't read CSV: {e}")
+
+    if not dry_run and not _import_lock.acquire(blocking=False):
+        raise HTTPException(409, "Another ticket import is still running - wait for it to finish.")
+    try:
+        # One fresh read of the whole table rather than a lookup per row (a
+        # network round trip each on Turso). Oldest first, so a duplicated
+        # zoho_ticket_id maps to its most recent row - same as
+        # db.get_ticket_by_zoho_id.
+        db._invalidate_list_all_cache()
+        existing_by_zoho_id = {
+            t["zoho_ticket_id"]: t for t in db.list_all_tickets() if t.get("zoho_ticket_id")
+        }
+        plan = zoho_csv.plan_import(rows, existing_by_zoho_id)
+    except Exception:
+        if not dry_run:
+            _import_lock.release()
+        raise
+
+    summary = {
+        "dry_run": dry_run,
+        "rows": len(rows),
+        "created": len(plan.creates),
+        "updated": len(plan.updates),
+        "unchanged": plan.unchanged,
+        "newer_in_db": plan.newer_in_db,
+        "skipped_count": len(plan.skipped),
+        "skipped": plan.skipped[:_IMPORT_SKIPPED_REPORT_LIMIT],
+    }
+    if dry_run:
+        return summary
+
+    # The writes run in a background thread: thousands of rows on Turso take
+    # longer than a request should stay open. The UI polls
+    # GET /api/tickets/import-csv/status for progress and the final counts.
+    _import_job.clear()
+    _import_job.update(state="running", done=0, total=len(plan.creates) + len(plan.updates),
+                       started_by=user, started_at=time.time(), summary=summary)
+    _start_import_job(plan, user)
+    return {**summary, "job": dict(_import_job)}
+
+
+def _start_import_job(plan, user: str) -> None:
+    threading.Thread(target=_run_import_job, args=(plan, user), daemon=True).start()
+
+
+# One import at a time (_import_lock); _import_job is the latest job's state,
+# read by the status endpoint. In-process only - a restart mid-import loses
+# the job, but every committed chunk stays and re-uploading finishes the rest.
+_import_lock = threading.Lock()
+_import_job: dict = {"state": "idle"}
+
+
+def _run_import_job(plan, user: str) -> None:
+    def progress(done, total):
+        _import_job["done"] = done
+
+    try:
+        result = db.bulk_import_tickets(plan.creates, plan.updates, on_progress=progress)
+        _import_job.update(state="done", result=result, finished_at=time.time())
+        logger.info(
+            "tickets CSV import by %s: %d created, %d updated, %d already existed, "
+            "%d unchanged, %d newer in db, %d skipped",
+            user, result["created"], result["updated"], result["already_existed"],
+            plan.unchanged, plan.newer_in_db, len(plan.skipped),
+        )
+    except Exception as e:
+        logger.error("tickets CSV import by %s failed after %s rows: %s", user, _import_job.get("done"), e)
+        _import_job.update(state="error", error=str(e)[:500], finished_at=time.time())
+    finally:
+        _import_lock.release()
+
+
+@app.get("/api/tickets/import-csv/status")
+def import_tickets_csv_status(user: str = Depends(require_login)):
+    return dict(_import_job)
 
 
 def _filter_tickets_by_date_range(tickets: list[dict], date_from: str | None, date_to: str | None) -> list[dict]:

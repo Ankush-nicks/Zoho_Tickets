@@ -20,80 +20,21 @@ Safely re-runnable: rows whose "Ticket ID" already exists (via
 db.get_ticket_by_zoho_id) are skipped rather than re-classified, so a
 partial/failed run can just be started again.
 
-Column mapping is specific to this export's header row - see FIELD_MAP
-below if a differently-shaped CSV needs importing later.
+Column mapping lives in app/zoho_csv.py's FIELD_MAP, shared with the
+Taxonomy tab's "Upload tickets CSV" (which upserts without classifying).
 """
 import csv
 import os
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app import classifier, config, db  # noqa: E402
 from app.main import _reporter_hint_from  # noqa: E402
+from app.zoho_csv import build_raw_payload, parse_ist_timestamp  # noqa: E402
 from openai import RateLimitError  # noqa: E402
-
-IST = timezone(timedelta(hours=5, minutes=30))
-
-# CSV column name -> raw_payload key (snake_case, matching the live webhook's
-# own field naming where an equivalent already exists).
-FIELD_MAP = {
-    "zoho_id": "record_id",
-    "University": "university_boa",  # despite the key name, this is Zoho's "University" column - Zoho also has a separate, usually-empty "University BOA" field that this does NOT read from
-    "Ticket ID": "zoho_ticket_id",
-    "Ticket Status": "ticket_status",
-    "Subject Name": "subject_name",
-    "Assigned Team": "assigned_team",
-    "Category Of The Issue": "category_of_the_issue",
-    "Sub Category Of The Issue": "sub_category_of_the_issue",
-    "Issue In Detail": "issue_in_detail",
-    "Is it a recurring issue?": "is_it_a_recurring_issue",
-    "What do you think is the best way to resolve the issue ASAP?": "resolution_preference",
-    "Upload Supporting Files": "upload_supporting_files",
-    "Assign Ticket To": "assign_ticket_to",
-    "View Access": "view_access",
-    "Transfer Ticket To": "transfer_ticket_to",
-    "Ticket Raised By": "ticket_raised_by",
-    "Added Time": "added_time",
-    "Acknowledgement From The POC": "acknowledgement_from_the_poc",
-    "Acknowledgement History": "acknowledgement_history",
-    "WorkLog From The POC": "worklog_from_the_poc",
-    "Worklog History": "worklog_history",
-    "Resolution By The POC": "resolution_by_the_poc",
-    "Ticket Closure Date-Time": "ticket_closure_date_time",
-    "Ticket Closed By": "ticket_closed_by",
-    "SLA Breach Status": "sla_breach_status",
-    "Ticket Reopen_count": "ticket_reopen_count",
-    "Last Reopened On": "last_reopened_on",
-    "Ticket Transfer History": "ticket_transfer_history",
-    "Last Transferred On": "last_transferred_on",
-    "Last Transferred By": "last_transferred_by",
-    "Session Section ID": "session_section_id",
-    "Session ID": "session_id",
-    "Session Type": "session_type",
-    "Evaluation ID (QA Report ID)": "evaluation_id",
-    "Added User": "added_user",
-    "Modified Time": "modified_time",
-    "Department Name": "department_name",
-    "Instructor ID": "instructor_id",
-    "Priority Level": "priority_level",
-    "Campus City": "campus_city",
-}
-
-
-def parse_ist_timestamp(s: str | None) -> float | None:
-    """'27/08/2026 16:10:13' (assumed IST, matching this org's timezone) -> UTC epoch."""
-    if not s or not s.strip():
-        return None
-    dt = datetime.strptime(s.strip(), "%d/%m/%Y %H:%M:%S").replace(tzinfo=IST)
-    return dt.astimezone(timezone.utc).timestamp()
-
-
-def build_raw_payload(row: dict) -> dict:
-    return {snake: (row.get(csv_col) or "").strip() or None for csv_col, snake in FIELD_MAP.items()}
-
 
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]

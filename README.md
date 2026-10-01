@@ -136,6 +136,28 @@ this file at startup. To update it, re-export the same 2-level shape:
   consider two-stage classification (pick the category group first, then the
   subcategory within it) to keep each individual prompt smaller and more precise.
 
+### Uploading ticket data (Taxonomy tab)
+
+Once the Taxonomy tab is unlocked (same `TAXONOMY_EDIT_PASSWORD`), **Upload
+tickets CSV** takes a Zoho "Instructors Ticketing System" export and upserts
+it by `Ticket ID` (`POST /api/tickets/import-csv`). It previews the counts
+first and writes only after you confirm.
+
+- New Ticket IDs are created as `pending`, dated by their Zoho "Added
+  Time", and classified by the auto-classify loop or "Classify Now".
+- Known Ticket IDs get their Zoho data refreshed: every CSV column, the
+  category/subcategory and the issue text. Their classification and any
+  human correction are left untouched.
+- A ticket whose stored Zoho data is newer than the row's "Modified Time"
+  (the live webhook already delivered a later edit) is left as-is - an
+  export is a snapshot and never rolls a ticket back.
+- `Ticket ID` and `Issue In Detail` columns are required; rows missing
+  either, and "Dummy" (test) category rows, are skipped and listed. Extra
+  columns are kept too.
+- Writes run in the background in small committed chunks with progress
+  shown, so the live webhook isn't blocked. If an import is interrupted,
+  re-upload the same file: it only writes what's missing, never duplicates.
+
 ## Key config (`.env`)
 
 | Var | Default | Effect |

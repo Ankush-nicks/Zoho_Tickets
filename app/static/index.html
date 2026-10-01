@@ -1001,6 +1001,8 @@ try {
         <div class="taxo-toolbar" id="taxoToolbar" style="display:none;">
           <button class="taxo-btn" id="taxoAddCatBtn" onclick="taxoAddCategory()" style="display:none;">+ Add category</button>
           <button class="taxo-btn" id="taxoUnlockBtn" onclick="taxoUnlock()"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px; margin-right:4px;"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Unlock to edit</button>
+          <button class="taxo-btn" id="taxoImportBtn" onclick="document.getElementById('taxoImportFile').click()" style="display:none;" title="Upsert tickets from a Zoho 'Instructors Ticketing System' CSV export, matched by Ticket ID">&uarr; Upload tickets CSV</button>
+          <input type="file" id="taxoImportFile" accept=".csv,text/csv" style="display:none;" onchange="taxoImportTickets(this)">
           <span class="taxo-status" id="taxoStatus">Read-only &mdash; unlock to edit</span>
           <button class="taxo-btn primary" id="taxoSaveBtn" onclick="taxoSave()" disabled style="display:none;">Save changes</button>
         </div>
@@ -3123,6 +3125,7 @@ async function taxoUnlock() {
     document.getElementById('taxoUnlockBtn').style.display = 'none';
     document.getElementById('taxoAddCatBtn').style.display = '';
     document.getElementById('taxoSaveBtn').style.display = '';
+    document.getElementById('taxoImportBtn').style.display = '';
     taxoSetStatus('All changes saved', 'saved');
     taxoRender();
   } catch (err) {
@@ -3324,18 +3327,106 @@ async function taxoSave() {
     taxoSetStatus('All changes saved', 'saved');
     taxoRender();
   } catch (err) {
-    if (String(err.message).toLowerCase().includes('locked')) {
-      // Server no longer accepts our remembered password (e.g. it was
-      // changed server-side) - drop back to read-only and make the user
-      // re-unlock rather than silently failing on every future edit.
-      taxoUnlocked = false;
-      taxoPassword = null;
-      document.getElementById('taxoUnlockBtn').style.display = '';
-      document.getElementById('taxoAddCatBtn').style.display = 'none';
-      document.getElementById('taxoSaveBtn').style.display = 'none';
-      taxoRender();
-    }
+    if (String(err.message).toLowerCase().includes('locked')) taxoRelock();
     taxoSetStatus(`Save failed: ${err.message}`, 'error');
+    btn.disabled = false;
+  }
+}
+
+// Server no longer accepts our remembered password (e.g. it was changed
+// server-side) - drop back to read-only and make the user re-unlock rather
+// than silently failing on every future edit/upload.
+function taxoRelock() {
+  taxoUnlocked = false;
+  taxoPassword = null;
+  document.getElementById('taxoUnlockBtn').style.display = '';
+  document.getElementById('taxoAddCatBtn').style.display = 'none';
+  document.getElementById('taxoSaveBtn').style.display = 'none';
+  document.getElementById('taxoImportBtn').style.display = 'none';
+  taxoRender();
+}
+
+// "Upload tickets CSV" - upserts a Zoho ticket export into the tickets
+// table by Ticket ID (POST /api/tickets/import-csv, same password as taxonomy
+// saves). Always previews first (dry_run) and asks before writing anything.
+async function taxoImportPost(file, dryRun) {
+  const form = new FormData();
+  form.append('file', file);
+  const res = await fetch(`/api/tickets/import-csv?dry_run=${dryRun}`, {
+    method: 'POST',
+    headers: { 'X-Taxonomy-Password': taxoPassword || '' },
+    body: form,
+  });
+  if (res.status === 401) { window.location = '/login'; return null; }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+  return data;
+}
+
+function taxoImportSummary(d) {
+  const lines = [
+    `${d.rows} row${d.rows === 1 ? '' : 's'} in file`,
+    `  ${d.created} new ticket${d.created === 1 ? '' : 's'} (classified automatically later)`,
+    `  ${d.updated} existing ticket${d.updated === 1 ? '' : 's'} updated`,
+    `  ${d.unchanged} unchanged`,
+  ];
+  if (d.newer_in_db) {
+    lines.push(`  ${d.newer_in_db} left as-is (already newer in the database than this export)`);
+  }
+  if (d.skipped_count) {
+    lines.push(`  ${d.skipped_count} skipped:`);
+    d.skipped.slice(0, 10).forEach(s => lines.push(`    line ${s.line}${s.ticket_id ? ` (${s.ticket_id})` : ''}: ${s.reason}`));
+    if (d.skipped_count > 10) lines.push(`    …and ${d.skipped_count - 10} more`);
+  }
+  return lines.join('\n');
+}
+
+async function taxoImportTickets(input) {
+  const file = input.files && input.files[0];
+  input.value = '';  // so picking the same file again still fires onchange
+  if (!file || !taxoUnlocked) return;
+  const btn = document.getElementById('taxoImportBtn');
+  btn.disabled = true;
+  try {
+    taxoSetStatus(`Checking ${file.name}…`);
+    const preview = await taxoImportPost(file, true);
+    if (!preview) return;
+    if (!preview.created && !preview.updated) {
+      taxoSetStatus(`Nothing to import from ${file.name}`, 'saved');
+      alert(`Nothing to change.\n\n${taxoImportSummary(preview)}`);
+      return;
+    }
+    if (!confirm(`Import ${file.name}?\n\n${taxoImportSummary(preview)}`)) {
+      taxoSetStatus('Import cancelled');
+      return;
+    }
+    taxoSetStatus(`Importing ${file.name}…`);
+    const started = await taxoImportPost(file, false);
+    if (!started) return;
+    // Writes run server-side in the background (thousands of rows take a
+    // while on Turso) - poll until the job finishes.
+    let job = started.job;
+    while (job && job.state === 'running') {
+      taxoSetStatus(`Importing ${file.name}… ${job.done} / ${job.total}`);
+      await new Promise(r => setTimeout(r, 1500));
+      const res = await fetch('/api/tickets/import-csv/status');
+      if (res.status === 401) { window.location = '/login'; return; }
+      if (res.ok) job = await res.json();
+    }
+    if (job.state === 'error') {
+      throw new Error(`${job.error} (${job.done} of ${job.total} saved - re-upload the same file to finish; nothing is duplicated)`);
+    }
+    if (job.state !== 'done') {
+      throw new Error('lost track of the import (server restarted?) - re-upload the same file to finish; nothing is duplicated');
+    }
+    const r = job.result || {};
+    taxoSetStatus(`Imported: ${r.created} new, ${r.updated} updated`, 'saved');
+    alert(`Import finished.\n\n${r.created} new ticket(s) created\n${r.updated} existing ticket(s) updated`
+      + (r.already_existed ? `\n${r.already_existed} already existed (created meanwhile) - left as-is` : ''));
+  } catch (err) {
+    if (String(err.message).toLowerCase().includes('locked')) taxoRelock();
+    taxoSetStatus(`Import failed: ${err.message}`, 'error');
+  } finally {
     btn.disabled = false;
   }
 }
