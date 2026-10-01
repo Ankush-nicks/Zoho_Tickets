@@ -4,45 +4,32 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Daily Issue Check</title>
-<script>
-// Follow the main app's theme (same origin, same localStorage key).
-try { document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') === 'dark' ? 'dark' : 'light'); } catch (e) {}
-</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@500;600;700&family=Source+Sans+3:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
 <style>
 /* Layout: fixed-width navigator rail (category → subcategory → AI-made groups) beside a working pane: node header, AI panel, groups, ticket ledger. */
 :root{
-  --bg:#f5f6f8; --panel:#ffffff; --sunk:#eceef2; --line:#dcdfe6; --line2:#c9cdd6;
-  --fg:#1b1f2a; --muted:#5e6577; --faint:#8a90a0;
-  --accent:#2f55c9; --accent-soft:#e6ecfb; --accent-fg:#ffffff;
-  --ok:#1f7a4d; --ok-soft:#e1f2e8; --warn:#9a6300; --warn-soft:#fbf0d9; --bad:#b3322b; --bad-soft:#f9e3e1; --new:#7a3fb5; --new-soft:#f0e6fa;
-  --f-display:"Schibsted Grotesk",ui-sans-serif,system-ui,sans-serif;
-  --f-body:"Source Sans 3",ui-sans-serif,system-ui,sans-serif;
-  --f-mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  /* Same palette and type as the main portal (index.html :root / Pulse tokens). */
+  --bg:#ffffff; --panel:#ffffff; --sunk:#F6EFE8; --line:#E7DED4; --line2:#D8CCC0;
+  --fg:#241318; --muted:#6B5560; --faint:#756169;
+  --accent:#7A2039; --accent-soft:#F0DCE1; --accent-fg:#ffffff;
+  --info:#3E6595; --info-soft:#E3EAF3;
+  --ok:#136B2A; --ok-soft:#E3F1E4; --warn:#8A5C00; --warn-soft:#FBEFD8; --bad:#B0342E; --bad-soft:#FBE4E1; --new:#6A4FA0; --new-soft:#ECE6F5;
+  --f-display:'IBM Plex Sans',system-ui,sans-serif;
+  --f-body:'IBM Plex Sans',system-ui,sans-serif;
+  --f-mono:'IBM Plex Mono',ui-monospace,monospace;
+  color-scheme:light;
 }
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#12151c; --panel:#1a1e27; --sunk:#222733; --line:#2c3240; --line2:#3a4152;
-  --fg:#e7e9ef; --muted:#a3a9b8; --faint:#737a8c;
-  --accent:#7d9bf0; --accent-soft:#233055; --accent-fg:#0d1220;
-  --ok:#5cc58e; --ok-soft:#173226; --warn:#e3b35a; --warn-soft:#3a2d12; --bad:#ef7d74; --bad-soft:#3d1c1a; --new:#c49af0; --new-soft:#2f2140;
-  color-scheme:dark}}
-:root[data-theme="dark"]{
-  --bg:#12151c; --panel:#1a1e27; --sunk:#222733; --line:#2c3240; --line2:#3a4152;
-  --fg:#e7e9ef; --muted:#a3a9b8; --faint:#737a8c;
-  --accent:#7d9bf0; --accent-soft:#233055; --accent-fg:#0d1220;
-  --ok:#5cc58e; --ok-soft:#173226; --warn:#e3b35a; --warn-soft:#3a2d12; --bad:#ef7d74; --bad-soft:#3d1c1a; --new:#c49af0; --new-soft:#2f2140;
-  color-scheme:dark}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
-body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.45}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:14px;line-height:1.5}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.app{display:grid;grid-template-columns:300px minmax(0,1fr);min-height:100vh}
+.app{display:grid;grid-template-columns:330px minmax(0,1fr);min-height:100vh}
 /* rail */
-.rail{background:var(--panel);border-right:1px solid var(--line);padding:18px 14px;display:flex;flex-direction:column;gap:14px;position:sticky;top:env(safe-area-inset-top,0px);height:100vh;overflow:auto}
+.rail{background:#FBF7F3;border-right:1px solid var(--line);padding:18px 14px;display:flex;flex-direction:column;gap:14px;position:sticky;top:env(safe-area-inset-top,0px);height:100vh;overflow:auto}
 .brand{font-family:var(--f-display);font-weight:700;font-size:18px;letter-spacing:-.01em}
 .brand small{display:block;font-family:var(--f-body);font-weight:400;font-size:12.5px;color:var(--muted);letter-spacing:0}
 .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);font-weight:600}
@@ -77,7 +64,7 @@ main{padding-block:22px 60px;padding-inline:28px;display:flex;flex-direction:col
 .crumbs{display:flex;flex-wrap:wrap;gap:6px;font-size:13.5px;color:var(--muted);align-items:center}
 .crumbs button{all:unset;cursor:pointer;color:var(--accent)}
 .crumbs button:hover{text-decoration:underline}
-h1{font-family:var(--f-display);font-size:28px;line-height:1.15;margin:4px 0 0;letter-spacing:-.015em;text-wrap:balance}
+h1{font-family:var(--f-display);font-size:24px;font-weight:700;line-height:1.2;margin:4px 0 0;letter-spacing:-.01em;text-wrap:balance}
 .desc{color:var(--muted);margin:4px 0 0;max-width:70ch}
 .range{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;position:sticky;top:env(safe-area-inset-top,0px);z-index:5}
 .range .tabs{flex-wrap:wrap}
@@ -326,7 +313,7 @@ td.tx{min-width:260px;width:60%}
 .pill{display:inline-block;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:999px;white-space:nowrap}
 .p-open{background:var(--warn-soft);color:var(--warn)}
 .p-done{background:var(--ok-soft);color:var(--ok)}
-.p-wait{background:var(--accent-soft);color:var(--accent)}
+.p-wait{background:var(--info-soft);color:var(--info)}
 .p-x{background:var(--sunk);color:var(--muted)}
 .p-bad{background:var(--bad-soft);color:var(--bad)}
 tr.x td{background:var(--bg);font-size:14px}
@@ -336,11 +323,13 @@ tr.x td{background:var(--bg);font-size:14px}
 .more{margin-top:10px}
 .empty{padding:18px;color:var(--muted);text-align:center}
 .menu{display:none}
+.menurow{display:none}
 @media (max-width:860px){
   .app{grid-template-columns:1fr}
   .rail{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line)}
   .rail.closed .hideable{display:none}
   .menu{display:inline-flex}
+  .menurow{display:flex}
   main{padding-inline:16px}
   .stats{grid-template-columns:repeat(3,minmax(0,1fr))}
   .stat:nth-child(3){border-right:0}
@@ -351,30 +340,14 @@ tr.x td{background:var(--bg);font-size:14px}
   .range{position:static}
   .range .rl{margin-left:0}
 }
-/* collapsible navigator rail (desktop) */
-.railmin{all:unset;box-sizing:border-box;cursor:pointer;width:30px;height:30px;display:grid;place-items:center;border-radius:7px;color:var(--muted);flex:none}
-.railmin:hover{background:var(--sunk);color:var(--fg)}
-.railmin:focus-visible{outline:2px solid var(--accent)}
-.railmin svg{width:16px;height:16px;transition:transform .2s}
-.app{transition:grid-template-columns .2s ease}
-@media (min-width:861px){
-  .app.rail-min{grid-template-columns:48px minmax(0,1fr)}
-  .app.rail-min .rail{padding:18px 9px;overflow:hidden}
-  .app.rail-min .rail .hideable,.app.rail-min .rail .brand{display:none}
-  .app.rail-min .railmin svg{transform:rotate(180deg)}
-}
-@media (max-width:860px){.railmin{display:none}}
-@media (prefers-reduced-motion:reduce){.app,.railmin svg{transition:none}}
 </style>
 </head>
 <body>
 
 <div class="app">
   <aside class="rail" id="rail">
-    <div class="row" style="justify-content:space-between">
-      <div class="brand">Daily Issue Check<small>Instructor ticketing · live data</small></div>
+    <div class="row menurow" style="justify-content:flex-end">
       <button class="btn sm menu" id="menuBtn" aria-expanded="true">Browse</button>
-      <button class="railmin" id="railMinBtn" type="button" aria-expanded="true" aria-label="Collapse the navigator" title="Collapse the navigator"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3.5 5.5 8l4.5 4.5"/></svg></button>
     </div>
     <div class="hideable" style="display:flex;flex-direction:column;gap:6px">
       <label class="lbl" for="catSel">Category</label>
@@ -382,13 +355,11 @@ tr.x td{background:var(--bg);font-size:14px}
     </div>
     <div class="hideable" style="display:flex;flex-direction:column;gap:6px">
       <div class="lbl">Subcategories &amp; groups</div>
-      <div class="hint" style="font-size:12px">▸ shows a subcategory’s groups. The merge icon on the right folds all of its groups back into one.</div>
       <nav class="nav" id="nav"></nav>
     </div>
     <div class="src hideable">
       <div id="srcInfo"></div>
       <button class="btn sm" id="reloadBtn" type="button" style="align-self:flex-start">Reload from database</button>
-      <div class="hint" style="font-size:12px">Groups, descriptions and remarks are shared with your team. Tickets that arrive after a split show up as “not yet sorted” so you can sort them into the existing groups.</div>
     </div>
   </aside>
 
@@ -548,7 +519,7 @@ const OPEN = new Set(["Yet To Pick","In Progress","Re-open"]);
 const WAIT = new Set(["Awaiting Instructors Response"]);
 const DONE = new Set(["Resolved By POC","Resolution Acknowledged"]);
 const STATUS_ORDER = ["Yet To Pick","In Progress","Re-open","Awaiting Instructors Response","Resolved By POC","Resolution Acknowledged","Discard"];
-const STATUS_COLOR = {"Yet To Pick":"var(--bad)","In Progress":"var(--warn)","Re-open":"var(--new)","Awaiting Instructors Response":"var(--accent)","Resolved By POC":"var(--ok)","Resolution Acknowledged":"color-mix(in srgb, var(--ok) 55%, var(--panel))","Discard":"var(--line2)"};
+const STATUS_COLOR = {"Yet To Pick":"var(--bad)","In Progress":"var(--warn)","Re-open":"var(--new)","Awaiting Instructors Response":"var(--info)","Resolved By POC":"var(--ok)","Resolution Acknowledged":"color-mix(in srgb, var(--ok) 55%, var(--panel))","Discard":"var(--line2)"};
 
 /* ---------- data ---------- */
 let T = [], byId = new Map(), dataLabel = "";
@@ -557,8 +528,7 @@ function setData(list, label){
   T = list.filter(t => t.cat);
   byId = new Map(T.map(t => [t.id, t]));
   dataLabel = label;
-  const latest = T.reduce((m,t) => t.dt > m ? t.dt : m, "");
-  $("#srcInfo").innerHTML = `<b>${fmtN(T.length)}</b> tickets · ${esc(label)}<br>Latest ticket ${esc(fmtDate(latest))}`;
+  $("#srcInfo").innerHTML = `<b>${fmtN(T.length)}</b> tickets · ${esc(label)}`;
 }
 function fmtDate(iso){ if(!iso) return "—"; const d = new Date(iso); return isNaN(d) ? iso : d.toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"}); }
 function csvDate(v){ const m = String(v||"").match(/(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}:\d{2}(?::\d{2})?)/); if(!m) return ""; return `${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}T${m[4].length===5?m[4]+":00":m[4].padStart(8,"0")}`; }
@@ -910,9 +880,9 @@ function go(id){
   showN = 50; openRow = null; $("#q").value = ""; if (!cur.__same) sel.clear();
   crumbs(cur);
   $("#title").textContent = cur.name;
-  $("#ndesc").textContent = cur.desc || (cur.parent ? "" : `${cur.sub===ALL?"Every subcategory":"Subcategory"} in ${cur.cat}. Summarize it, or split it into groups and keep drilling down.`);
+  $("#ndesc").textContent = cur.desc || "";
   renderRangeUI(); renderStats(curList); renderGroups(curList); renderTickets(); renderNav(); renderOutFromNode(); renderChips();
-  $("#sumHint").textContent = curList.length > 200 ? `The AI reads a spread of ${Math.min(curList.length, 220)} tickets across the full date range.` : "";
+  $("#sumHint").textContent = "";
   try { localStorage.setItem(STORE_KEY+"-last", id); } catch(e) {}
   if (matchMedia("(max-width:860px)").matches) setRail(false);
   if (view === "pat") renderPatterns();
@@ -1682,16 +1652,6 @@ $("#reloadBtn").onclick = async () => { if (await loadFromDb(true)) refreshShare
 document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshSharedTree(); });
 setInterval(refreshSharedTree, 60000);
 $("#menuBtn").onclick = () => setRail($("#rail").classList.contains("closed"));
-function setRailMin(min){
-  const app = document.querySelector(".app"); app.classList.toggle("rail-min", min);
-  const b = $("#railMinBtn"); b.setAttribute("aria-expanded", String(!min));
-  const l = min ? "Expand the navigator" : "Collapse the navigator"; b.setAttribute("aria-label", l); b.title = l;
-  try { localStorage.setItem(STORE_KEY + "-railmin", min ? "1" : ""); } catch(e) {}
-  // The expanded pattern chart sizes itself from the board's width at render time.
-  setTimeout(() => { if (view === "pat" && lastP && pOpen) renderPatterns(); }, 220);
-}
-$("#railMinBtn").onclick = () => setRailMin(!document.querySelector(".app").classList.contains("rail-min"));
-try { if (localStorage.getItem(STORE_KEY + "-railmin")) setRailMin(true); } catch(e) {}
 $("#dlBtn").onclick = async () => { if (!downloads) return; const name = (cur.name||"tickets").replace(/[^\w]+/g,"-").replace(/^-|-$/g,"").toLowerCase(); try { await downloads.save({filename:`${name}.csv`, data: toCSV(curList)}); } catch(e) {} };
 
 /* boot - tickets come from the portal's own database (GET /api/daily-issue/tickets) */
@@ -1706,7 +1666,7 @@ async function loadFromDb(reload){
   $("#srcInfo").textContent = reload ? "Reloading from the database…" : "Loading tickets from the database…";
   try {
     const d = await fetchTickets();
-    setData(d.rows.map(mk), `live database, loaded ${new Date().toLocaleString("en-IN", {dateStyle: "medium", timeStyle: "short"})}`);
+    setData(d.rows.map(mk), `updated ${new Date().toLocaleTimeString("en-IN", {hour: "numeric", minute: "2-digit"})}`);
     if (d.ai) enableAI(); else disableAI();
     if (reload) { renderCats(); go(cur && tree.nodes[cur.id] && rootOf(cur).cat === cat ? cur.id : rootId(cat, ALL)); toast(`Reloaded ${fmtN(T.length)} tickets`, true); }
     return true;
@@ -1736,7 +1696,6 @@ downloads = {save: async ({filename, data}) => {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }};
 $("#dlBtn").hidden = false; $("#pDl").hidden = false;
-window.addEventListener("storage", e => { if (e.key === "theme") document.documentElement.setAttribute("data-theme", e.newValue === "dark" ? "dark" : "light"); });
 })();
 </script>
 </body>
