@@ -72,6 +72,16 @@ CREATE TABLE IF NOT EXISTS corrections (
     created_at REAL NOT NULL,
     FOREIGN KEY(ticket_id) REFERENCES tickets(id)
 );
+
+-- Small shared JSON documents, versioned for optimistic concurrency - e.g.
+-- the Daily Issue Check tab's groups/remarks (see put_shared_state).
+CREATE TABLE IF NOT EXISTS shared_state (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    version INTEGER NOT NULL,
+    updated_at REAL NOT NULL,
+    updated_by TEXT
+);
 """
 
 
@@ -448,3 +458,44 @@ def list_tickets_for_date(date_str: str) -> list[dict]:
             (start_ts, end_ts),
         )
         return [_load_raw_payload(r) for r in rows]
+
+
+def get_shared_state(key: str) -> dict:
+    """{"value": <parsed JSON or None>, "version": int, "updated_at", "updated_by"} -
+    version 0 / value None when nothing has been saved under `key` yet."""
+    with _conn() as conn:
+        row = _fetchone(conn, "SELECT * FROM shared_state WHERE key = ?", (key,))
+    if not row:
+        return {"value": None, "version": 0, "updated_at": None, "updated_by": None}
+    return {"value": json.loads(row["value"]), "version": row["version"],
+            "updated_at": row["updated_at"], "updated_by": row["updated_by"]}
+
+
+def put_shared_state(key: str, value, expected_version: int, updated_by: str | None) -> tuple[bool, dict]:
+    """
+    Saves `value` only if the stored version is still `expected_version`
+    (0 = nothing saved yet), as one conditional statement - two people
+    saving at once can't silently overwrite each other; the loser gets
+    (False, <current state>) and can reload it. Returns (True, <new state>)
+    on success.
+    """
+    now = time.time()
+    data = json.dumps(value, separators=(",", ":"))
+    with _conn() as conn:
+        if expected_version == 0:
+            cur = _exec(
+                conn,
+                """INSERT INTO shared_state (key, value, version, updated_at, updated_by)
+                   SELECT ?, ?, 1, ?, ? WHERE NOT EXISTS (SELECT 1 FROM shared_state WHERE key = ?)""",
+                (key, data, now, updated_by, key),
+            )
+        else:
+            cur = _exec(
+                conn,
+                """UPDATE shared_state SET value = ?, version = version + 1, updated_at = ?, updated_by = ?
+                   WHERE key = ? AND version = ?""",
+                (data, now, updated_by, key, expected_version),
+            )
+        ok = cur.rowcount == 1
+    state = get_shared_state(key)
+    return ok, state

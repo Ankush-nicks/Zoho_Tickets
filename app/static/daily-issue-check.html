@@ -388,7 +388,7 @@ tr.x td{background:var(--bg);font-size:14px}
     <div class="src hideable">
       <div id="srcInfo"></div>
       <button class="btn sm" id="reloadBtn" type="button" style="align-self:flex-start">Reload from database</button>
-      <div class="hint" style="font-size:12px">Your groups are kept (saved in this browser). Tickets that arrive after a split show up as “not yet sorted” so you can sort them into the existing groups.</div>
+      <div class="hint" style="font-size:12px">Groups, descriptions and remarks are shared with your team. Tickets that arrive after a split show up as “not yet sorted” so you can sort them into the existing groups.</div>
     </div>
   </aside>
 
@@ -566,10 +566,56 @@ const clean = (v,n) => { v = String(v ?? "").replace(/\s+/g," ").trim(); return 
 
 /* ---------- tree (per-viewer, browser storage) ---------- */
 const STORE_KEY = "ticket-drilldown-tree-v1";
-let tree = {nodes:{}};
-try { const raw = localStorage.getItem(STORE_KEY); if (raw) tree = JSON.parse(raw) || tree; } catch(e) {}
-if (!tree.nodes) tree = {nodes:{}};
-function save(){ try { localStorage.setItem(STORE_KEY, JSON.stringify(tree)); } catch(e) {} }
+// Groups, descriptions, remarks and daily-check sorting are shared by the
+// whole team: one copy on the server (GET/PUT /api/daily-issue/state),
+// versioned so two people saving at once can't overwrite each other. The
+// old per-browser copy under STORE_KEY is only read once, to move work made
+// before sharing existed onto the server.
+let tree = {nodes:{}}, treeVersion = 0, saveT = null, saving = null, saveAgain = false;
+const STATE_URL = "/api/daily-issue/state";
+function legacyTree(){ try { const t = JSON.parse(localStorage.getItem(STORE_KEY) || "null"); return t && t.nodes && Object.keys(t.nodes).length ? t : null; } catch(e) { return null; } }
+function save(){ clearTimeout(saveT); saveT = setTimeout(flushSave, 700); }
+async function flushSave(){
+  saveT = null;
+  if (saving) { saveAgain = true; return; }
+  saving = (async () => {
+    try {
+      const res = await fetch(STATE_URL, {method: "PUT", headers: {"Content-Type": "application/json"}, body: JSON.stringify({value: tree, version: treeVersion})});
+      if (res.status === 401) { window.top.location = "/login"; return; }
+      const d = await res.json().catch(() => ({}));
+      if (res.status === 409) { saveAgain = false; adoptServerTree(d, `${d.updated_by || "Someone else"} changed the groups just now. Showing their latest version: redo your last change if it’s missing.`); return; }
+      if (!res.ok) throw new Error(typeof d.detail === "string" ? d.detail : `HTTP ${res.status}`);
+      treeVersion = d.version;
+    } catch (e) { toast(`Couldn’t save your changes (${e.message}). Retrying…`, true); setTimeout(save, 5000); }
+  })();
+  await saving; saving = null;
+  if (saveAgain) { saveAgain = false; flushSave(); }
+}
+function adoptServerTree(d, msg){
+  tree = d && d.value && d.value.nodes ? d.value : {nodes:{}}; treeVersion = (d && d.version) || 0;
+  undoStack.length = 0;  // snapshots of the old tree would undo someone else's work
+  if (cur) go(tree.nodes[cur.id] || cur.id.startsWith("root::") ? cur.id : rootId(cat, ALL));
+  if (msg) toast(msg, true);
+}
+async function loadSharedTree(){
+  const res = await fetch(STATE_URL, {cache: "no-store"});
+  if (res.status === 401) { window.top.location = "/login"; throw new Error("not logged in"); }
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const d = await res.json();
+  if (d.value && d.value.nodes) { tree = d.value; treeVersion = d.version; return false; }
+  const old = legacyTree();
+  if (old) { tree = old; treeVersion = 0; await flushSave(); return tree === old && treeVersion > 0; }
+  return false;
+}
+async function refreshSharedTree(){
+  // Never while a save is pending or someone is typing (a rename or remark).
+  if (saveT || saving || document.activeElement?.matches?.("input,textarea,select")) return;
+  try {
+    const res = await fetch(STATE_URL, {cache: "no-store"}); if (!res.ok) return;
+    const d = await res.json();
+    if (d.version !== treeVersion) adoptServerTree(d, `Groups updated by ${d.updated_by || "a teammate"}.`);
+  } catch(e) {}
+}
 const rootId = (cat, sub) => `root::${cat}::${sub}`;
 function node(id){
   if (!tree.nodes[id] && id.startsWith("root::")) {
@@ -1325,7 +1371,7 @@ Reply with only JSON mapping each issue number to its description, e.g. {"1":"Se
     let got = 0;
     issues.forEach((I, i) => { const v = r?.[i+1] ?? r?.[String(i+1)]; if (typeof v === "string" && v.trim()) { tree.descs[I.key] = {text: clean(v, 200), n: I.n, range: wl, at: Date.now()}; got++; } });
     save(); renderPatterns();
-    $("#pDescMeta").textContent = got ? `Described ${got} issues for ${wl}. Saved in this browser.` : "The AI didn’t return descriptions. Try again.";
+    $("#pDescMeta").textContent = got ? `Described ${got} issues for ${wl}. Saved for the team.` : "The AI didn’t return descriptions. Try again.";
   } catch (e) {
     $("#pDescMeta").textContent = e?.code === "cancelled" ? "" : errText(e);
   } finally { pDescCtl = null; const b = $("#pDesc"); if (b) b.textContent = Object.keys(tree.descs||{}).length ? "Refresh descriptions" : label; }
@@ -1497,7 +1543,7 @@ Tickets (#id | subcategory | text):
         tree.checks[t.id] = L && L.path[0] === t.sub ? {k: L.key} : {k: "new", label: clean(v?.new || "New issue", 60)}; });
       done += b.length; $("#dcMeta").textContent = `Sorted ${done} of ${D.pending.length}…`; save();
     }
-    renderDailyCheck(); $("#dcMeta").textContent = `Sorted ${done} tickets. Saved in this browser.`;
+    renderDailyCheck(); $("#dcMeta").textContent = `Sorted ${done} tickets. Saved for the team.`;
   } catch (e) { renderDailyCheck(); if (e?.code !== "cancelled") $("#dcMeta").textContent = errText(e); }
   finally { dcCtl = null; }
 }
@@ -1632,7 +1678,9 @@ $("#askBtn").onclick = ask;
 $("#stopBtn").onclick = () => ctl?.abort();
 document.addEventListener("change", e => { const id = e.target.id; if (!/^(pat|dc)(From|To)$/.test(id)) return; const k = id.startsWith("pat") ? "pat" : "dc"; setSub(k, "custom", $("#" + k + "From").value, $("#" + k + "To").value); });
 $("#issIn").onchange = e => { const f = e.target.files[0]; if (f) importIssues(f); e.target.value = ""; };
-$("#reloadBtn").onclick = () => loadFromDb(true);
+$("#reloadBtn").onclick = async () => { if (await loadFromDb(true)) refreshSharedTree(); };
+document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshSharedTree(); });
+setInterval(refreshSharedTree, 60000);
 $("#menuBtn").onclick = () => setRail($("#rail").classList.contains("closed"));
 function setRailMin(min){
   const app = document.querySelector(".app"); app.classList.toggle("rail-min", min);
@@ -1668,6 +1716,9 @@ async function loadFromDb(reload){
   } finally { if (btn) btn.disabled = false; }
 }
 if (!(await loadFromDb(false))) return;
+let movedLegacy = false;
+try { movedLegacy = await loadSharedTree(); }
+catch (e) { toast(`Couldn’t load the team’s groups (${e.message}). Use “Reload from database” to retry.`, true); }
 renderCats();
 let start = rootId(cat, ALL);
 const firstSub = (() => { const c = {}; T.forEach(t => { if (t.cat === cat) c[t.sub] = (c[t.sub]||0)+1; }); return Object.keys(c).sort((a,b)=>c[b]-c[a])[0]; })();
@@ -1675,6 +1726,7 @@ if (firstSub) start = rootId(cat, firstSub);
 try { const last = localStorage.getItem(STORE_KEY+"-last"); if (last && (last.startsWith("root::") || tree.nodes[last])) { const n = node(last); if (n) { cat = rootOf(n).cat; renderCats(); start = last; } } } catch(e) {}
 go(start);
 setView(view);
+if (movedLegacy) toast("Moved the groups saved in this browser to the shared copy - your team sees them now.", true);
 busy(false);
 let rsT = null; window.addEventListener("resize", () => { clearTimeout(rsT); rsT = setTimeout(() => { if (view === "pat" && lastP && pOpen) renderPatterns(); }, 150); });
 

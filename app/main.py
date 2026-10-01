@@ -169,6 +169,39 @@ def daily_issue_tickets(request: Request, user: str = Depends(require_login)):
     return Response(content=body, media_type="application/json", headers=headers)
 
 
+_DAILY_ISSUE_STATE_KEY = "daily_issue_tree"
+_DAILY_ISSUE_STATE_MAX_BYTES = 5 * 1024 * 1024
+
+
+@app.get("/api/daily-issue/state")
+def get_daily_issue_state(user: str = Depends(require_login)):
+    """The Daily Issue Check page's groups / descriptions / remarks / daily-check
+    sorting - one shared copy for the whole team (was per-browser)."""
+    return db.get_shared_state(_DAILY_ISSUE_STATE_KEY)
+
+
+@app.put("/api/daily-issue/state")
+def put_daily_issue_state(payload: dict, user: str = Depends(require_login)):
+    """
+    Body: {"value": <the page's tree>, "version": <version it was based on>}.
+    409 with the current state when someone else saved in between - the
+    page reloads that instead of overwriting their work.
+    """
+    value = payload.get("value")
+    if not isinstance(value, dict) or not isinstance(value.get("nodes"), dict):
+        raise HTTPException(400, "value must be an object with a 'nodes' object")
+    if len(json.dumps(value, separators=(",", ":"))) > _DAILY_ISSUE_STATE_MAX_BYTES:
+        raise HTTPException(413, "Groups data is too large to save.")
+    try:
+        expected = int(payload.get("version") or 0)
+    except (TypeError, ValueError):
+        raise HTTPException(400, "version must be an integer")
+    ok, state = db.put_shared_state(_DAILY_ISSUE_STATE_KEY, value, expected, user)
+    if not ok:
+        return JSONResponse(status_code=409, content=state)
+    return state
+
+
 @app.post("/api/daily-issue/ai/text")
 def daily_issue_ai_text(payload: dict, user: str = Depends(require_login)):
     """Streamed plain-text answer (summaries, new-issue spotting, questions)."""
@@ -598,13 +631,6 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
 
     if not zoho_ticket_id:
         # Suggestion mode - see docstring above. No DB writes of any kind.
-        if not config.OPENROUTER_API_KEY:
-            raise HTTPException(
-                500,
-                "OPENROUTER_API_KEY is not set in the server's .env - required for "
-                "webhook-triggered classification since there's no UI operator "
-                "to supply a per-request key.",
-            )
         # Whatever the instructor picked on the form before this pre-submit
         # call - the whole point of the reporter hint, since this response
         # overwrites those same fields (see classifier.ReporterHint).
@@ -612,6 +638,7 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
             payload.get("category_of_the_issue"), payload.get("sub_category_of_the_issue")
         )
         try:
+            _require_webhook_classify_key()
             result = classifier.classify(issue_text, config.OPENROUTER_API_KEY, reporter_hint=hint)
             category_id = result.category_id
             _remember_suggestion(issue_text, result)
@@ -689,14 +716,6 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
             "needs_review": used_fallback,
         }
 
-    if not config.OPENROUTER_API_KEY:
-        raise HTTPException(
-            500,
-            "OPENROUTER_API_KEY is not set in the server's .env - required for "
-            "webhook-triggered classification since there's no UI operator "
-            "to supply a per-request key.",
-        )
-
     ticket_id = db.create_ticket(
         issue_text,
         zoho_ticket_id=zoho_ticket_id,
@@ -718,6 +737,7 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
     hint = _reporter_hint_from(zoho_category, zoho_subcategory)
     classify_failed_reason = None
     try:
+        _require_webhook_classify_key()
         result = _run_classification_and_persist(
             ticket_id, issue_text, clarification_turns=0, api_key=config.OPENROUTER_API_KEY,
             reporter_hint=hint,
@@ -928,6 +948,20 @@ def _reporter_hint_from(category_name, subcategory_name) -> classifier.ReporterH
     return classifier.ReporterHint(group_id=group_id, leaf_id=leaf_id)
 
 
+def _require_webhook_classify_key() -> None:
+    """
+    Raised inside the webhook's classify try-blocks rather than as an HTTP
+    500 up front: a missing OPENROUTER_API_KEY is just one more way
+    classification can fail, and gets the same failsafe as an exhausted
+    key - the instructor's own pick echoed back (or the fallback leaf),
+    needs_review=true, and the new ticket still stored. A 500 here made
+    the pre-submit script block the ticket ("Unable to classify") and the
+    On Add call drop it from the portal entirely.
+    """
+    if not config.OPENROUTER_API_KEY:
+        raise RuntimeError("OPENROUTER_API_KEY is not set on the server")
+
+
 def _reporter_pick_echo(payload: dict) -> dict | None:
     """
     Failsafe for when classify() itself fails (OpenRouter key/credits
@@ -972,7 +1006,7 @@ def _zoho_category_fields(zoho_subcategory: str | None) -> dict:
             f"Zoho subcategory {zoho_subcategory!r} doesn't match the taxonomy - not sent to the "
             "classifier (uploaded data). Use \"Correct it\" to set one."
             if zoho_subcategory else
-            "Uploaded from Zoho with no subcategory - not sent to the classifier. "
+            "No Zoho subcategory - not sent to the classifier (uploaded data). "
             "Use \"Correct it\" to set one."
         ),
     }
@@ -982,6 +1016,29 @@ def _is_csv_imported(ticket: dict) -> bool:
     # added_time only ever comes from a CSV export (app/zoho_csv.py's
     # FIELD_MAP) - the live webhook payload never carries it.
     return "added_time" in (ticket.get("raw_payload") or {})
+
+
+_UPLOAD_REASONING_MARK = "(uploaded data)"  # in every reasoning _zoho_category_fields writes
+
+
+def _is_upload_history(ticket: dict) -> bool:
+    """
+    A ticket created by a CSV upload whose Zoho data still IS that upload -
+    history that was already worked and closed in Zoho before it reached
+    this app. Both halves matter: a live webhook ticket that an upload
+    merely refreshed carries CSV data but was never created by one (its
+    reasoning is a real classification), and an uploaded ticket that later
+    gets a live Zoho edit has its raw_payload replaced by the webhook (no
+    CSV-only added_time any more), so from then on it's tracked live.
+    """
+    return _UPLOAD_REASONING_MARK in (ticket.get("reasoning") or "") and _is_csv_imported(ticket)
+
+
+def _needs_resolution_grade(ticket: dict) -> bool:
+    """Closed-ticket grading queue filter: not graded yet, and not uploaded
+    history - grading those would only spend credits on tickets Zoho closed
+    before this app ever saw them."""
+    return not ticket.get("resolution_scored_at") and not _is_upload_history(ticket)
 
 
 def _settle_pending_csv_imports() -> int:
@@ -1244,7 +1301,7 @@ def _score_pending_resolutions_batch(limit: int, api_key: str) -> dict:
     snapshot rather than re-querying to recount.
     """
     closed = db.list_tickets_by_raw_status(list(quality_scorer.CLOSED_STATUSES))
-    pending_all = [t for t in closed if not t.get("resolution_scored_at")]
+    pending_all = [t for t in closed if _needs_resolution_grade(t)]
     pending = pending_all[:limit]
     scored_count = 0
     stopped_early = False
@@ -1412,7 +1469,7 @@ def get_resolution_pending_count(user: str = Depends(require_login)):
     closed-status tickets (db.list_tickets_by_raw_status) instead of the
     whole ticket history before checking resolution_scored_at in Python."""
     closed = db.list_tickets_by_raw_status(list(quality_scorer.CLOSED_STATUSES))
-    count = sum(1 for t in closed if not t.get("resolution_scored_at"))
+    count = sum(1 for t in closed if _needs_resolution_grade(t))
     return {"count": count}
 
 

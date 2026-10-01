@@ -173,8 +173,15 @@ question, describe issues, sort new tickets) call OpenRouter through the
 server (`/api/daily-issue/ai/text` streamed, `/api/daily-issue/ai/json`),
 with the model set by `OPENROUTER_DAILY_ISSUE_MODEL` (default
 `openai/gpt-4o-mini`). They only run when someone clicks them. Groups,
-remarks and descriptions you make are saved in your browser, not the
-database.
+descriptions, remarks and daily-check sorting are one shared copy for the
+whole team (`/api/daily-issue/state`, table `shared_state`), versioned so
+two people saving at once can't overwrite each other - the later save gets
+the latest copy back instead. Groups a browser saved before sharing existed
+are moved to the shared copy the first time that browser opens the tab.
+
+Resolution grading skips uploaded history (tickets created by a CSV upload
+whose data still comes from it) - only tickets that close while the live
+webhook tracks them are graded.
 
 ## Key config (`.env`)
 
