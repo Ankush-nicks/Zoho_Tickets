@@ -69,12 +69,17 @@ def test_dry_run_reports_counts_without_writing(client, isolated_db):
     assert isolated_db.get_ticket_by_zoho_id("T-1") is None
 
 
-def test_creates_new_tickets_as_pending_with_all_columns(client, isolated_db):
+def test_creates_new_tickets_with_zoho_category_and_all_columns(client, isolated_db, monkeypatch):
+    def no_classify(*a, **k):
+        raise AssertionError("uploaded tickets must never be sent to the classifier")
+
+    monkeypatch.setattr(main_module.classifier, "classify", no_classify)
     body = _upload(client, _csv([ROW_A, ROW_B])).json()
-    assert body["created"] == 2
+    assert (body["created"], body["created_unmatched"]) == (2, 0)
 
     t = isolated_db.get_ticket_by_zoho_id("T-1")
-    assert t["status"] == "pending"
+    assert (t["status"], t["category_id"], t["confidence"]) == ("classified", "G01-S01", None)
+    assert "not re-classified" in t["reasoning"]
     assert t["original_text"] == "Feedback is vague"
     assert t["zoho_subcategory"] == "Feedback Too Generic or Vague"
     assert t["raw_payload"]["ticket_status"] == "Yet To Pick"
@@ -218,3 +223,41 @@ def test_bulk_failure_keeps_committed_chunks_and_reports_progress(isolated_db):
     ops[3]["original_text"] = "fixed"
     result = db.bulk_import_tickets(ops, [], chunk_size=2)
     assert result == {"created": 3, "updated": 0, "already_existed": 2}
+
+
+# --- no classifier credits for uploaded data ------------------------------------
+
+def test_unmatched_zoho_subcategory_goes_to_review_uncategorised(client, isolated_db):
+    odd = ["T-5", "Yet To Pick", "Staffing & HR Lifecycle", "Other_staffing & Hr Lifecycle",
+           "Payslip query", "01/09/2026 10:00:00", ""]
+    body = _upload(client, _csv([odd])).json()
+    assert body["created_unmatched"] == 1
+    t = isolated_db.get_ticket_by_zoho_id("T-5")
+    assert (t["status"], t["category_id"]) == ("needs_human_review", None)
+    assert "Other_staffing" in t["reasoning"]
+
+
+def test_classify_batch_settles_earlier_csv_uploads_without_the_model(client, isolated_db, monkeypatch):
+    # Left pending by an upload made before this change (raw has added_time).
+    csv_id = isolated_db.create_ticket(
+        "Feedback is vague", zoho_ticket_id="T-1", zoho_subcategory="Feedback Too Generic or Vague",
+        raw_payload={"added_time": "01/09/2026 10:00:00"},
+    )
+    # A genuinely unclassified live ticket still goes to the model.
+    live_id = isolated_db.create_ticket("Wifi down", zoho_ticket_id="T-2", raw_payload={"ticket_status": "x"})
+    classified_texts = []
+
+    def fake_classify(text, api_key, embed_api_key=None, reporter_hint=None):
+        from app.models import ClassificationResult
+        classified_texts.append(text)
+        return ClassificationResult(category_id="G08-S01", confidence=0.9, reasoning="r", needs_clarification=False)
+
+    monkeypatch.setattr(main_module.classifier, "classify", fake_classify)
+    monkeypatch.setattr(config, "OPENROUTER_API_KEY", "sk-or-test")
+    result = client.post("/api/tickets/classify-pending").json()
+
+    assert classified_texts == ["Wifi down"]
+    assert result["classified"] == 1
+    t = isolated_db.get_ticket(csv_id)
+    assert (t["status"], t["category_id"]) == ("classified", "G01-S01")
+    assert isolated_db.get_ticket(live_id)["category_id"] == "G08-S01"

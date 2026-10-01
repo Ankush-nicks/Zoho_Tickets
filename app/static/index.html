@@ -3366,7 +3366,8 @@ async function taxoImportPost(file, dryRun) {
 function taxoImportSummary(d) {
   const lines = [
     `${d.rows} row${d.rows === 1 ? '' : 's'} in file`,
-    `  ${d.created} new ticket${d.created === 1 ? '' : 's'} (classified automatically later)`,
+    `  ${d.created} new ticket${d.created === 1 ? '' : 's'} (category taken from Zoho - no classifier credits used)`
+      + (d.created_unmatched ? `\n    of which ${d.created_unmatched} have a Zoho subcategory not in the taxonomy - they go to human review` : ''),
     `  ${d.updated} existing ticket${d.updated === 1 ? '' : 's'} updated`,
     `  ${d.unchanged} unchanged`,
   ];

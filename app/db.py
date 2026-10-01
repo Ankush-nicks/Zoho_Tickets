@@ -215,8 +215,9 @@ def bulk_import_tickets(
 ) -> dict:
     """
     Applies an app/zoho_csv.py ImportPlan (creates are create_ticket()
-    kwargs; updates are (ticket id, fields) pairs in update_ticket()'s
-    shape) for the Taxonomy tab's CSV upload.
+    kwargs, optionally plus status/category_id/confidence/reasoning - status
+    defaults to 'pending'; updates are (ticket id, fields) pairs in
+    update_ticket()'s shape) for the Taxonomy tab's CSV upload.
 
     Commits every `chunk_size` writes rather than all at once: on Turso each
     statement is its own HTTP round trip, so one transaction over thousands
@@ -244,11 +245,13 @@ def bulk_import_tickets(
                             conn,
                             """INSERT INTO tickets
                                (id, original_text, full_context, status, clarification_turns,
+                                category_id, confidence, reasoning,
                                 zoho_ticket_id, zoho_category, zoho_subcategory, raw_payload, created_at, updated_at)
-                               SELECT ?, ?, ?, 'pending', 0, ?, ?, ?, ?, ?, ?
+                               SELECT ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?
                                WHERE NOT EXISTS (SELECT 1 FROM tickets WHERE zoho_ticket_id = ?)""",
-                            (new_id(), op["original_text"], op["original_text"], op["zoho_ticket_id"],
-                             op.get("zoho_category"), op.get("zoho_subcategory"),
+                            (new_id(), op["original_text"], op["original_text"], op.get("status") or "pending",
+                             op.get("category_id"), op.get("confidence"), op.get("reasoning"),
+                             op["zoho_ticket_id"], op.get("zoho_category"), op.get("zoho_subcategory"),
                              _dump_raw_payload(op.get("raw_payload")),
                              op.get("created_at") or now, op.get("created_at") or now,
                              op["zoho_ticket_id"]),

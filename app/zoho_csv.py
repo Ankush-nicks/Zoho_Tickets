@@ -142,9 +142,10 @@ def plan_import(rows: list[dict], existing_by_zoho_id: dict[str, dict]) -> Impor
     """
     Upserts by "Ticket ID":
 
-    - New id: created as status='pending' with its real Zoho "Added Time" as
-      created_at - the background auto-classify loop (or "Classify Now")
-      classifies it later, with the instructor's category pick as a hint.
+    - New id: created with its real Zoho "Added Time" as created_at. The
+      caller (main.py's import endpoint) sets its category from Zoho's own
+      subcategory - uploaded tickets are already categorised in Zoho and
+      are never sent to the classifier.
     - Known id: refreshes the Zoho-side data only - raw_payload (CSV columns
       overwrite, keys the CSV doesn't carry are kept), zoho_category/
       zoho_subcategory, and the issue text. Never touches category_id/

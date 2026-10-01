@@ -24,3 +24,13 @@ def isolated_db(tmp_path, monkeypatch):
     db._invalidate_list_all_cache()
     db.init_db()
     yield db
+
+
+@pytest.fixture(autouse=True)
+def _clear_presubmit_suggestions():
+    """main._suggestion_cache is module-level - a suggestion remembered in
+    one test must never be adopted by another test's On Add call."""
+    from app import main
+    main._suggestion_cache.clear()
+    yield
+    main._suggestion_cache.clear()

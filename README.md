@@ -143,8 +143,12 @@ tickets CSV** takes a Zoho "Instructors Ticketing System" export and upserts
 it by `Ticket ID` (`POST /api/tickets/import-csv`). It previews the counts
 first and writes only after you confirm.
 
-- New Ticket IDs are created as `pending`, dated by their Zoho "Added
-  Time", and classified by the auto-classify loop or "Classify Now".
+- New Ticket IDs are created dated by their Zoho "Added Time", with their
+  category taken from Zoho's own subcategory - they're already categorised
+  there, so they're never sent to the classifier (no credits used). A
+  subcategory that isn't in the taxonomy goes to human review instead.
+  Tickets left `pending` by an earlier upload are settled the same way at
+  startup and before every classify batch.
 - Known Ticket IDs get their Zoho data refreshed: every CSV column, the
   category/subcategory and the issue text. Their classification and any
   human correction are left untouched.
@@ -196,6 +200,12 @@ carries intent the issue text leaves out, so the webhook passes it to
 
 The pre-submit Deluge script must send `sub_category_of_the_issue` for this
 to see the subcategory (see `Claude outputs/zoho_invoke_script_fixed.deluge`).
+
+Each ticket is classified **once**, at pre-submit. The On Add call that
+follows stores that same result (remembered for an hour by issue text, so
+its confidence/reasoning carry over) or, failing that, the category the
+form was saved with - it only calls the model again when the pre-submit
+classification itself failed or the saved subcategory isn't usable.
 
 ### OpenRouter vs Gemini accuracy comparison
 

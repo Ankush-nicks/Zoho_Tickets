@@ -205,6 +205,10 @@ def test_suggestion_mode_failure_without_subcategory_uses_fallback_leaf(monkeypa
 def test_persist_mode_key_exhausted_returns_and_routes_by_instructor_pick(isolated_db, monkeypatch):
     _patch_keys(monkeypatch)
     monkeypatch.setattr(classifier, "classify", _rate_limited)
+    # Pre-submit failed too (key exhausted) - so On Add must try for real
+    # rather than adopt the echoed instructor pick as a model answer.
+    _post({"issue_in_detail": "not helpful", "category_of_the_issue": GROUP_NAME,
+           "sub_category_of_the_issue": LEAF_NAME})
 
     body = _post({
         "zoho_ticket_id": "Z-F1",
@@ -248,3 +252,98 @@ def test_retrieve_similar_adds_examples_from_reporter_categories(monkeypatch):
         also_from_categories=["cat-reporter"], also_k=2,
     )
     assert [r["category_id"] for r in widened] == ["cat-x", "cat-x", "cat-reporter"]
+
+
+# --- On Add reuses the pre-submit classification -----------------------------
+
+def _counting_classify(monkeypatch, result):
+    calls = []
+
+    def fake(text, api_key, embed_api_key=None, reporter_hint=None):
+        calls.append(text)
+        if isinstance(result, Exception):
+            raise result
+        return result
+
+    monkeypatch.setattr(classifier, "classify", fake)
+    return calls
+
+
+def test_on_add_reuses_presubmit_result_without_a_second_call(isolated_db, monkeypatch):
+    _patch_keys(monkeypatch)
+    calls = _counting_classify(monkeypatch, _result(LEAF, 0.9))
+
+    pre = _post({"issue_in_detail": "not helpful", "category_of_the_issue": GROUP_NAME}).json()
+    _post({
+        "zoho_ticket_id": "Z-P1", "issue_in_detail": "not helpful",
+        "category_of_the_issue": pre["category_of_the_issue"],
+        "sub_category_of_the_issue": pre["sub_category_of_the_issue"],
+    })
+
+    assert len(calls) == 1
+    t = isolated_db.get_ticket_by_zoho_id("Z-P1")
+    assert (t["status"], t["category_id"], t["confidence"]) == ("classified", LEAF, 0.9)
+    assert t["reasoning"] == "model says so"
+
+
+def test_on_add_without_remembered_suggestion_adopts_form_category(isolated_db, monkeypatch):
+    _patch_keys(monkeypatch)
+    calls = _counting_classify(monkeypatch, _result(OTHER_LEAF, 0.9))
+
+    body = _post({
+        "zoho_ticket_id": "Z-P2", "issue_in_detail": "not helpful",
+        "category_of_the_issue": GROUP_NAME, "sub_category_of_the_issue": LEAF_NAME,
+    }).json()
+
+    assert calls == []
+    assert (body["sub_category_of_the_issue"], body["needs_review"]) == (LEAF_NAME, False)
+    t = isolated_db.get_ticket_by_zoho_id("Z-P2")
+    assert (t["status"], t["category_id"], t["confidence"]) == ("classified", LEAF, None)
+
+
+def test_on_add_keeps_form_value_changed_after_suggestion(isolated_db, monkeypatch):
+    _patch_keys(monkeypatch)
+    calls = _counting_classify(monkeypatch, _result(OTHER_LEAF, 0.9))
+
+    _post({"issue_in_detail": "not helpful"})
+    _post({
+        "zoho_ticket_id": "Z-P3", "issue_in_detail": "not helpful",
+        "category_of_the_issue": GROUP_NAME, "sub_category_of_the_issue": LEAF_NAME,
+    })
+
+    assert len(calls) == 1
+    t = isolated_db.get_ticket_by_zoho_id("Z-P3")
+    assert t["category_id"] == LEAF
+    assert "changed on the Zoho form" in t["reasoning"]
+
+
+def test_on_add_low_confidence_suggestion_goes_to_review(isolated_db, monkeypatch):
+    _patch_keys(monkeypatch)
+    _counting_classify(monkeypatch, _result(LEAF, 0.3))
+    pre = _post({"issue_in_detail": "hmm"}).json()
+    _post({"zoho_ticket_id": "Z-P4", "issue_in_detail": "hmm",
+           "category_of_the_issue": pre["category_of_the_issue"],
+           "sub_category_of_the_issue": pre["sub_category_of_the_issue"]})
+    assert isolated_db.get_ticket_by_zoho_id("Z-P4")["status"] == "needs_human_review"
+
+
+def test_on_add_classifies_when_presubmit_failed(isolated_db, monkeypatch):
+    _patch_keys(monkeypatch)
+    monkeypatch.setattr(classifier, "classify", _rate_limited)
+    _post({"issue_in_detail": "not helpful", "category_of_the_issue": GROUP_NAME,
+           "sub_category_of_the_issue": LEAF_NAME})
+
+    calls = _counting_classify(monkeypatch, _result(LEAF, 0.9))
+    _post({"zoho_ticket_id": "Z-P5", "issue_in_detail": "not helpful",
+           "category_of_the_issue": GROUP_NAME, "sub_category_of_the_issue": LEAF_NAME})
+
+    assert len(calls) == 1  # the first successful classification, not a repeat
+
+
+def test_on_add_classifies_fallback_leaf_without_suggestion(isolated_db, monkeypatch):
+    _patch_keys(monkeypatch)
+    calls = _counting_classify(monkeypatch, _result(LEAF, 0.9))
+    fallback = taxonomy.get(config.ZOHO_FALLBACK_CATEGORY_ID)
+    _post({"zoho_ticket_id": "Z-P6", "issue_in_detail": "not helpful",
+           "category_of_the_issue": fallback["parent_name"], "sub_category_of_the_issue": fallback["name"]})
+    assert len(calls) == 1

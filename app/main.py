@@ -26,6 +26,7 @@ from .models import (
     CorrectionRequest,
     TicketStateResponse,
     TaxonomyUnlockRequest,
+    ClassificationResult,
 )
 
 app = FastAPI(title="Ticket Classifier", version="0.1.0")
@@ -118,8 +119,18 @@ async def startup():
     # Vector memory needs an OpenAI key to embed the seed examples, which we
     # don't have until a request carries one - seeding happens lazily on the
     # first classify() call instead (see classifier.classify).
+    asyncio.create_task(_settle_pending_csv_imports_at_startup())
     asyncio.create_task(_auto_classify_loop())
     asyncio.create_task(_auto_score_loop())
+
+
+async def _settle_pending_csv_imports_at_startup():
+    # Off the event loop: on Turso this is one round trip per ticket, and an
+    # earlier upload can have left thousands pending.
+    try:
+        await asyncio.to_thread(_settle_pending_csv_imports)
+    except Exception as e:
+        logger.error("startup settle of pending CSV imports failed: %s", e)
 
 
 @app.get("/")
@@ -271,6 +282,8 @@ def import_tickets_csv(
             t["zoho_ticket_id"]: t for t in db.list_all_tickets() if t.get("zoho_ticket_id")
         }
         plan = zoho_csv.plan_import(rows, existing_by_zoho_id)
+        for c in plan.creates:
+            c.update(_zoho_category_fields(c.get("zoho_subcategory")))
     except Exception:
         if not dry_run:
             _import_lock.release()
@@ -280,6 +293,9 @@ def import_tickets_csv(
         "dry_run": dry_run,
         "rows": len(rows),
         "created": len(plan.creates),
+        # Of those, how many have no taxonomy match for their Zoho
+        # subcategory and so land in human review uncategorised.
+        "created_unmatched": sum(1 for c in plan.creates if not c.get("category_id")),
         "updated": len(plan.updates),
         "unchanged": plan.unchanged,
         "newer_in_db": plan.newer_in_db,
@@ -553,8 +569,10 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
         try:
             result = classifier.classify(issue_text, config.OPENROUTER_API_KEY, reporter_hint=hint)
             category_id = result.category_id
+            _remember_suggestion(issue_text, result)
         except Exception as e:
             logger.error(f"Zoho webhook suggestion-mode classify() failed: {e}")
+            _remember_suggestion(issue_text, None)
             echo = _reporter_pick_echo(payload)
             if echo:
                 return {"ok": True, **echo, "needs_review": True}
@@ -642,6 +660,16 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
         raw_payload=payload,
     )
 
+    adopted = _adopt_presubmit_classification(ticket_id, issue_text, zoho_subcategory)
+    if adopted:
+        leaf = taxonomy.get(adopted)
+        return {
+            "ok": True,
+            "category_of_the_issue": leaf["parent_name"],
+            "sub_category_of_the_issue": leaf["name"],
+            "needs_review": False,
+        }
+
     hint = _reporter_hint_from(zoho_category, zoho_subcategory)
     classify_failed_reason = None
     try:
@@ -684,6 +712,92 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
         "sub_category_of_the_issue": leaf["name"],
         "needs_review": used_fallback,
     }
+
+
+# Pre-submit (suggestion-mode) results, keyed by issue text, so the On Add
+# call that follows a moment later can store that same classification
+# instead of paying for a second identical model call. In-process and
+# short-lived on purpose: a miss (restart, or the text was edited after the
+# suggestion) just falls back to the Zoho fields - see
+# _adopt_presubmit_classification.
+_SUGGESTION_TTL_SECONDS = 3600
+_SUGGESTION_MAX_ENTRIES = 1000
+_suggestion_cache: dict[str, tuple[float, ClassificationResult | None]] = {}
+_suggestion_lock = threading.Lock()
+
+
+def _suggestion_key(issue_text: str) -> str:
+    import hashlib
+    return hashlib.sha256(issue_text.strip().encode("utf-8")).hexdigest()
+
+
+def _remember_suggestion(issue_text: str, result: ClassificationResult | None) -> None:
+    """result=None records that the pre-submit classification FAILED."""
+    now = time.time()
+    with _suggestion_lock:
+        for k in [k for k, (at, _) in _suggestion_cache.items() if now - at > _SUGGESTION_TTL_SECONDS]:
+            del _suggestion_cache[k]
+        if len(_suggestion_cache) >= _SUGGESTION_MAX_ENTRIES:
+            del _suggestion_cache[min(_suggestion_cache, key=lambda k: _suggestion_cache[k][0])]
+        _suggestion_cache[_suggestion_key(issue_text)] = (now, result)
+
+
+def _pop_suggestion(issue_text: str) -> tuple[bool, ClassificationResult | None]:
+    """(found, result) - result is None when the pre-submit call failed."""
+    with _suggestion_lock:
+        entry = _suggestion_cache.pop(_suggestion_key(issue_text), None)
+    if entry is None or time.time() - entry[0] > _SUGGESTION_TTL_SECONDS:
+        return False, None
+    return True, entry[1]
+
+
+def _adopt_presubmit_classification(ticket_id: str, issue_text: str, zoho_subcategory: str | None) -> str | None:
+    """
+    The pre-submit Deluge script already classified this ticket and wrote
+    the result into the form's category fields before it was saved, so the
+    On Add call must not classify it a second time. Stores that
+    classification on the new ticket and returns its leaf id, or returns
+    None (caller classifies as before) when there's nothing trustworthy to
+    adopt:
+
+    - the pre-submit classification failed (its fields then hold the
+      instructor's own pick or the fallback leaf, not a model answer) - so
+      this is the first real classification, not a repeat;
+    - the Zoho subcategory doesn't resolve to a taxonomy leaf;
+    - no remembered suggestion AND the subcategory is the catch-all
+      fallback leaf (most likely a forced fallback, not a model answer).
+
+    A remembered suggestion for the same leaf keeps its confidence and
+    reasoning. A different leaf means someone changed the field on the form
+    after our suggestion - the form wins.
+    """
+    found, suggestion = _pop_suggestion(issue_text)
+    if found and suggestion is None:
+        return None
+    leaf_id = _resolve_taxonomy_leaf_by_name(zoho_subcategory)
+    if leaf_id is None:
+        return None
+    if not found and leaf_id == config.ZOHO_FALLBACK_CATEGORY_ID:
+        return None
+
+    if suggestion is not None and suggestion.category_id == leaf_id:
+        confidence, reasoning = suggestion.confidence, suggestion.reasoning
+    elif suggestion is not None:
+        confidence = None
+        reasoning = (
+            f"Category changed on the Zoho form after our suggestion ({suggestion.category_id}) - "
+            "kept the form's value."
+        )
+    else:
+        confidence = None
+        reasoning = "Category from the Zoho form's pre-submit classification - not re-classified."
+    status = (
+        "needs_human_review"
+        if confidence is not None and confidence < config.CONFIDENCE_THRESHOLD
+        else "classified"
+    )
+    db.update_ticket(ticket_id, status=status, category_id=leaf_id, confidence=confidence, reasoning=reasoning)
+    return leaf_id
 
 
 def _normalize_label(s: str) -> str:
@@ -786,6 +900,61 @@ def _reporter_pick_echo(payload: dict) -> dict | None:
     if not category or not subcategory:
         return None
     return {"category_of_the_issue": category, "sub_category_of_the_issue": subcategory}
+
+
+def _zoho_category_fields(zoho_subcategory: str | None) -> dict:
+    """
+    Ticket fields for a ticket whose category comes from Zoho itself rather
+    than from our model - CSV-uploaded history, already categorised in
+    Zoho, so classifying it again would only spend credits. A subcategory
+    that resolves to a taxonomy leaf is stored as-is (status 'classified',
+    no model confidence); one that doesn't goes to human review uncategorised
+    instead of to the model.
+    """
+    leaf_id = _resolve_taxonomy_leaf_by_name(zoho_subcategory)
+    if leaf_id:
+        return {
+            "status": "classified",
+            "category_id": leaf_id,
+            "confidence": None,
+            "reasoning": "Category taken from Zoho (uploaded data) - not re-classified.",
+        }
+    return {
+        "status": "needs_human_review",
+        "category_id": None,
+        "confidence": None,
+        "reasoning": (
+            f"Zoho subcategory {zoho_subcategory!r} doesn't match the taxonomy - not sent to the "
+            "classifier (uploaded data). Use \"Correct it\" to set one."
+            if zoho_subcategory else
+            "Uploaded from Zoho with no subcategory - not sent to the classifier. "
+            "Use \"Correct it\" to set one."
+        ),
+    }
+
+
+def _is_csv_imported(ticket: dict) -> bool:
+    # added_time only ever comes from a CSV export (app/zoho_csv.py's
+    # FIELD_MAP) - the live webhook payload never carries it.
+    return "added_time" in (ticket.get("raw_payload") or {})
+
+
+def _settle_pending_csv_imports() -> int:
+    """
+    Gives every still-pending CSV-imported ticket its Zoho category instead
+    of leaving it for the classifier (see _zoho_category_fields) - covers
+    uploads made before uploads stopped being queued for classification.
+    Runs before each classify batch and once at startup. Returns how many
+    tickets it settled.
+    """
+    updates = [
+        (t["id"], _zoho_category_fields(t.get("zoho_subcategory")))
+        for t in db.list_pending_tickets() if _is_csv_imported(t)
+    ]
+    if updates:
+        db.bulk_import_tickets([], updates)
+        logger.info("settled %d pending CSV-imported ticket(s) from their Zoho category", len(updates))
+    return len(updates)
 
 
 def _reporter_hint_for_ticket(ticket: dict) -> classifier.ReporterHint | None:
@@ -950,6 +1119,7 @@ def _classify_pending_batch(limit: int, api_key: str) -> dict:
     estimate against that snapshot (a ticket that arrived mid-batch won't
     be reflected until the next cycle).
     """
+    _settle_pending_csv_imports()
     pending_all = db.list_pending_tickets()
     pending = pending_all[:limit]
     classified_count = 0
