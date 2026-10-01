@@ -1,0 +1,1691 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Daily Issue Check</title>
+<script>
+// Follow the main app's theme (same origin, same localStorage key).
+try { document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') === 'dark' ? 'dark' : 'light'); } catch (e) {}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@500;600;700&family=Source+Sans+3:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: fixed-width navigator rail (category → subcategory → AI-made groups) beside a working pane: node header, AI panel, groups, ticket ledger. */
+:root{
+  --bg:#f5f6f8; --panel:#ffffff; --sunk:#eceef2; --line:#dcdfe6; --line2:#c9cdd6;
+  --fg:#1b1f2a; --muted:#5e6577; --faint:#8a90a0;
+  --accent:#2f55c9; --accent-soft:#e6ecfb; --accent-fg:#ffffff;
+  --ok:#1f7a4d; --ok-soft:#e1f2e8; --warn:#9a6300; --warn-soft:#fbf0d9; --bad:#b3322b; --bad-soft:#f9e3e1; --new:#7a3fb5; --new-soft:#f0e6fa;
+  --f-display:"Schibsted Grotesk",ui-sans-serif,system-ui,sans-serif;
+  --f-body:"Source Sans 3",ui-sans-serif,system-ui,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12151c; --panel:#1a1e27; --sunk:#222733; --line:#2c3240; --line2:#3a4152;
+  --fg:#e7e9ef; --muted:#a3a9b8; --faint:#737a8c;
+  --accent:#7d9bf0; --accent-soft:#233055; --accent-fg:#0d1220;
+  --ok:#5cc58e; --ok-soft:#173226; --warn:#e3b35a; --warn-soft:#3a2d12; --bad:#ef7d74; --bad-soft:#3d1c1a; --new:#c49af0; --new-soft:#2f2140;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12151c; --panel:#1a1e27; --sunk:#222733; --line:#2c3240; --line2:#3a4152;
+  --fg:#e7e9ef; --muted:#a3a9b8; --faint:#737a8c;
+  --accent:#7d9bf0; --accent-soft:#233055; --accent-fg:#0d1220;
+  --ok:#5cc58e; --ok-soft:#173226; --warn:#e3b35a; --warn-soft:#3a2d12; --bad:#ef7d74; --bad-soft:#3d1c1a; --new:#c49af0; --new-soft:#2f2140;
+  color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.45}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.app{display:grid;grid-template-columns:300px minmax(0,1fr);min-height:100vh}
+/* rail */
+.rail{background:var(--panel);border-right:1px solid var(--line);padding:18px 14px;display:flex;flex-direction:column;gap:14px;position:sticky;top:env(safe-area-inset-top,0px);height:100vh;overflow:auto}
+.brand{font-family:var(--f-display);font-weight:700;font-size:18px;letter-spacing:-.01em}
+.brand small{display:block;font-family:var(--f-body);font-weight:400;font-size:12.5px;color:var(--muted);letter-spacing:0}
+.lbl{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);font-weight:600}
+select.cat{width:100%;padding:8px 10px;border:1px solid var(--line2);border-radius:8px;background:var(--panel)}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav .nrow{display:grid;grid-template-columns:18px minmax(0,1fr) auto;align-items:center;border-radius:7px;padding-left:calc(var(--d,0) * 14px)}
+.nav .nrow:hover{background:var(--sunk)}
+.nav .nrow.on{background:var(--accent-soft)}
+.nav .nb{all:unset;box-sizing:border-box;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:7px 8px 7px 0;cursor:pointer;font-size:14px;min-width:0}
+.nav .nrow.kid .nb{font-size:13.5px}
+.nav .nrow.on .nb{font-weight:600}
+.nav .nb:focus-visible,.nav .tg:focus-visible,.nav .mb:focus-visible{outline:2px solid var(--accent);border-radius:5px}
+.nav .n{font-family:var(--f-mono);font-size:12px;color:var(--muted);white-space:nowrap}
+.nav .tg{all:unset;cursor:pointer;width:18px;height:100%;display:grid;place-items:center;color:var(--faint);font-size:10px}
+.nav .tg.leaf{cursor:default;font-size:12px}
+.nav .tg:not(.leaf):hover{color:var(--fg)}
+.nav .mb{all:unset;cursor:pointer;width:24px;height:24px;display:grid;place-items:center;margin-right:3px;border-radius:6px;color:var(--faint)}
+.nav .mb svg{width:14px;height:14px}
+.nav .nrow:hover .mb,.nav .nrow.on .mb{color:var(--accent)}
+.nav .mb:hover{background:var(--panel);color:var(--accent)}
+.nav .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.src{margin-top:auto;border-top:1px solid var(--line);padding-top:12px;font-size:12.5px;color:var(--muted);display:flex;flex-direction:column;gap:8px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;border:1px solid var(--line2);background:var(--panel);font-weight:600;font-size:14px}
+.btn:hover{background:var(--sunk)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.btn.pri:hover{filter:brightness(1.08)}
+.btn:disabled{opacity:.5;cursor:default}
+.btn.sm{padding:5px 10px;font-size:13px}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--muted)}
+/* main */
+main{padding-block:22px 60px;padding-inline:28px;display:flex;flex-direction:column;gap:22px;min-width:0;max-width:1600px}
+.crumbs{display:flex;flex-wrap:wrap;gap:6px;font-size:13.5px;color:var(--muted);align-items:center}
+.crumbs button{all:unset;cursor:pointer;color:var(--accent)}
+.crumbs button:hover{text-decoration:underline}
+h1{font-family:var(--f-display);font-size:28px;line-height:1.15;margin:4px 0 0;letter-spacing:-.015em;text-wrap:balance}
+.desc{color:var(--muted);margin:4px 0 0;max-width:70ch}
+.range{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;position:sticky;top:env(safe-area-inset-top,0px);z-index:5}
+.range .tabs{flex-wrap:wrap}
+.range .cust{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:13px;color:var(--muted)}
+.range input[type=date]{padding:5px 8px;border:1px solid var(--line2);border-radius:7px;background:var(--bg);font-size:13.5px}
+.range .rl{font-size:13px;color:var(--muted);margin-left:auto}
+.range .rl b{color:var(--fg);font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr)) minmax(180px,1.6fr);gap:0;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.stat{padding:12px 14px;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:2px}
+.stat:last-child{border-right:0}
+.stat b{font-family:var(--f-display);font-size:22px;font-variant-numeric:tabular-nums;font-weight:600}
+.stat span{font-size:12px;color:var(--muted)}
+.stat b.bad{color:var(--bad)} .stat b.warn{color:var(--warn)}
+.spark svg{width:100%;height:44px;display:block}
+.bar{display:flex;height:8px;border-radius:4px;overflow:hidden;background:var(--sunk)}
+.bar i{display:block;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;color:var(--muted)}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+/* sections */
+.sec{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px}
+.sec h2{font-family:var(--f-display);font-size:17px;margin:0;font-weight:600}
+.sechead{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:12px}
+.tabs{display:flex;gap:4px;background:var(--sunk);padding:3px;border-radius:9px}
+.tabs button{all:unset;cursor:pointer;padding:6px 12px;border-radius:7px;font-size:13.5px;font-weight:600;color:var(--muted)}
+.tabs button.on{background:var(--panel);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.tabs button:focus-visible{outline:2px solid var(--accent)}
+textarea{width:100%;min-height:74px;padding:10px 12px;border:1px solid var(--line2);border-radius:8px;background:var(--bg);resize:vertical}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.hint{font-size:13px;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{all:unset;cursor:pointer;font-size:12.5px;padding:4px 10px;border-radius:999px;border:1px solid var(--line2);color:var(--muted)}
+.chip:hover{border-color:var(--accent);color:var(--accent)}
+.out{margin-top:14px;padding:14px 16px;background:var(--bg);border-radius:9px;border:1px solid var(--line);max-width:none;min-width:0}
+.out:empty{display:none}
+.md{max-width:78ch}
+.md h3,.md h4{font-family:var(--f-display);font-size:15px;margin:14px 0 4px}
+.md h3:first-child,.md h4:first-child{margin-top:0}
+.md p{margin:6px 0}
+.md ul{margin:4px 0;padding-left:20px}
+.md li{margin:3px 0}
+.md code{font-family:var(--f-mono);font-size:12.5px;background:var(--sunk);padding:1px 4px;border-radius:4px}
+.status{font-size:13px;color:var(--muted);display:flex;gap:8px;align-items:center}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--accent);animation:pulse 1.2s infinite}
+@keyframes pulse{50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){.dot{animation:none}}
+.meta{font-size:12px;color:var(--faint);margin-top:8px}
+.noai{padding:12px 14px;border-radius:9px;background:var(--warn-soft);color:var(--warn);font-size:14px}
+/* groups */
+.groups{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.g{all:unset;-webkit-user-drag:element;user-select:none;box-sizing:border-box;cursor:pointer;border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;background:var(--panel)}
+.g:hover{border-color:var(--accent)}
+.g:focus-visible{outline:2px solid var(--accent)}
+.g .top{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.g .nm{font-family:var(--f-display);font-weight:600;font-size:15px}
+.g .ct{font-family:var(--f-mono);font-size:13px;color:var(--muted);white-space:nowrap}
+.g .d{font-size:13px;color:var(--muted)}
+.g .share{height:5px;background:var(--sunk);border-radius:3px;overflow:hidden}
+.g .share i{display:block;height:100%;background:var(--accent)}
+.g.other{border-style:dashed}
+.g.other .share i{background:var(--new)}
+.g .sub{font-size:12px;color:var(--faint)}
+.g .grip{color:var(--faint);margin-right:6px;cursor:grab;font-size:13px}
+.g.over,.dchip.over,.banner.over{outline:2px dashed var(--accent);outline-offset:2px;background:var(--accent-soft)}
+body.drag-t .g,body.drag-g .g{border-style:dashed}
+.gact{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;margin-top:4px;border-top:1px solid var(--line);padding-top:8px}
+.lnk{all:unset;cursor:pointer;font-size:12.5px;color:var(--accent);font-weight:600}
+.lnk:hover{text-decoration:underline}
+.lnk:focus-visible{outline:2px solid var(--accent)}
+select.mini{font-size:12.5px;padding:3px 6px;border:1px solid var(--line2);border-radius:6px;background:var(--panel);max-width:170px}
+input.ren{font:inherit;font-weight:600;width:100%;padding:2px 6px;border:1px solid var(--accent);border-radius:6px;background:var(--bg)}
+.dropstrip{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;padding:8px 10px;border:1px dashed var(--line2);border-radius:9px;margin-bottom:10px;background:var(--panel);position:sticky;top:calc(env(safe-area-inset-top,0px) + var(--rbh,0px) + 6px);z-index:4}
+.dchip{font-size:12.5px;padding:4px 10px;border-radius:999px;border:1px solid var(--line2);background:var(--bg)}
+.dchip.un{color:var(--muted);border-style:dashed}
+body.drag-t .dchip{border-color:var(--accent);color:var(--accent)}
+th.ck,td.ck{width:28px;padding-right:0}
+tr.t[draggable]{cursor:grab}
+tr.t.sel td{background:var(--accent-soft)}
+.gtag{font-size:12px;padding:2px 8px;border-radius:6px;background:var(--sunk);white-space:nowrap;display:inline-block;max-width:180px;overflow:hidden;text-overflow:ellipsis}
+.gtag.o{background:var(--new-soft);color:var(--new)}
+.gtag.n{color:var(--faint);background:transparent;border:1px dashed var(--line2)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 18px);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:10px;display:flex;gap:16px;align-items:center;font-size:14px;box-shadow:0 6px 24px rgba(0,0,0,.2);z-index:50;max-width:calc(100vw - 32px)}
+.toast .lnk{color:var(--bg);text-decoration:underline}
+.ghost{position:fixed;top:-200px;left:-200px;padding:6px 12px;border-radius:8px;background:var(--accent);color:var(--accent-fg);font-weight:600;font-size:13px;white-space:nowrap}
+.vstack{display:flex;flex-direction:column;gap:22px;min-width:0}
+.viewtabs{align-self:flex-start}
+#pFilter{flex-wrap:wrap}
+.sechead>*{min-width:0}
+#pBriefSec:has(#pBriefOut:empty):has(#pBriefMeta:empty){display:none}
+#pStats{grid-template-columns:repeat(6,minmax(0,1fr))}
+.chartwrap{overflow-x:auto}
+.chartwrap svg{display:block}
+.ax{font:11px var(--f-body);fill:var(--faint)}
+.ax.sp{fill:var(--new);font-weight:700}
+.ax.on{fill:var(--accent);font-weight:700}
+.hit{cursor:pointer}
+.hit:hover{fill:color-mix(in srgb, var(--accent) 10%, transparent)}
+.pb{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.pb.rec{background:var(--accent-soft);color:var(--accent)}
+.pb.spike{background:var(--new-soft);color:var(--new)}
+.pb.new{background:var(--warn-soft);color:var(--warn)}
+.pb.occ,.pb.rare{background:var(--sunk);color:var(--muted)}
+.pp{color:var(--faint);font-size:12.5px}
+.pn{font-weight:600}
+.dayhead{display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
+.dayhead h2{font-family:var(--f-display);font-size:18px;margin:0}
+.dlist{display:flex;flex-direction:column;border-top:1px solid var(--line)}
+.drow{border-bottom:1px solid var(--line)}
+.dmain{all:unset;box-sizing:border-box;cursor:pointer;width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto 150px 190px;gap:12px;align-items:center;padding:10px 6px}
+.dmain:hover{background:var(--bg)}
+.dmain:focus-visible{outline:2px solid var(--accent)}
+.dname{min-width:0}
+.dflags{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end}
+.dnum b{font-family:var(--f-display);font-size:17px;font-variant-numeric:tabular-nums}
+.dst{display:flex;gap:8px;align-items:center}
+.dst .bar{height:7px;flex:none}
+.dtix{padding:4px 6px 12px;display:grid;gap:8px}
+.dt1{font-size:13.5px;padding:8px 10px;background:var(--bg);border-radius:8px;overflow-wrap:anywhere}
+.dt1 .id{font-family:var(--f-mono);font-size:12px}
+.dt1 .res{color:var(--muted);margin-top:3px}
+.heatwrap{overflow-x:auto}
+table.heat{border-collapse:separate;border-spacing:2px;width:auto;font-size:12px}
+table.heat th,table.heat td{border:0;padding:0}
+table.heat th.iss{position:sticky;left:0;z-index:2;background:var(--panel);text-align:left;min-width:190px;max-width:240px;width:220px;padding:4px 10px 4px 0;font-weight:400;text-transform:none;letter-spacing:0;font-size:13px;color:var(--fg);vertical-align:middle}
+table.heat thead th.iss{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--faint);font-weight:600}
+.inm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ib{display:flex;gap:8px;align-items:center;margin-top:2px}
+th.hd{font:10.5px var(--f-mono);color:var(--faint);text-align:center;min-width:21px;cursor:pointer;vertical-align:bottom;padding-bottom:4px;letter-spacing:0;text-transform:none}
+th.hd .mo{display:block;font-family:var(--f-body);font-weight:700;color:var(--muted)}
+th.hd.sun{color:var(--line2)}
+th.hd.on{color:var(--accent);font-weight:700}
+td.c{width:21px;height:22px;text-align:center;background:var(--bg);border-radius:4px}
+td.c.on{background:var(--accent-soft)}
+.cell{all:unset;box-sizing:border-box;cursor:pointer;display:block;width:21px;height:22px;line-height:22px;border-radius:4px;font:600 10.5px var(--f-mono);text-align:center}
+.cell.spk{box-shadow:inset 0 0 0 2px var(--new)}
+.cell:focus-visible{outline:2px solid var(--fg)}
+td.num,th.num{text-align:right;padding:0 8px;font-variant-numeric:tabular-nums;white-space:nowrap;font-size:13px}
+table.heat th.num{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--faint);font-weight:600;vertical-align:bottom;padding-bottom:4px}
+td.num.w{color:var(--warn);font-weight:600}
+table.rtab td{vertical-align:middle}
+table.rtab td.rn{min-width:240px}
+table.rtab td:last-child{white-space:nowrap}
+.tr{font-size:12.5px;color:var(--muted)}
+.tr.up{color:var(--bad)}
+.tr.dn{color:var(--ok)}
+.rtitle{font-family:var(--f-display);font-size:15px;margin:16px 0 0}
+.rtitle:empty{display:none}
+@media (max-width:860px){
+  #pStats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .dmain{grid-template-columns:minmax(0,1fr) auto;row-gap:6px}
+  .dflags{justify-content:flex-start;grid-column:1/-1}
+  .dst{grid-column:1/-1}
+}
+.psec{padding:18px 18px 8px}
+.prow{all:unset;box-sizing:border-box;display:grid;grid-template-columns:minmax(160px,1.3fr) 64px minmax(170px,1fr) 300px 84px;gap:16px;align-items:center;width:100%;padding:12px 6px;border-top:1px solid var(--line);cursor:pointer}
+button.prow:hover{background:var(--bg)}
+button.prow:focus-visible{outline:2px solid var(--accent)}
+.prow.phead{cursor:default;font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--faint);font-weight:600;padding-block:4px 6px;border-top:0}
+.prow .r{text-align:right}
+.pname{font-weight:600;min-width:0;overflow-wrap:anywhere}
+.pnum{font-family:var(--f-display);font-size:20px;font-weight:600;font-variant-numeric:tabular-nums}
+.ptag{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:0}
+.ptag .hint{font-size:12.5px}
+.tg2{display:inline-block;font-size:12.5px;font-weight:700;padding:3px 10px;border-radius:999px;white-space:nowrap}
+.tg2.daily{background:var(--accent);color:var(--accent-fg)}
+.tg2.rec{background:var(--accent-soft);color:var(--accent)}
+.tg2.spike{background:var(--new-soft);color:var(--new)}
+.tg2.occ,.tg2.rare{background:var(--sunk);color:var(--muted)}
+.pspark svg{display:block;max-width:100%;height:auto}
+.popen{font-family:var(--f-display);font-size:17px;font-weight:600;font-variant-numeric:tabular-nums}
+.popen.w{color:var(--warn)}
+.popen .hint{font-family:var(--f-body);font-size:12.5px;font-weight:400}
+.pdetail{padding:6px 6px 14px;display:flex;flex-direction:column;gap:8px}
+#patHead .legend{gap:8px 18px}
+@media (max-width:980px){
+  .prow{grid-template-columns:minmax(0,1fr) auto;row-gap:8px}
+  .prow.phead{display:none}
+  .pnum{grid-column:2;grid-row:1}
+  .ptag{grid-column:1/-1}
+  .pspark{grid-column:1/-1}
+  .popen{grid-column:1/-1;text-align:left}
+  .popen::before{content:"Still open: ";font-family:var(--f-body);font-size:13px;font-weight:400;color:var(--muted)}
+}
+table.ptab{font-size:14px}
+table.ptab th,table.ptab td{padding:10px 10px;vertical-align:top}
+table.ptab tr.pgrp th{background:var(--bg);font-family:var(--f-display);font-size:14px;font-weight:600;text-transform:none;letter-spacing:0;color:var(--fg);padding:8px 10px}
+table.ptab tr.pgrp th .hint{font-family:var(--f-body);font-weight:400}
+table.ptab td.pi{font-weight:600;min-width:160px}
+table.ptab td.pdsc{min-width:220px;max-width:320px;color:var(--fg);font-size:13.5px;line-height:1.4}
+table.ptab td.pdsc .fb{color:var(--faint);font-style:italic}
+table.ptab td.pdsc .stl{display:block;font-size:11.5px;color:var(--faint);margin-top:3px}
+table.ptab td.ids{font-family:var(--f-mono);font-size:12.5px;line-height:1.7;min-width:220px;max-width:340px;color:var(--muted)}
+.tid.o{color:var(--warn);font-weight:600}
+table.ptab td.ids .lnk{font-family:var(--f-body)}
+table.ptab td.num{white-space:nowrap}
+table.ptab td.num.w b{color:var(--warn)}
+.dcsum{display:flex;flex-wrap:wrap;gap:12px 36px;align-items:baseline;font-size:15px;color:var(--muted)}
+.dcsum .big{font-family:var(--f-display);font-size:26px;color:var(--fg);margin-right:4px;font-variant-numeric:tabular-nums}
+.dcsum .btn{margin-left:8px;vertical-align:middle}
+.newgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+.newc{border:1px dashed var(--new);background:var(--new-soft);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.newc .top{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.newc .top b{font-family:var(--f-display);font-size:15px;color:var(--fg)}
+.newc .ct{font:600 18px var(--f-display);color:var(--new)}
+.newc .ids{font:12.5px var(--f-mono);color:var(--muted);overflow-wrap:anywhere}
+.newc .ex{font-size:13px;color:var(--fg);overflow-wrap:anywhere}
+table.dct tr.dim td{color:var(--faint)}
+table.dct{min-width:1000px}
+table.dct td.pi{min-width:210px}
+table.dct th{white-space:nowrap}
+table.dct td.num.bad{color:var(--bad);font-weight:600}
+table.dct .pdd{font-weight:400;font-size:12.5px;color:var(--muted);margin-top:2px;max-width:280px}
+.notes{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px}
+.note{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:var(--bg);min-width:0;display:flex;flex-direction:column;gap:8px}
+.note pre{margin:0;white-space:pre-wrap;font:13px/1.5 var(--f-body);color:var(--fg);overflow-wrap:anywhere}
+@media (max-width:480px){.notes{grid-template-columns:1fr}}
+.subbar{position:static}
+.subbar .rl{font-size:12.5px}
+td.rmk{min-width:210px;max-width:260px}
+td.rmk .rrow{display:flex;align-items:center;gap:6px;margin-bottom:5px}
+td.rmk .rlbl{font-size:11.5px;color:var(--faint);white-space:nowrap}
+td.rmk input{font-size:13px;padding:4px 7px;border:1px solid var(--line2);border-radius:6px;background:var(--bg);min-width:0}
+td.rmk input[type=text]{width:100%}
+td.rmk input:focus{border-color:var(--accent);outline:none}
+.rchips{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
+.rchips:empty{display:none}
+.rchip{font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:999px}
+.rchip.ok{background:var(--ok-soft);color:var(--ok)}
+.rchip.warn{background:var(--warn-soft);color:var(--warn)}
+.rchip.bad{background:var(--bad-soft);color:var(--bad)}
+.banner{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:10px 14px;border-radius:9px;background:var(--new-soft);color:var(--new);font-size:14px;margin-bottom:12px}
+/* tickets */
+.tools{display:flex;flex-wrap:wrap;gap:8px}
+.tools input,.tools select{padding:6px 10px;border:1px solid var(--line2);border-radius:8px;background:var(--bg);font-size:14px}
+.tools input{min-width:0;width:220px}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--faint);text-align:left;font-weight:600;padding:6px 8px;border-bottom:1px solid var(--line)}
+td{padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
+tr.t{cursor:pointer}
+tr.t:hover td{background:var(--bg)}
+td.id{font-family:var(--f-mono);font-size:12.5px;white-space:nowrap}
+td.dt{white-space:nowrap;color:var(--muted);font-variant-numeric:tabular-nums;font-size:13px}
+td.tx{min-width:260px;width:60%}
+.clip,.xd div{overflow-wrap:anywhere}
+.clip{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pill{display:inline-block;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.p-open{background:var(--warn-soft);color:var(--warn)}
+.p-done{background:var(--ok-soft);color:var(--ok)}
+.p-wait{background:var(--accent-soft);color:var(--accent)}
+.p-x{background:var(--sunk);color:var(--muted)}
+.p-bad{background:var(--bad-soft);color:var(--bad)}
+tr.x td{background:var(--bg);font-size:14px}
+.xd{display:grid;gap:10px;max-width:90ch}
+.xd b{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--faint);display:block;margin-bottom:2px}
+.xd .kv{display:flex;flex-wrap:wrap;gap:4px 18px;font-size:13px;color:var(--muted)}
+.more{margin-top:10px}
+.empty{padding:18px;color:var(--muted);text-align:center}
+.menu{display:none}
+@media (max-width:860px){
+  .app{grid-template-columns:1fr}
+  .rail{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line)}
+  .rail.closed .hideable{display:none}
+  .menu{display:inline-flex}
+  main{padding-inline:16px}
+  .stats{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .stat:nth-child(3){border-right:0}
+  .stat{border-bottom:1px solid var(--line)}
+  .spark{grid-column:1/-1}
+  h1{font-size:23px}
+  .tools input{width:100%}
+  .range{position:static}
+  .range .rl{margin-left:0}
+}
+/* collapsible navigator rail (desktop) */
+.railmin{all:unset;box-sizing:border-box;cursor:pointer;width:30px;height:30px;display:grid;place-items:center;border-radius:7px;color:var(--muted);flex:none}
+.railmin:hover{background:var(--sunk);color:var(--fg)}
+.railmin:focus-visible{outline:2px solid var(--accent)}
+.railmin svg{width:16px;height:16px;transition:transform .2s}
+.app{transition:grid-template-columns .2s ease}
+@media (min-width:861px){
+  .app.rail-min{grid-template-columns:48px minmax(0,1fr)}
+  .app.rail-min .rail{padding:18px 9px;overflow:hidden}
+  .app.rail-min .rail .hideable,.app.rail-min .rail .brand{display:none}
+  .app.rail-min .railmin svg{transform:rotate(180deg)}
+}
+@media (max-width:860px){.railmin{display:none}}
+@media (prefers-reduced-motion:reduce){.app,.railmin svg{transition:none}}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <aside class="rail" id="rail">
+    <div class="row" style="justify-content:space-between">
+      <div class="brand">Daily Issue Check<small>Instructor ticketing · live data</small></div>
+      <button class="btn sm menu" id="menuBtn" aria-expanded="true">Browse</button>
+      <button class="railmin" id="railMinBtn" type="button" aria-expanded="true" aria-label="Collapse the navigator" title="Collapse the navigator"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3.5 5.5 8l4.5 4.5"/></svg></button>
+    </div>
+    <div class="hideable" style="display:flex;flex-direction:column;gap:6px">
+      <label class="lbl" for="catSel">Category</label>
+      <select class="cat" id="catSel"></select>
+    </div>
+    <div class="hideable" style="display:flex;flex-direction:column;gap:6px">
+      <div class="lbl">Subcategories &amp; groups</div>
+      <div class="hint" style="font-size:12px">▸ shows a subcategory’s groups. The merge icon on the right folds all of its groups back into one.</div>
+      <nav class="nav" id="nav"></nav>
+    </div>
+    <div class="src hideable">
+      <div id="srcInfo"></div>
+      <button class="btn sm" id="reloadBtn" type="button" style="align-self:flex-start">Reload from database</button>
+      <div class="hint" style="font-size:12px">Your groups are kept (saved in this browser). Tickets that arrive after a split show up as “not yet sorted” so you can sort them into the existing groups.</div>
+    </div>
+  </aside>
+
+  <main id="main">
+    <div class="tabs viewtabs" role="tablist" aria-label="View">
+      <button role="tab" data-view="drill" class="on">Drilldown</button>
+      <button role="tab" data-view="pat">Problem patterns</button>
+      <button role="tab" data-view="daily">Daily check</button>
+    </div>
+    <div id="patHead" hidden>
+      <h1>Problem patterns</h1>
+      <p class="desc" id="patDesc"></p>
+      <div class="range subbar" id="patSubBar" style="margin-top:12px"></div>
+      <div class="legend" style="margin-top:10px"><span><span class="tg2 daily">Almost daily</span> on half the days or more</span><span><span class="tg2 rec">Recurring</span> keeps coming back</span><span><span class="tg2 spike">Spike · 23 Sep</span> most tickets on one or two days</span><span><span class="tg2 occ">Occasional</span> a few scattered days</span></div>
+    </div>
+    <div id="dcHead" hidden>
+      <h1>Daily check</h1>
+      <p class="desc" id="dcDesc"></p>
+      <div class="range subbar" id="dcSubBar"></div>
+      <div class="row" style="justify-content:flex-end;margin-top:6px"><button class="lnk" data-import>Import problems CSV</button><input type="file" id="issIn" accept=".csv,text/csv" hidden></div>
+    </div>
+    <div id="drillHead">
+      <div class="crumbs" id="crumbs"></div>
+      <h1 id="title"></h1>
+      <p class="desc" id="ndesc"></p>
+    </div>
+
+    <div class="range" id="rangeBar" role="group" aria-label="Date range">
+      <div class="tabs" id="presets">
+        <button data-range="all">All time</button>
+        <button data-range="today">Today</button>
+        <button data-range="yday">Yesterday</button>
+        <button data-range="7d">Last 7 days</button>
+        <button data-range="30d">Last 30 days</button>
+        <button data-range="month">This month</button>
+        <button data-range="lmonth">Last month</button>
+      </div>
+      <div class="cust">
+        <label for="dFrom">From</label><input type="date" id="dFrom">
+        <label for="dTo">to</label><input type="date" id="dTo">
+      </div>
+      <div class="rl" id="rangeLbl"></div>
+    </div>
+
+    <div id="drillView" class="vstack">
+    <div class="stats" id="stats"></div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div class="bar" id="stBar"></div>
+      <div class="legend" id="stLeg"></div>
+    </div>
+
+    <section class="sec" id="aiSec">
+      <div class="sechead">
+        <h2>Ask AI about these tickets</h2>
+        <div class="tabs" role="tablist">
+          <button role="tab" data-tab="sum" class="on" id="tab-sum">Summary</button>
+          <button role="tab" data-tab="split" id="tab-split">Split into groups</button>
+          <button role="tab" data-tab="new" id="tab-new">Spot new issues</button>
+          <button role="tab" data-tab="ask" id="tab-ask">Ask a question</button>
+        </div>
+      </div>
+      <div id="noAI" class="noai" hidden>AI isn’t available right now, so summaries and splitting are turned off. Browsing, filters and existing groups still work.</div>
+
+      <div data-pane="sum">
+        <div class="row">
+          <button class="btn pri" id="sumBtn">Summarize these tickets</button>
+          <span class="hint" id="sumHint"></span>
+        </div>
+      </div>
+
+      <div data-pane="split" hidden>
+        <label class="hint" for="splitIn" style="display:block;margin-bottom:6px">Describe how you want these tickets split. Leave it blank and the AI will find the natural groups. An “Other / new issue” group is always added so one-off problems are never forced into the wrong bucket.</label>
+        <textarea id="splitIn" placeholder="e.g. Separate partial or revaluation requests from cases where no QA report was generated at all"></textarea>
+        <div class="chips" id="splitChips" style="margin:8px 0 10px"></div>
+        <div class="row">
+          <button class="btn pri" id="splitBtn">Split tickets</button>
+          <button class="btn ghost" id="undoBtn" hidden>Merge all groups back</button>
+          <span class="hint" id="splitHint"></span>
+        </div>
+      </div>
+
+      <div data-pane="new" hidden>
+        <div class="row">
+          <label class="hint" for="newDays">Compare tickets from the last</label>
+          <select id="newDays" class="cat" style="width:auto"><option value="3">3 days</option><option value="7" selected>7 days</option><option value="14">14 days</option><option value="30">30 days</option></select>
+          <span class="hint">against everything older</span>
+          <button class="btn pri" id="newBtn">Find new issues</button>
+        </div>
+      </div>
+
+      <div data-pane="ask" hidden>
+        <textarea id="askIn" placeholder="e.g. Which universities report recording issues most often, and is it the same problem each time?"></textarea>
+        <div class="row" style="margin-top:8px"><button class="btn pri" id="askBtn">Ask</button></div>
+      </div>
+
+      <div class="row" id="runRow" hidden style="margin-top:12px">
+        <div class="status"><span class="dot"></span><span id="runTxt">Thinking…</span></div>
+        <button class="btn sm" id="stopBtn">Stop</button>
+      </div>
+      <div class="out md" id="out"></div>
+      <div class="meta" id="outMeta"></div>
+    </section>
+
+    <section class="sec" id="grpSec" hidden>
+      <div class="sechead">
+        <h2 id="grpTitle">Groups</h2>
+        <span class="hint" id="grpHint"></span>
+      </div>
+      <div id="unsorted"></div>
+      <div class="groups" id="groups"></div>
+    </section>
+
+    <section class="sec">
+      <div class="sechead">
+        <h2 id="tkTitle">Tickets</h2>
+        <div class="tools">
+          <input id="q" type="search" placeholder="Search text, ID, university">
+          <select id="fStatus"><option value="">All statuses</option></select>
+          <select id="fSort"><option value="new">Newest first</option><option value="old">Oldest first</option></select>
+          <button class="btn sm" id="dlBtn" hidden>Download CSV</button>
+        </div>
+      </div>
+      <div class="dropstrip" id="dropStrip" hidden></div>
+      <div class="tbl"><table>
+        <thead id="thead"></thead>
+        <tbody id="tbody"></tbody>
+      </table></div>
+      <div class="more row" id="moreRow"></div>
+    </section>
+    </div>
+    <div id="dcView" class="vstack" hidden><div id="dcBody" class="vstack"></div></div>
+    <div id="patView" class="vstack" hidden>
+      <section class="sec" id="pTableSec">
+        <div class="sechead"><h2>Issues summary</h2>
+          <div class="row"><span class="hint">Open tickets are shown in <b style="color:var(--warn)">orange</b></span><button class="btn sm pri" id="pDesc" disabled>Describe issues with AI</button><button class="btn sm" id="pDl" hidden>Download CSV</button></div></div>
+        <div class="meta" id="pDescMeta" style="margin:-4px 0 8px"></div>
+        <div class="tbl" id="pTable"></div>
+      </section>
+      <div id="pBoard" class="vstack"></div>
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<div class="ghost" id="ghost" aria-hidden="true"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script>
+(async () => {
+"use strict";
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmtN = n => n.toLocaleString("en-IN");
+const DEFAULT_CAT = "Instructor Platform (Teach OS)";
+const ALL = "*";
+const OPEN = new Set(["Yet To Pick","In Progress","Re-open"]);
+const WAIT = new Set(["Awaiting Instructors Response"]);
+const DONE = new Set(["Resolved By POC","Resolution Acknowledged"]);
+const STATUS_ORDER = ["Yet To Pick","In Progress","Re-open","Awaiting Instructors Response","Resolved By POC","Resolution Acknowledged","Discard"];
+const STATUS_COLOR = {"Yet To Pick":"var(--bad)","In Progress":"var(--warn)","Re-open":"var(--new)","Awaiting Instructors Response":"var(--accent)","Resolved By POC":"var(--ok)","Resolution Acknowledged":"color-mix(in srgb, var(--ok) 55%, var(--panel))","Discard":"var(--line2)"};
+
+/* ---------- data ---------- */
+let T = [], byId = new Map(), dataLabel = "";
+function mk(r){ return {id:r[0],st:r[1],cat:r[2],sub:r[3]||"(No subcategory)",subj:r[4],uni:r[5],dt:r[6],sla:r[7],rec:r[8],sty:r[9],tx:r[10],res:r[11],ro:r[12],team:r[13],cl:r[14]||""}; }
+function setData(list, label){
+  T = list.filter(t => t.cat);
+  byId = new Map(T.map(t => [t.id, t]));
+  dataLabel = label;
+  const latest = T.reduce((m,t) => t.dt > m ? t.dt : m, "");
+  $("#srcInfo").innerHTML = `<b>${fmtN(T.length)}</b> tickets · ${esc(label)}<br>Latest ticket ${esc(fmtDate(latest))}`;
+}
+function fmtDate(iso){ if(!iso) return "—"; const d = new Date(iso); return isNaN(d) ? iso : d.toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"}); }
+function csvDate(v){ const m = String(v||"").match(/(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}:\d{2}(?::\d{2})?)/); if(!m) return ""; return `${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}T${m[4].length===5?m[4]+":00":m[4].padStart(8,"0")}`; }
+const clean = (v,n) => { v = String(v ?? "").replace(/\s+/g," ").trim(); return n ? v.slice(0,n) : v; };
+
+/* ---------- tree (per-viewer, browser storage) ---------- */
+const STORE_KEY = "ticket-drilldown-tree-v1";
+let tree = {nodes:{}};
+try { const raw = localStorage.getItem(STORE_KEY); if (raw) tree = JSON.parse(raw) || tree; } catch(e) {}
+if (!tree.nodes) tree = {nodes:{}};
+function save(){ try { localStorage.setItem(STORE_KEY, JSON.stringify(tree)); } catch(e) {} }
+const rootId = (cat, sub) => `root::${cat}::${sub}`;
+function node(id){
+  if (!tree.nodes[id] && id.startsWith("root::")) {
+    const [, cat, sub] = id.split("::");
+    tree.nodes[id] = {id, cat, sub, name: sub === ALL ? `All ${cat}` : sub, parent:null, children:[]};
+  }
+  return tree.nodes[id];
+}
+function rootOf(n){ while (n.parent) n = tree.nodes[n.parent]; return n; }
+function ticketsOf(n){
+  if (!n.parent) return T.filter(t => t.cat === n.cat && (n.sub === ALL || t.sub === n.sub) && inRange(t));
+  const parentT = ticketsOf(tree.nodes[n.parent]);
+  const set = new Set(n.ids);
+  return parentT.filter(t => set.has(t.id));
+}
+function unsortedOf(n, list){
+  if (!n.children?.length) return [];
+  const got = new Set();
+  n.children.forEach(cid => (tree.nodes[cid]?.ids || []).forEach(i => got.add(i)));
+  return list.filter(t => !got.has(t.id));
+}
+function removeSubtree(id){ const n = tree.nodes[id]; if (!n) return; (n.children||[]).forEach(removeSubtree); delete tree.nodes[id]; }
+
+/* ---------- date range ---------- */
+let range = {preset:"all", from:"", to:""};
+try { const r = JSON.parse(localStorage.getItem(STORE_KEY+"-range")||"null"); if (r && r.preset) range = r; } catch(e) {}
+const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+function presetRange(p){
+  const now = new Date(), today = ymd(now);
+  const back = n => { const d = new Date(now); d.setDate(d.getDate()-n); return ymd(d); };
+  switch (p) {
+    case "today": return [today, today];
+    case "yday": return [back(1), back(1)];
+    case "7d": return [back(6), today];
+    case "30d": return [back(29), today];
+    case "month": return [ymd(new Date(now.getFullYear(), now.getMonth(), 1)), today];
+    case "lmonth": return [ymd(new Date(now.getFullYear(), now.getMonth()-1, 1)), ymd(new Date(now.getFullYear(), now.getMonth(), 0))];
+    default: return ["", ""];
+  }
+}
+if (range.preset !== "custom") { const [a,b] = presetRange(range.preset); range.from = a; range.to = b; }
+const inRange = t => { const d = (t.dt||"").slice(0,10); if (!d) return !range.from && !range.to; return (!range.from || d >= range.from) && (!range.to || d <= range.to); };
+const fD = s => new Date(s+"T00:00:00").toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"});
+function rangeLabel(){
+  if (!range.from && !range.to) return "all dates";
+  if (range.from === range.to) return fD(range.from);
+  return `${range.from ? fD(range.from) : "start"} – ${range.to ? fD(range.to) : "latest"}`;
+}
+function renderRangeUI(){
+  document.querySelectorAll("[data-range]").forEach(b => b.classList.toggle("on", b.dataset.range === range.preset));
+  $("#dFrom").value = range.from; $("#dTo").value = range.to;
+  const latest = T.reduce((m,t) => t.dt > m ? t.dt : m, "").slice(0,10);
+  const earliest = T.reduce((m,t) => t.dt && (!m || t.dt < m) ? t.dt : m, "").slice(0,10);
+  const n = T.filter(t => t.cat === cat && inRange(t)).length;
+  let note = "";
+  if (range.to && latest && range.to > latest) note = ` · loaded data runs to ${fD(latest)}`;
+  if (range.from && earliest && range.to && range.to < earliest) note = ` · loaded data starts ${fD(earliest)}`;
+  $("#rangeLbl").innerHTML = `Showing <b>${esc(rangeLabel())}</b> · ${fmtN(n)} tickets in category${esc(note)}`;
+}
+function setRange(p, from, to){
+  if (p === "custom") { range = {preset:"custom", from: from||"", to: to||""}; if (range.from && range.to && range.from > range.to) [range.from, range.to] = [range.to, range.from]; }
+  else { const [a,b] = presetRange(p); range = {preset:p, from:a, to:b}; }
+  try { localStorage.setItem(STORE_KEY+"-range", JSON.stringify(range)); } catch(e) {}
+  if (cur) refreshCur();
+}
+
+/* ---------- state ---------- */
+let cat = DEFAULT_CAT, cur = null, curList = [], showN = 50, openRow = null;
+let sample = null, aiReady = false, ctl = null;
+
+/* ---------- render ---------- */
+function renderCats(){
+  const counts = {}; T.forEach(t => counts[t.cat] = (counts[t.cat]||0)+1);
+  const cats = Object.keys(counts).sort((a,b) => counts[b]-counts[a]);
+  if (!counts[cat]) cat = counts[DEFAULT_CAT] ? DEFAULT_CAT : cats[0];
+  $("#catSel").innerHTML = cats.map(c => `<option value="${esc(c)}"${c===cat?" selected":""}>${esc(c)} (${counts[c]})</option>`).join("");
+}
+const navOpen = new Set();
+function renderNav(){
+  const counts = {}; let total = 0;
+  T.forEach(t => { if (t.cat === cat && inRange(t)) { counts[t.sub] = (counts[t.sub]||0)+1; total++; } });
+  const subs = Object.keys(counts).sort((a,b) => counts[b]-counts[a]);
+  const curPath = new Set(); if (cur) { let x = cur; while (x) { curPath.add(x.id); x = x.parent ? tree.nodes[x.parent] : null; } }
+  let h = "";
+  const row = (n, name, count, depth) => {
+    const k = (n?.children||[]).filter(c => tree.nodes[c]).length;
+    const open = k && (navOpen.has(n.id) || curPath.has(n.id));
+    const tg = k ? `<button class="tg" data-tog="${esc(n.id)}" aria-expanded="${open?"true":"false"}" aria-label="${open?"Hide":"Show"} ${k} groups in ${esc(name)}">${open?"▾":"▸"}</button>` : `<span class="tg leaf" aria-hidden="true">${depth?"↳":""}</span>`;
+    const mb = k ? `<button class="mb" data-mergeback="${esc(n.id)}" title="Merge all ${k} groups under “${esc(name)}” back into one" aria-label="Merge all ${k} groups under ${esc(name)} back into one"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 2.5v3.2c0 1.6 1.3 2.8 2.8 2.8H8M13 2.5v3.2c0 1.6-1.3 2.8-2.8 2.8H8M8 8.5v5M5.8 11.3 8 13.5l2.2-2.2"/></svg></button>` : "";
+    h += `<div class="nrow${depth?" kid":""}${cur && cur.id===(n?.id)?" on":""}" style="--d:${depth}">${tg}<button class="nb" data-node="${esc(n.id)}"><span class="nm" title="${esc(name)}">${esc(name)}</span><span class="n">${count}</span></button>${mb}</div>`;
+    if (open) n.children.forEach(cid => { const c = tree.nodes[cid]; if (c) row(c, c.name, ticketsOf(c).length, depth+1); });
+  };
+  const addRoot = (sub, n) => { const id = rootId(cat, sub); const nd = tree.nodes[id] || {id, children:[]}; row(nd, sub === ALL ? "All subcategories" : sub, n, 0); };
+  addRoot(ALL, total);
+  subs.forEach(s => addRoot(s, counts[s]));
+  $("#nav").innerHTML = h;
+}
+function crumbs(n){
+  const path = []; let x = n; while (x) { path.unshift(x); x = x.parent ? tree.nodes[x.parent] : null; }
+  const r = path[0];
+  let h = `<span>${esc(r.cat)}</span>`;
+  path.forEach((p,i) => { h += ` <span>›</span> ` + (i === path.length-1 ? `<span>${esc(p.name)}</span>` : `<button data-node="${esc(p.id)}">${esc(p.name)}</button>`); });
+  $("#crumbs").innerHTML = h;
+}
+function weekly(list){
+  const now = T.reduce((m,t) => t.dt > m ? t.dt : m, "");
+  const end = new Date(now || Date.now()); const W = 16; const b = new Array(W).fill(0);
+  list.forEach(t => { const d = new Date(t.dt); if (isNaN(d)) return; const w = Math.floor((end - d) / (7*864e5)); if (w >= 0 && w < W) b[W-1-w]++; });
+  return b;
+}
+function sparkSVG(b){
+  const W = 200, H = 44, max = Math.max(1, ...b), step = W/(b.length-1);
+  const pts = b.map((v,i) => [i*step, H-4-(v/max)*(H-10)]);
+  const line = pts.map(p => p.map(n => n.toFixed(1)).join(",")).join(" ");
+  const last = pts[pts.length-1];
+  return `<svg viewBox="-3 0 ${W+6} ${H}" preserveAspectRatio="none" aria-label="Tickets per week, last 16 weeks">
+    <line x1="0" x2="${W}" y1="${H-4}" y2="${H-4}" stroke="var(--line)" stroke-width="1"/>
+    <polygon points="0,${H-4} ${line} ${W},${H-4}" fill="var(--accent-soft)"/>
+    <polyline points="${line}" fill="none" stroke="var(--accent)" stroke-width="1.6" vector-effect="non-scaling-stroke"/>
+    <circle cx="${last[0]}" cy="${last[1]}" r="2.8" fill="var(--accent)"/></svg>`;
+}
+function renderStats(list){
+  const n = list.length || 1;
+  const open = list.filter(t => OPEN.has(t.st)).length;
+  const breached = list.filter(t => t.sla === "Breached").length;
+  const rec = list.filter(t => t.rec === "Yes").length;
+  const latest = T.reduce((m,t) => t.dt > m ? t.dt : m, "");
+  const cutoff = new Date(new Date(latest).getTime() - 7*864e5).toISOString().slice(0,19);
+  const recent = list.filter(t => t.dt >= cutoff).length;
+  const w = weekly(list);
+  $("#stats").innerHTML = `
+    <div class="stat"><b>${fmtN(list.length)}</b><span>Tickets</span></div>
+    <div class="stat"><b class="${open?"warn":""}">${fmtN(open)}</b><span>Open (not picked / in progress)</span></div>
+    <div class="stat"><b class="${breached/n>.5?"bad":""}">${Math.round(breached/n*100)}%</b><span>SLA breached</span></div>
+    <div class="stat"><b>${Math.round(rec/n*100)}%</b><span>Marked recurring</span></div>
+    <div class="stat"><b>${fmtN(recent)}</b><span>In last 7 days</span></div>
+    <div class="stat spark">${sparkSVG(w)}<span>Per week, last 16 weeks · this week ${w[w.length-1]}</span></div>`;
+  const sc = {}; list.forEach(t => sc[t.st||"Unknown"] = (sc[t.st||"Unknown"]||0)+1);
+  const keys = Object.keys(sc).sort((a,b) => (STATUS_ORDER.indexOf(a)+99)%99 - (STATUS_ORDER.indexOf(b)+99)%99);
+  $("#stBar").innerHTML = keys.map(k => `<i style="width:${sc[k]/n*100}%;background:${STATUS_COLOR[k]||"var(--faint)"}" title="${esc(k)}: ${sc[k]}"></i>`).join("");
+  $("#stLeg").innerHTML = keys.map(k => `<span><i style="background:${STATUS_COLOR[k]||"var(--faint)"}"></i>${esc(k)} ${sc[k]}</span>`).join("");
+  $("#fStatus").innerHTML = `<option value="">All statuses</option>` + keys.map(k => `<option>${esc(k)}</option>`).join("");
+}
+function levelParent(){ return cur.children?.length ? cur : (cur.parent ? tree.nodes[cur.parent] : null); }
+function moveTargets(){
+  const P = levelParent(); if (!P) return [];
+  return (P.children||[]).map(id => tree.nodes[id]).filter(n => n && n.id !== cur.id);
+}
+function groupOfTicket(id){
+  for (const cid of (cur.children||[])) { const n = tree.nodes[cid]; if (n && n.ids.includes(id)) return n; }
+  return null;
+}
+function renderGroups(list){
+  const kids = (cur.children||[]).map(id => tree.nodes[id]).filter(Boolean);
+  $("#grpSec").hidden = !kids.length;
+  $("#undoBtn").hidden = !kids.length;
+  if (!kids.length) return;
+  $("#grpTitle").textContent = `Groups (${kids.length})`;
+  $("#grpHint").textContent = (cur.splitPrompt ? `Split by: “${cur.splitPrompt}”. ` : "Split by the AI’s own grouping. ") + "Drag a group onto another to merge them, or drag tickets onto a group to move them.";
+  const total = list.length || 1;
+  $("#groups").innerHTML = kids.map(k => {
+    const kl = ticketsOf(k); const o = kl.filter(t => OPEN.has(t.st)).length;
+    const sub = k.children?.length ? ` · split into ${k.children.length}` : "";
+    const opts = kids.filter(x => x.id !== k.id).map(x => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join("");
+    const inc = k.mergedFrom?.length ? `<div class="sub">Includes: ${esc(k.mergedFrom.join(", "))}</div>` : "";
+    return `<div class="g${k.other?" other":""}" role="button" tabindex="0" draggable="true" data-open="${esc(k.id)}" data-drop="${esc(k.id)}" aria-label="Open group ${esc(k.name)}">
+      <div class="top"><span class="nm"><span class="grip" aria-hidden="true">⠿</span>${esc(k.name)}</span><span class="ct">${kl.length} · ${Math.round(kl.length/total*100)}%</span></div>
+      <div class="share"><i style="width:${kl.length/total*100}%"></i></div>
+      <div class="d">${esc(k.desc||"")}</div>${inc}
+      <div class="sub">${o} open${sub} · click to drill in</div>
+      <div class="gact"><button class="lnk" data-rename="${esc(k.id)}">Rename</button>${opts ? `<select class="mini" data-merge="${esc(k.id)}" aria-label="Merge ${esc(k.name)} into another group"><option value="">Merge into…</option>${opts}</select>` : ""}<button class="lnk" data-ungroup="${esc(k.id)}" title="Dissolve this group; its tickets go back to not sorted">Ungroup</button></div>
+    </div>`;
+  }).join("");
+  const un = unsortedOf(cur, list);
+  $("#unsorted").innerHTML = un.length ? `<div class="banner" data-drop="__unsorted"><span><b>${un.length}</b> ticket${un.length>1?"s":""} in this date range ${un.length>1?"aren’t":"isn’t"} in any group: new since the split, moved out by hand, or outside the dates used when it was made.</span><button class="btn sm" id="sortBtn"${aiReady?"":" disabled"}>Sort into groups</button></div>` : "";
+}
+function pillClass(st){ return OPEN.has(st) ? "p-open" : WAIT.has(st) ? "p-wait" : DONE.has(st) ? "p-done" : "p-x"; }
+let lastFiltered = [];
+function renderStrip(){
+  const targets = moveTargets(); const el = $("#dropStrip");
+  if (!targets.length) { el.hidden = true; el.innerHTML = ""; return; }
+  el.hidden = false;
+  const leaf = !cur.children?.length;
+  const opts = targets.map(t => `<option value="${esc(t.id)}">${esc(t.name)}</option>`).join("") + `<option value="__unsorted">${leaf ? "Remove from this group" : "Not in any group"}</option>`;
+  el.innerHTML = `<span class="hint">${sel.size ? `<b>${sel.size}</b> selected · drag them, or` : leaf ? "Drag tickets to another group:" : "Drag tickets onto a group, or here:"}</span>
+    ${sel.size ? `<select class="mini" id="bulkMove" aria-label="Move selected tickets to"><option value="">Move to…</option>${opts}</select><button class="lnk" id="clearSel">Clear selection</button>` :
+      targets.map(t => `<span class="dchip" data-drop="${esc(t.id)}">${esc(t.name)}</span>`).join("") + `<span class="dchip un" data-drop="__unsorted">${leaf ? "Remove from group" : "Not in any group"}</span>`}`;
+}
+function renderTickets(){
+  const q = $("#q").value.trim().toLowerCase(), fs = $("#fStatus").value, srt = $("#fSort").value;
+  let l = curList.filter(t => (!fs || t.st === fs) && (!q || (`${t.id} ${t.tx} ${t.uni} ${t.subj} ${t.res}`).toLowerCase().includes(q)));
+  l.sort((a,b) => srt === "new" ? b.dt.localeCompare(a.dt) : a.dt.localeCompare(b.dt));
+  lastFiltered = l;
+  const canMove = moveTargets().length > 0, showGrp = !!cur.children?.length;
+  const cols = 5 + (canMove?1:0) + (showGrp?1:0);
+  const vis = l.slice(0, showN);
+  const allOn = vis.length && vis.every(t => sel.has(t.id));
+  $("#thead").innerHTML = `<tr>${canMove?`<th class="ck"><input type="checkbox" id="selAll" aria-label="Select all shown"${allOn?" checked":""}></th>`:""}<th>Ticket</th><th>Raised</th><th>Status</th>${showGrp?"<th>Group</th>":""}<th>Subject</th><th>Issue</th></tr>`;
+  $("#tkTitle").textContent = `Tickets (${l.length}${l.length!==curList.length?" of "+curList.length:""})`;
+  const rows = vis.map(t => {
+    const g = showGrp ? groupOfTicket(t.id) : null;
+    let h = `<tr class="t${sel.has(t.id)?" sel":""}" data-t="${t.id}" tabindex="0"${canMove?' draggable="true"':""}>${canMove?`<td class="ck"><input type="checkbox" data-sel="${t.id}" aria-label="Select ticket ${t.id}"${sel.has(t.id)?" checked":""}></td>`:""}<td class="id">#${t.id}</td><td class="dt">${esc(fmtDate(t.dt))}</td><td><span class="pill ${pillClass(t.st)}">${esc(t.st||"—")}</span></td>${showGrp?`<td class="gc">${g?`<span class="gtag${g.other?" o":""}">${esc(g.name)}</span>`:'<span class="gtag n">Not sorted</span>'}</td>`:""}<td>${esc(t.subj||"—")}</td><td class="tx"><div class="clip">${esc(t.tx)}</div></td></tr>`;
+    if (openRow === t.id) h += `<tr class="x"><td colspan="${cols}"><div class="xd">
+      <div class="kv"><span>${esc(t.uni)}</span><span>Sub-category: ${esc(t.sub)}</span><span>Team: ${esc(t.team||"—")}</span><span>SLA: ${t.sla==="Breached"?'<span class="pill p-bad">Breached</span>':esc(t.sla||"—")}</span><span>Recurring: ${esc(t.rec||"—")}</span>${t.sty?`<span>Session: ${esc(t.sty)}</span>`:""}${t.ro?`<span>Reopened ${t.ro}×</span>`:""}</div>
+      <div><b>Issue in detail</b>${esc(t.tx)}</div>
+      <div><b>Resolution by POC</b>${esc(t.res||"No resolution recorded yet")}</div></div></td></tr>`;
+    return h;
+  }).join("");
+  $("#tbody").innerHTML = rows || `<tr><td colspan="${cols}" class="empty">No tickets match these filters.</td></tr>`;
+  $("#moreRow").innerHTML = l.length > showN ? `<button class="btn sm" id="moreBtn">Show ${Math.min(50, l.length-showN)} more</button><span class="hint">${l.length-showN} not shown</span>` : "";
+  renderStrip();
+}
+
+/* ---------- manual edits: move, merge, ungroup, rename, undo ---------- */
+let sel = new Set();
+const undoStack = [];
+function snapshot(){ undoStack.push(JSON.stringify(tree.nodes)); if (undoStack.length > 40) undoStack.shift(); }
+function stripIds(id, set){ const n = tree.nodes[id]; if (!n) return false; const before = n.ids.length; n.ids = n.ids.filter(i => !set.has(i)); let hit = n.ids.length !== before; (n.children||[]).forEach(c => { hit = stripIds(c, set) || hit; }); if (hit) delete n.summary; return hit; }
+function moveTickets(ids, target){
+  const P = levelParent(); if (!P || !ids.length) return;
+  const tn = target === "__unsorted" ? null : tree.nodes[target]; if (target !== "__unsorted" && !tn) return;
+  snapshot();
+  const set = new Set(ids);
+  P.children.forEach(c => { if (c !== target) stripIds(c, set); });
+  if (tn) { const have = new Set(tn.ids); ids.forEach(i => { if (!have.has(i)) tn.ids.push(i); }); delete tn.summary; }
+  sel.clear(); save(); refreshCur();
+  toast(`Moved ${ids.length} ticket${ids.length>1?"s":""} ${tn ? `to “${tn.name}”` : "out of the groups"}`);
+}
+function mergeGroups(from, to){
+  if (to === "__unsorted") return ungroup(from);
+  const A = tree.nodes[from], B = tree.nodes[to]; if (!A || !B || from === to || A.parent !== B.parent) return;
+  const P = tree.nodes[A.parent];
+  snapshot();
+  B.ids = [...new Set([...B.ids, ...A.ids])];
+  B.mergedFrom = [...new Set([...(B.mergedFrom||[]), A.name, ...(A.mergedFrom||[])])];
+  delete B.summary;
+  removeSubtree(from); P.children = P.children.filter(c => c !== from);
+  save(); refreshCur();
+  toast(`Merged “${A.name}” into “${B.name}”`);
+}
+function ungroup(id){
+  const A = tree.nodes[id]; if (!A) return; const P = tree.nodes[A.parent];
+  snapshot();
+  removeSubtree(id); P.children = P.children.filter(c => c !== id);
+  if (!P.children.length) delete P.splitPrompt;
+  save();
+  if (cur.id === id || !tree.nodes[cur.id]) go(P.id); else refreshCur();
+  toast(`Ungrouped “${A.name}”. Its tickets are back in ${P.children.length ? "“not sorted”" : "the parent"}.`);
+}
+function mergeBackOf(id){
+  const n = tree.nodes[id]; if (!n || !n.children?.length) return;
+  const k = n.children.length;
+  snapshot();
+  n.children.forEach(removeSubtree); n.children = []; delete n.splitPrompt; delete n.summary;
+  save();
+  if (!tree.nodes[cur.id]) go(n.id); else refreshCur();
+  toast(`Merged ${k} groups under “${n.name}” back into one`);
+}
+function mergeAllBack(){ mergeBackOf(cur.id); }
+function undo(){
+  const s = undoStack.pop(); if (!s) return;
+  const oldCur = cur;
+  tree.nodes = JSON.parse(s); save();
+  let id = oldCur.id, x = oldCur;
+  while (id && !id.startsWith("root::") && !tree.nodes[id]) { id = x.parent; x = tree.nodes[id] || {parent: null}; }
+  go(id || rootId(cat, ALL));
+  toast("Undone", true);
+}
+let toastT = null;
+function toast(msg, noUndo){
+  const el = $("#toast");
+  el.innerHTML = `<span>${esc(msg)}</span>${!noUndo && undoStack.length ? '<button class="lnk" id="undoAct">Undo</button>' : ""}`;
+  el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => el.hidden = true, 9000);
+}
+function startRename(id){
+  const n = tree.nodes[id]; const host = document.querySelector(`.g[data-open="${CSS.escape(id)}"] .nm`); if (!n || !host) return;
+  host.innerHTML = `<input class="ren" id="ren-${esc(id.replace(/[^\w-]/g,"_"))}" value="${esc(n.name)}" aria-label="Group name" maxlength="60">`;
+  const inp = host.querySelector("input"); let done = false;
+  const finish = ok => { if (done) return; done = true; const v = clean(inp.value, 60); if (ok && v && v !== n.name) { snapshot(); const old = n.name; n.name = v; save(); refreshCur(); toast(`Renamed “${old}” to “${v}”`); } else refreshCur(); };
+  inp.addEventListener("keydown", e => { e.stopPropagation(); if (e.key === "Enter") finish(true); if (e.key === "Escape") finish(false); });
+  inp.addEventListener("blur", () => finish(true));
+  inp.focus(); inp.select();
+}
+function renderOutFromNode(){
+  const o = $("#out"), m = $("#outMeta");
+  if (cur.summary) { o.innerHTML = md(cur.summary.text); m.textContent = `Summary saved ${new Date(cur.summary.at).toLocaleString("en-IN",{dateStyle:"medium",timeStyle:"short"})} from ${cur.summary.n} tickets (${esc(cur.summary.range||"all dates")})${cur.summary.n!==curList.length||(cur.summary.range||"all dates")!==rangeLabel()?` · now showing ${curList.length} tickets for ${rangeLabel()}, summarize again to refresh`:""}`; }
+  else { o.innerHTML = ""; m.textContent = ""; }
+}
+function go(id){
+  cur = node(id);
+  curList = ticketsOf(cur);
+  showN = 50; openRow = null; $("#q").value = ""; if (!cur.__same) sel.clear();
+  crumbs(cur);
+  $("#title").textContent = cur.name;
+  $("#ndesc").textContent = cur.desc || (cur.parent ? "" : `${cur.sub===ALL?"Every subcategory":"Subcategory"} in ${cur.cat}. Summarize it, or split it into groups and keep drilling down.`);
+  renderRangeUI(); renderStats(curList); renderGroups(curList); renderTickets(); renderNav(); renderOutFromNode(); renderChips();
+  $("#sumHint").textContent = curList.length > 200 ? `The AI reads a spread of ${Math.min(curList.length, 220)} tickets across the full date range.` : "";
+  try { localStorage.setItem(STORE_KEY+"-last", id); } catch(e) {}
+  if (matchMedia("(max-width:860px)").matches) setRail(false);
+  if (view === "pat") renderPatterns();
+  if (view === "daily") renderDailyCheck();
+}
+function refreshCur(){ go(cur.id); }
+
+/* ---------- markdown (small) ---------- */
+function md(src){
+  const lines = String(src).split("\n"); let h = "", inList = false;
+  const inline = s => esc(s).replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>").replace(/`([^`]+)`/g,"<code>$1</code>").replace(/(^|[\s(])\*(?!\s)([^*]+?)\*(?=[\s).,;:]|$)/g,"$1<em>$2</em>");
+  for (const raw of lines) {
+    const l = raw.trimEnd();
+    const li = l.match(/^\s*(?:[-*•]|\d+\.)\s+(.*)/);
+    if (li) { if (!inList) { h += "<ul>"; inList = true; } h += `<li>${inline(li[1])}</li>`; continue; }
+    if (inList) { h += "</ul>"; inList = false; }
+    const hd = l.match(/^#{1,4}\s+(.*)/);
+    if (hd) h += `<h3>${inline(hd[1])}</h3>`;
+    else if (l.trim()) h += `<p>${inline(l)}</p>`;
+  }
+  if (inList) h += "</ul>";
+  return h;
+}
+
+/* ---------- AI backend (OpenRouter via the portal server) ---------- */
+async function aiFetch(path, prompt, signal){
+  let res;
+  try { res = await fetch(path, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({prompt}), signal}); }
+  catch (e) { throw {code: e?.name === "AbortError" ? "cancelled" : "network"}; }
+  if (res.status === 401) { window.top.location = "/login"; throw {code: "session_expired"}; }
+  if (!res.ok) { const d = await res.json().catch(() => ({})); throw {code: d?.detail?.code || "error"}; }
+  return res;
+}
+const AI_END = "\u0003";  // server appends END + "truncated" / "error" after the text
+async function aiText(prompt, opts = {}){
+  const res = await aiFetch("/api/daily-issue/ai/text", prompt, opts.signal);
+  const reader = res.body.getReader(), dec = new TextDecoder();
+  let raw = "";
+  const visible = () => { const i = raw.indexOf(AI_END); return i < 0 ? raw : raw.slice(0, i); };
+  try {
+    for (;;) { const {done, value} = await reader.read(); if (done) break; raw += dec.decode(value, {stream: true}); opts.onText?.({text: visible()}); }
+  } catch (e) { throw {code: e?.name === "AbortError" ? "cancelled" : "network", text: visible()}; }
+  const i = raw.indexOf(AI_END), tail = i < 0 ? "" : raw.slice(i + 1);
+  if (tail === "error") throw {code: "error", text: visible()};
+  return {text: visible(), truncated: tail === "truncated"};
+}
+aiText.json = async (prompt, opts = {}) => (await aiFetch("/api/daily-issue/ai/json", prompt, opts.signal)).json();
+function enableAI(){ sample = aiText; aiReady = true; $("#noAI").hidden = true; busy(false); }
+
+/* ---------- AI helpers ---------- */
+const line = (t, n=320) => `#${t.id} | ${t.dt.slice(0,10)} | ${t.st} | ${t.subj||"-"} | ${t.uni.replace(/ - .*/,"").slice(0,40)} | ${clean(t.tx, n)}`;
+function spread(list, k){ // even sample across time
+  const s = [...list].sort((a,b) => a.dt.localeCompare(b.dt));
+  if (s.length <= k) return s;
+  const out = []; for (let i = 0; i < k; i++) out.push(s[Math.floor(i*s.length/k)]); return out;
+}
+function context(n){
+  const path = []; let x = n; while (x) { path.unshift(x); x = x.parent ? tree.nodes[x.parent] : null; }
+  const r = path[0];
+  let s = `Product area / category: ${r.cat}\nSubcategory: ${r.sub===ALL?"(all subcategories)":r.sub}\nDate range: tickets raised ${rangeLabel()}`;
+  path.slice(1).forEach(p => s += `\n→ Group: ${p.name}${p.desc?` (${p.desc})`:""}`);
+  return s;
+}
+const INTRO = "You are helping an operations lead at an ed-tech company understand support tickets raised by instructors (teachers at partner universities) about internal tools and processes. Ticket text is written by instructors, often informal, sometimes Hinglish.";
+function errText(e){
+  const c = e?.code;
+  if (c === "not_configured") { disableAI(); return "AI isn’t set up on the server (OPENROUTER_API_KEY), so AI features are off."; }
+  if (c === "no_credits") return "The OpenRouter key is out of credits or was rejected. Top it up, then try again.";
+  if (c === "rate_limited") return "Too many requests right now. Wait a minute and try again.";
+  if (c === "prompt_too_large") return "Too much text for one request. Drill into a smaller group first.";
+  if (c === "invalid_json") return "The AI’s answer couldn’t be read as groups. Try again, or phrase the split more simply.";
+  if (c === "refused") return "The AI declined this request. Try rephrasing.";
+  if (c === "session_expired") return "Your session expired. Sign in again and retry.";
+  if (c === "network") return "Couldn’t reach the server. Check your connection and try again.";
+  return "Something went wrong reaching the AI. Try again.";
+}
+function busy(on, txt){
+  $("#runRow").hidden = !on; if (txt) $("#runTxt").textContent = txt;
+  ["#sumBtn","#splitBtn","#newBtn","#askBtn","#sortBtn"].forEach(s => { const b = $(s); if (b) b.disabled = on || !aiReady; });
+}
+async function stream(prompt, opts = {}){
+  ctl = new AbortController();
+  const o = $("#out"); o.innerHTML = ""; $("#outMeta").textContent = "";
+  busy(true, "Reading the tickets…");
+  try {
+    const r = await sample(prompt, {signal: ctl.signal, modelTier: opts.tier || "default", cache: opts.cache ?? {gcTime: 3600e3}, onText: ({text}) => { $("#runTxt").textContent = "Writing…"; o.innerHTML = md(text); }});
+    o.innerHTML = md(r.text);
+    if (r.truncated) $("#outMeta").textContent = "Answer was cut short. Drill into a smaller group for more detail.";
+    return r.text;
+  } catch (e) {
+    if (e?.text) o.innerHTML = md(e.text);
+    if (e?.code !== "cancelled") $("#outMeta").textContent = errText(e);
+    return null;
+  } finally { busy(false); }
+}
+
+/* Summary */
+async function summarize(){
+  const list = curList; const pick = spread(list, 220);
+  const sc = {}; list.forEach(t => sc[t.st] = (sc[t.st]||0)+1);
+  const kids = (cur.children||[]).map(id => tree.nodes[id]).filter(Boolean);
+  const prompt = `${INTRO}
+
+${context(cur)}
+Total tickets here: ${list.length}. Status counts: ${JSON.stringify(sc)}.
+${kids.length ? "This set is already split into: " + kids.map(k => `${k.name} (${ticketsOf(k).length})`).join("; ") + "." : ""}
+${pick.length < list.length ? `Below are ${pick.length} tickets sampled evenly across time from the ${list.length}.` : "Below are all the tickets."}
+Format per line: #id | date | status | subject | university | issue text
+
+${pick.map(t => line(t)).join("\n")}
+
+Write a short summary for the lead, in Markdown, using exactly these sections:
+### Main issue types
+Bullets. Each: **short name** — what the instructors report, approximate count or share, and 1-2 example ticket IDs like #1234.
+### One-off or unusual issues
+Bullets for rare problems that don’t fit the main types (with IDs). Say “None stand out” if so.
+### Suggested split
+One line naming the groups you would split these tickets into.
+Keep it under 350 words. Base every claim on the tickets; don’t invent numbers.`;
+  const text = await stream(prompt);
+  if (text) { cur.summary = {text, at: Date.now(), n: list.length, range: rangeLabel()}; save(); $("#outMeta").textContent = `Summary of ${list.length} tickets (${rangeLabel()}) · saved for this group`; const sug = text.match(/Suggested split[^\n]*\n+([^\n]+)/i); if (sug) { cur.suggest = sug[1].replace(/^[-*]\s*/,"").trim(); save(); renderChips(); } }
+}
+
+/* Split */
+function renderChips(){
+  const chips = [];
+  if (cur.suggest) chips.push(cur.suggest);
+  chips.push("Find the natural groups");
+  chips.push("Split by whether the instructor needs an action from us vs. is just reporting");
+  $("#splitChips").innerHTML = chips.map(c => `<button class="chip" data-chip="${esc(c)}">${esc(c.length>90?c.slice(0,88)+"…":c)}</button>`).join("");
+}
+async function defineGroups(list, instr, signal){
+  const pick = spread(list, 160);
+  const prompt = `${INTRO}
+
+${context(cur)}
+There are ${list.length} tickets in this set. ${pick.length < list.length ? `Here are ${pick.length} sampled evenly across time.` : "Here are all of them."}
+Format per line: #id | date | status | subject | university | issue text
+
+${pick.map(t => line(t, 260)).join("\n")}
+
+The lead wants to split this set into groups.
+Instruction from the lead: ${instr ? `"${instr}"` : "(none — find the most useful natural groups by the underlying problem)"}
+
+Rules:
+- If the instruction names specific groups, create exactly those groups (you may tidy the names).
+- Otherwise propose 2 to 7 mutually exclusive groups based on the underlying problem, sized so each is meaningful.
+- Do NOT create an "Other", "Miscellaneous" or "Unclear" group; one is added automatically for tickets that fit nothing.
+- Name: at most 6 words. Rule: one sentence a person could use to decide if a ticket belongs.
+
+Reply with only JSON: {"groups":[{"name":"...","rule":"..."}]}`;
+  const r = await sample.json(prompt, {signal, modelTier:"default", cache:false});
+  const g = (r?.groups || []).filter(x => x && x.name).slice(0, 10).map(x => ({name: clean(x.name, 60), desc: clean(x.rule || x.description || "", 240)}));
+  if (!g.length) throw {code:"invalid_json"};
+  return g;
+}
+async function classify(list, groups, signal, onProgress){
+  const assign = new Map(); const B = 60; let done = 0;
+  const batches = []; for (let i = 0; i < list.length; i += B) batches.push(list.slice(i, i+B));
+  const header = `${INTRO}
+
+${context(cur)}
+Assign each ticket to exactly ONE group by its underlying problem.
+Groups:
+${groups.map((g,i) => `${i+1}. ${g.name} — ${g.desc}`).join("\n")}
+0. Other / new issue — fits none of the groups above, a different problem, or too vague to tell.
+
+Use 0 honestly: don't force a ticket into a group it doesn't fit.
+Reply with only a JSON object mapping each ticket id to a group number, e.g. {"1234":2,"1240":0}. Include every ticket id listed.
+
+Tickets (#id | date | status | subject | university | issue text):
+`;
+  const run = async b => {
+    const r = await sample.json(header + b.map(t => line(t, 380)).join("\n"), {signal, modelTier:"quick", cache:false});
+    b.forEach(t => { let v = r?.[t.id] ?? r?.["#"+t.id]; v = Number(v); assign.set(t.id, Number.isInteger(v) && v >= 0 && v <= groups.length ? v : 0); });
+    done += b.length; onProgress(done, list.length);
+  };
+  let idx = 0;
+  const worker = async () => { while (idx < batches.length) { const b = batches[idx++]; await run(b); } };
+  await Promise.all([worker(), worker()]);
+  return assign;
+}
+async function split(){
+  const instr = $("#splitIn").value.trim();
+  const list = curList;
+  if (list.length < 2) { $("#outMeta").textContent = "Need at least two tickets to split."; return; }
+  ctl = new AbortController(); const signal = ctl.signal;
+  $("#out").innerHTML = ""; $("#outMeta").textContent = "";
+  busy(true, "Working out the groups…");
+  try {
+    const groups = await defineGroups(list, instr, signal);
+    $("#out").innerHTML = md("### Groups\n" + groups.map(g => `- **${g.name}** — ${g.desc}`).join("\n") + "\n- **Other / new issue** — anything that fits none of these");
+    $("#runTxt").textContent = `Sorting tickets 0 / ${list.length}…`;
+    const assign = await classify(list, groups, signal, (d,n) => $("#runTxt").textContent = `Sorting tickets ${d} / ${n}…`);
+    snapshot();
+    (cur.children||[]).forEach(removeSubtree);
+    const all = [...groups, {name:"Other / new issue", desc:"Tickets that don’t fit the groups above: one-offs, new problems, or too vague to tell.", other:true}];
+    const kids = all.map((g, i) => {
+      const num = g.other ? 0 : i+1;
+      const ids = list.filter(t => assign.get(t.id) === num).map(t => t.id);
+      const id = `${cur.id}/${Date.now().toString(36)}${i}`;
+      tree.nodes[id] = {id, name:g.name, desc:g.desc, other:!!g.other, parent:cur.id, ids, children:[]};
+      return {id, n: ids.length, other: !!g.other};
+    }).filter(k => k.n > 0 || !k.other);
+    // drop empty non-other groups but keep them visible if user named them explicitly
+    cur.children = kids.filter(k => k.n > 0 || instr).map(k => k.id);
+    Object.keys(tree.nodes).forEach(k => { const nd = tree.nodes[k]; if (nd.parent === cur.id && !cur.children.includes(k)) delete tree.nodes[k]; });
+    cur.splitPrompt = instr; cur.splitAt = Date.now();
+    save();
+    const other = kids.find(k => k.other);
+    busy(false);
+    refreshCur();
+    $("#out").innerHTML = md(`### Split done\nSorted **${list.length}** tickets into **${cur.children.length}** groups below.${other && other.n ? ` **${other.n}** landed in “Other / new issue”; open it to see what’s unusual, or split it further.` : ""}\nClick any group to summarize it or split it again. Drag groups together to merge, or drag tickets between groups to fix mistakes.`);
+    toast("Split applied");
+    $("#grpSec").scrollIntoView({behavior: matchMedia("(prefers-reduced-motion:reduce)").matches ? "auto" : "smooth", block:"start"});
+  } catch (e) {
+    if (e?.code !== "cancelled") $("#outMeta").textContent = errText(e);
+  } finally { busy(false); }
+}
+async function sortUnsorted(){
+  const un = unsortedOf(cur, curList); if (!un.length) return;
+  const kids = cur.children.map(id => tree.nodes[id]).filter(Boolean);
+  const groups = kids.filter(k => !k.other).map(k => ({name:k.name, desc:k.desc, node:k}));
+  let other = kids.find(k => k.other);
+  ctl = new AbortController();
+  busy(true, `Sorting ${un.length} new tickets…`);
+  try {
+    const assign = await classify(un, groups, ctl.signal, (d,n) => $("#runTxt").textContent = `Sorting new tickets ${d} / ${n}…`);
+    if (!other) { const id = `${cur.id}/${Date.now().toString(36)}o`; other = tree.nodes[id] = {id, name:"Other / new issue", desc:"Tickets that don’t fit the groups above: one-offs, new problems, or too vague to tell.", other:true, parent:cur.id, ids:[], children:[]}; cur.children.push(id); }
+    snapshot();
+    let nOther = 0;
+    un.forEach(t => { const v = assign.get(t.id); if (v > 0) groups[v-1].node.ids.push(t.id); else { other.ids.push(t.id); nOther++; } });
+    save(); busy(false); refreshCur();
+    $("#out").innerHTML = md(`### Sorted ${un.length} new ticket${un.length>1?"s":""}\n${un.length-nOther} went into existing groups${nOther?`; **${nOther}** didn’t fit and went to “Other / new issue”. Worth a look: these may be a new kind of problem.`:"."}`);
+  } catch (e) { if (e?.code !== "cancelled") $("#outMeta").textContent = errText(e); }
+  finally { busy(false); }
+}
+async function undoSplit(){
+  (cur.children||[]).forEach(removeSubtree); cur.children = []; delete cur.splitPrompt; save(); refreshCur();
+}
+
+/* New issues */
+async function spotNew(){
+  const days = Number($("#newDays").value);
+  const latest = T.reduce((m,t) => t.dt > m ? t.dt : m, "");
+  const cutoff = new Date(new Date(latest).getTime() - days*864e5).toISOString().slice(0,19);
+  const recent = curList.filter(t => t.dt >= cutoff), older = curList.filter(t => t.dt < cutoff);
+  if (!recent.length) { $("#out").innerHTML = md(`No tickets in the last ${days} days in this group.`); $("#outMeta").textContent = ""; return; }
+  const prompt = `${INTRO}
+
+${context(cur)}
+Goal: spot issues in RECENT tickets that are new or rare compared with the OLDER baseline, since new problems appear every day.
+
+OLDER baseline (${older.length} tickets${older.length>120?", 120 sampled evenly":""}):
+${spread(older,120).map(t => line(t, 200)).join("\n") || "(none)"}
+
+RECENT — last ${days} days (${recent.length} tickets${recent.length>120?", 120 most recent shown":""}):
+${[...recent].sort((a,b)=>b.dt.localeCompare(a.dt)).slice(0,120).map(t => line(t, 380)).join("\n")}
+
+Answer in Markdown with exactly these sections:
+### New or unusual in the last ${days} days
+Bullets: **short name** — what’s different, ticket IDs. Only issues that don’t appear, or are clearly rarer, in the baseline. Say “Nothing new” if that’s the case.
+### Rising
+Known issue types that appear noticeably more often recently, with rough counts. Say “None” if not.
+### Same as usual
+One sentence on what the recent tickets have in common with the baseline.
+Under 300 words. Don’t invent anything not in the tickets.`;
+  await stream(prompt);
+}
+async function ask(){
+  const qn = $("#askIn").value.trim(); if (!qn) { $("#askIn").focus(); return; }
+  const pick = spread(curList, 220);
+  await stream(`${INTRO}
+
+${context(cur)}
+${curList.length} tickets${pick.length<curList.length?`, ${pick.length} sampled evenly across time`:""} (#id | date | status | subject | university | issue text):
+${pick.map(t => line(t)).join("\n")}
+
+Question from the lead: ${qn}
+
+Answer in concise Markdown, citing ticket IDs like #1234. If the tickets don’t answer it, say so.`, {cache:false});
+}
+
+/* CSV import */
+function importCSV(file){
+  $("#srcInfo").textContent = "Reading file…";
+  Papa.parse(file, {header:true, skipEmptyLines:true, complete: res => {
+    const rows = res.data.map(r => ({id: Number(r["Ticket ID"]), st: clean(r["Ticket Status"]), cat: clean(r["Category Of The Issue"]), sub: clean(r["Sub Category Of The Issue"]) || "(No subcategory)", subj: clean(r["Subject Name"]), uni: clean(r["University"]), dt: csvDate(r["Added Time"]), sla: clean(r["SLA Breach Status"]), rec: clean(r["Is it a recurring issue?"]), sty: clean(r["Session Type"]), tx: clean(r["Issue In Detail"], 900), res: clean(r["Resolution By The POC"], 400), ro: Number(r["Ticket Reopen_count"])||0, team: clean(r["Assigned Team"]), cl: csvDate(r["Ticket Closure Date-Time"])})).filter(t => t.id && t.cat);
+    if (!rows.length) { $("#srcInfo").textContent = "That file has no ticket rows with the expected columns (Ticket ID, Category Of The Issue, …)."; return; }
+    setData(rows, file.name); renderCats(); go(cur && cur.cat === cat && tree.nodes[cur.id] ? cur.id : rootId(cat, ALL));
+  }, error: () => { $("#srcInfo").textContent = "Couldn’t read that file. Export it again as CSV and retry."; }});
+}
+
+/* downloads */
+let downloads = null;
+function toCSV(list){ const q = v => `"${String(v??"").replace(/"/g,'""')}"`; return ["Ticket ID,Added,Status,Category,Sub Category,Subject,University,SLA,Recurring,Issue,Resolution", ...list.map(t => [t.id,t.dt,t.st,t.cat,t.sub,t.subj,t.uni,t.sla,t.rec,t.tx,t.res].map(q).join(","))].join("\n"); }
+
+/* ---------- problem patterns ---------- */
+let view = "drill";
+try { view = localStorage.getItem(STORE_KEY+"-view") || "drill"; } catch(e) {}
+let pOpen = null, lastP = null;
+const dayLbl = (d, o = {day:"numeric", month:"short"}) => new Date(d+"T00:00:00").toLocaleDateString("en-IN", o);
+
+function setView(v){
+  view = v; try { localStorage.setItem(STORE_KEY+"-view", v); } catch(e) {}
+  document.querySelectorAll("[data-view]").forEach(b => { b.classList.toggle("on", b.dataset.view === v); b.setAttribute("aria-selected", String(b.dataset.view === v)); });
+  $("#drillHead").hidden = $("#drillView").hidden = v !== "drill";
+  $("#patHead").hidden = $("#patView").hidden = v !== "pat";
+  $("#dcHead").hidden = $("#dcView").hidden = v !== "daily";
+  $("#rangeBar").hidden = v !== "drill";
+  if (v === "pat") renderPatterns();
+  if (v === "daily") renderDailyCheck();
+}
+
+/* Problems = the groups you made under each subcategory (leaf level). A subcategory you haven't split is one problem. */
+function issueLeaves(){
+  const catT = T.filter(t => t.cat === cat && t.dt);
+  const out = [], extra = {};
+  Object.entries(tree.checks || {}).forEach(([id, v]) => { let n = v && v.k !== "new" ? tree.nodes[v.k] : null; while (n && n.parent) { (extra[n.id] = extra[n.id] || new Set()).add(Number(id)); n = tree.nodes[n.parent]; } });
+  const walk = (n, list, path, split) => {
+    const kids = (n.children||[]).map(id => tree.nodes[id]).filter(Boolean);
+    if (!kids.length) { out.push({key: n.id, nodeId: n.id, path, split, list}); return; }
+    const got = new Set();
+    kids.forEach(k => { const s = new Set([...k.ids, ...(extra[k.id] || [])]); const kl = list.filter(t => s.has(t.id) && !got.has(t.id)); kl.forEach(t => got.add(t.id)); walk(k, kl, [...path, k.name], true); });
+    const rest = list.filter(t => !got.has(t.id));
+    if (rest.length) out.push({key: n.id + "#unsorted", nodeId: n.id, path: [...path, "Not sorted into a group"], split: true, unsorted: true, list: rest});
+  };
+  const allRoot = tree.nodes[rootId(cat, ALL)];
+  if (allRoot?.children?.length) walk(allRoot, catT, [], false);
+  else [...new Set(catT.map(t => t.sub))].forEach(s => walk(tree.nodes[rootId(cat, s)] || {id: rootId(cat, s), children: []}, catT.filter(t => t.sub === s), [s], false));
+  return out;
+}
+
+function patternData(){
+  const all = T.filter(t => t.cat === cat && t.dt && inRange(t));
+  const from = range.from || all.reduce((m,t) => !m || t.dt < m ? t.dt : m, "").slice(0,10);
+  const to = range.to || all.reduce((m,t) => t.dt > m ? t.dt : m, "").slice(0,10);
+  if (!from || !to || !all.length) return {issues: [], all, days: []};
+  const days = []; for (let d = new Date(from+"T00:00:00"); ymd(d) <= to && days.length < 800; d.setDate(d.getDate()+1)) days.push(ymd(d));
+  const weekly = days.length > 62;
+  const bkey = d => { if (!weekly) return d; const x = new Date(d+"T00:00:00"); x.setDate(x.getDate() - (x.getDay()+6)%7); return ymd(x); };
+  const buckets = [...new Set(days.map(bkey))];
+  const workDays = new Set(all.map(t => t.dt.slice(0,10))).size || 1;
+  const issues = issueLeaves().map(L => {
+    const inR = L.list.filter(inRange); if (!inR.length) return null;
+    const byDay = {}, byB = {};
+    inR.forEach(t => { const d = t.dt.slice(0,10); byDay[d] = (byDay[d]||0) + 1; const k = bkey(d); byB[k] = (byB[k]||0) + 1; });
+    const ranked = Object.entries(byDay).sort((a,b) => b[1]-a[1] || a[0].localeCompare(b[0]));
+    const n = inR.length, dc = ranked.length;
+    const top1 = ranked[0][1] / n, top2 = (ranked[0][1] + (ranked[1]?.[1]||0)) / n;
+    let type, tag, why;
+    if (n <= 2) { type = "rare"; tag = n === 1 ? `Once · ${dayLbl(ranked[0][0])}` : `Twice · ${ranked.map(r => dayLbl(r[0])).sort().join(", ")}`; why = "Too few tickets to call it a pattern"; }
+    else if (top1 >= 0.5 || (top2 >= 0.6 && dc <= Math.max(3, workDays * 0.25))) {
+      type = "spike";
+      const second = ranked[1] && ranked[1][1] / n >= 0.2 ? ranked[1] : null;
+      tag = `Spike · ${dayLbl(ranked[0][0])}${second ? ` & ${dayLbl(second[0])}` : ""}`;
+      why = `${ranked[0][1]} of ${n} tickets on ${dayLbl(ranked[0][0])}${second ? `, ${second[1]} on ${dayLbl(second[0])}` : ""}`;
+    }
+    else if (dc / workDays >= 0.5) { type = "daily"; tag = "Almost daily"; why = `Seen on ${dc} of ${workDays} days`; }
+    else if (dc >= 8 || dc / workDays >= 0.3) { type = "rec"; tag = "Recurring"; why = `Seen on ${dc} of ${workDays} days`; }
+    else { type = "occ"; tag = "Occasional"; why = `Seen on ${dc} of ${workDays} days`; }
+    const open = inR.filter(t => OPEN.has(t.st) || WAIT.has(t.st)).length, done = inR.filter(t => DONE.has(t.st)).length;
+    return {...L, name: L.path[L.path.length-1], section: L.split ? L.path[0] : null, inR, byB, n, dc, type, tag, why, peak: ranked[0][0], open, done};
+  }).filter(Boolean);
+  return {issues, all, buckets, weekly, bkey, workDays, from, to};
+}
+
+function barsSVG(I, P, big){
+  const W = big ? Math.max(P.buckets.length * 16, ($("#pBoard").clientWidth || 800) - 60) : 300, H = big ? 150 : 46, top = big ? 18 : 4, bot = big ? 22 : 14;
+  const max = Math.max(...Object.values(I.byB)), bw = W / P.buckets.length, ih = H - top - bot;
+  const peakB = P.bkey(I.peak);
+  let s = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true"><line x1="0" x2="${W}" y1="${H-bot+.5}" y2="${H-bot+.5}" stroke="var(--line)"/>`;
+  const every = Math.ceil(52 / bw);
+  P.buckets.forEach((b, i) => {
+    const c = I.byB[b] || 0, x = i * bw + bw * .12, w = Math.max(1.5, bw * .76);
+    if (c) {
+      const h = Math.max(2, c / max * ih), hot = I.type === "spike" && b === peakB;
+      s += `<rect x="${x}" y="${H-bot-h}" width="${w}" height="${h}" rx="1" fill="${hot ? "var(--new)" : "var(--accent)"}"><title>${esc(dayLbl(b))}${P.weekly ? " (week)" : ""}: ${c}</title></rect>`;
+      if (big) s += `<text x="${x+w/2}" y="${H-bot-h-4}" text-anchor="middle" class="ax${hot ? " sp" : ""}">${c}</text>`;
+    }
+    const pi = P.buckets.indexOf(peakB);
+    if (big && (b === peakB || (i % every === 0 && Math.abs(i - pi) >= every))) s += `<text x="${x+w/2}" y="${H-6}" text-anchor="middle" class="ax">${esc(dayLbl(b))}</text>`;
+  });
+  if (!big) {
+    const px = I.type === "spike" ? Math.min(W - 26, Math.max(26, P.buckets.indexOf(peakB) * bw + bw/2)) : null;
+    if (px == null || px > 90) s += `<text x="0" y="${H-2}" class="ax">${esc(dayLbl(P.buckets[0]))}</text>`;
+    if (px == null || px < W - 90) s += `<text x="${W}" y="${H-2}" text-anchor="end" class="ax">${esc(dayLbl(P.buckets[P.buckets.length-1]))}</text>`;
+    if (px != null) s += `<text x="${px}" y="${H-2}" text-anchor="middle" class="ax sp">${esc(dayLbl(peakB))}</text>`;
+  }
+  return s + "</svg>";
+}
+
+function renderPatterns(){
+  const {w, empty} = renderSubBar("pat");
+  if (empty) { lastP = null; $("#pTableSec").hidden = true; $("#patDesc").textContent = cat; $("#pBoard").innerHTML = `<div class="sec empty">That filter falls outside the drilldown period (${esc(rangeLabel())}). Pick another filter, or change the period in Drilldown.</div>`; return; }
+  const whole = !w.from && !w.to || (w.from === (range.from || "") && w.to === (range.to || ""));
+  pBase = whole ? null : Object.fromEntries(patternData().issues.map(I => [I.key, I]));
+  withRange(w, renderPatternsInner);
+}
+let pBase = null;
+function renderPatternsInner(){
+  const P = lastP = patternData();
+  if (pBase) P.issues.forEach(I => { const B = pBase[I.key]; if (B) { I.tag = B.tag; I.type = B.type; I.why = B.why + " in the drilldown period"; } else { I.tag = "Not in drilldown period"; I.type = "occ"; I.why = ""; } });
+  $("#patDesc").textContent = `${cat} · ${rangeLabel()}${P.all.length ? ` · ${fmtN(P.all.length)} tickets` : ""}`;
+  if (!P.issues.length) { $("#pTable").innerHTML = ""; $("#pTableSec").hidden = true; $("#pBoard").innerHTML = `<div class="sec empty">No tickets in ${esc(rangeLabel())}. Pick another date range or load a newer export.</div>`; return; }
+  const sections = [];
+  const add = (title, items, note) => { if (items.length) sections.push({title, items: items.sort((a,b) => (a.unsorted - b.unsorted) || b.n - a.n), note}); };
+  const splitNames = [...new Set(P.issues.filter(i => i.section).map(i => i.section))];
+  splitNames.map(s => ({s, n: P.issues.filter(i => i.section === s).reduce((a,i) => a + i.n, 0)})).sort((a,b) => b.n - a.n)
+    .forEach(({s}) => add(s, P.issues.filter(i => i.section === s)));
+  add(splitNames.length ? "Other subcategories (not split into problems)" : "Subcategories", P.issues.filter(i => !i.section), splitNames.length ? "" : "Split a subcategory in Drilldown to see its problems here.");
+  renderPTable(sections);
+  $("#pBoard").innerHTML = sections.map(sec => {
+    const tot = sec.items.reduce((a,i) => a + i.n, 0);
+    return `<section class="sec psec"><div class="sechead"><h2>${esc(sec.title)}</h2><span class="hint">${fmtN(tot)} tickets${sec.note ? " · " + esc(sec.note) : ""}</span></div>
+      <div class="prow phead" aria-hidden="true"><span>Problem</span><span class="r">Tickets</span><span>Pattern</span><span>Tickets per ${P.weekly ? "week" : "day"}</span><span class="r">Still open</span></div>
+      ${sec.items.map(I => {
+        const exp = pOpen === I.key;
+        return `<div class="pitem${exp ? " open" : ""}"><button class="prow" data-pissue="${esc(I.key)}" aria-expanded="${exp}">
+          <span class="pname">${esc(I.section ? I.path.slice(1).join(" › ") : I.name)}</span>
+          <span class="r pnum">${I.n}</span>
+          <span class="ptag"><span class="tg2 ${I.type}">${esc(I.tag)}</span><span class="hint">${esc(I.why)}</span></span>
+          <span class="pspark">${barsSVG(I, P, false)}</span>
+          <span class="r popen${I.open ? " w" : ""}">${I.open}<span class="hint"> of ${I.n}</span></span>
+        </button>${exp ? `<div class="pdetail"><div class="chartwrap">${barsSVG(I, P, true)}</div><div class="row" style="justify-content:space-between"><span class="hint">${I.done} resolved · ${I.open} open or waiting · ${I.n - I.done - I.open} discarded</span><button class="lnk" data-goissue="${esc(I.nodeId)}">View these tickets →</button></div></div>` : ""}</div>`;
+      }).join("")}</section>`;
+  }).join("");
+}
+
+const pIdsOpen = new Set();
+function descFor(I){
+  const d = tree.descs?.[I.key];
+  if (d) return {text: d.text, ai: true, n: d.n, range: d.range, stale: d.n !== I.n || d.range !== rangeLabel()};
+  const node = tree.nodes[I.nodeId];
+  return {text: !I.unsorted && node?.desc ? node.desc : "", ai: false};
+}
+let pDescCtl = null;
+async function describeIssues(btn){
+  if (!sample || !lastP?.issues.length) return;
+  if (pDescCtl) { pDescCtl.abort(); return; }
+  pDescCtl = new AbortController(); const me = pDescCtl;
+  const issues = lastP.issues; const label = btn.textContent;
+  btn.textContent = "Stop"; $("#pDescMeta").textContent = `Reading tickets for ${issues.length} issues…`;
+  const wl = winLabel(effWindow(patSub, true));
+  const prompt = `${INTRO}
+
+Category: ${cat}. Date range: ${wl}.
+Below are issues (groups of tickets the lead defined). For each, write ONE very short description of what the tickets under it are actually about: the concrete problem instructors report, in plain words. 8 to 16 words. No ticket IDs, no counts, no filler like "tickets about". If the tickets are a mix, name the 2-3 main things.
+
+${issues.map((I, i) => `### ${i+1}. ${I.path.join(" › ")} (${I.n} tickets${I.n > 25 ? ", 25 sampled" : ""})\n` + spread(I.inR, 25).map(t => "- " + clean(t.tx, 170)).join("\n")).join("\n\n")}
+
+Reply with only JSON mapping each issue number to its description, e.g. {"1":"Session audio not recorded because mic input was missed or muted","2":"..."}. Include every number from 1 to ${issues.length}.`;
+  try {
+    const r = await sample.json(prompt, {signal: me.signal, modelTier: "default", cache: false});
+    tree.descs = tree.descs || {};
+    let got = 0;
+    issues.forEach((I, i) => { const v = r?.[i+1] ?? r?.[String(i+1)]; if (typeof v === "string" && v.trim()) { tree.descs[I.key] = {text: clean(v, 200), n: I.n, range: wl, at: Date.now()}; got++; } });
+    save(); renderPatterns();
+    $("#pDescMeta").textContent = got ? `Described ${got} issues for ${wl}. Saved in this browser.` : "The AI didn’t return descriptions. Try again.";
+  } catch (e) {
+    $("#pDescMeta").textContent = e?.code === "cancelled" ? "" : errText(e);
+  } finally { pDescCtl = null; const b = $("#pDesc"); if (b) b.textContent = Object.keys(tree.descs||{}).length ? "Refresh descriptions" : label; }
+}
+let pRows = [];
+function renderPTable(sections){
+  $("#pTableSec").hidden = false;
+  if (!pDescCtl) { const b = $("#pDesc"); b.disabled = !aiReady; b.textContent = Object.keys(tree.descs||{}).length ? "Refresh descriptions" : "Describe issues with AI"; }
+  pRows = sections.flatMap(sec => sec.items.map(I => ({sec: sec.items[0].section ? sec.title : (I.name), I})));
+  const SHOW = 14;
+  $("#pTable").innerHTML = `<table class="ptab"><thead><tr><th>Issue</th><th>What these tickets are about</th><th>Status</th><th class="num">Tickets</th><th class="num">Still open</th><th>Remark: expected fix</th><th>Ticket IDs</th></tr></thead><tbody>` +
+    sections.map(sec => {
+      const grouped = !!sec.items[0].section;
+      return (grouped ? `<tr class="pgrp"><th colspan="7">${esc(sec.title)} <span class="hint">· ${fmtN(sec.items.reduce((a,i) => a + i.n, 0))} tickets</span></th></tr>` : `<tr class="pgrp"><th colspan="7">${esc(sec.title)}</th></tr>`) +
+      sec.items.map(I => {
+        const ids = [...I.inR].sort((a,b) => b.dt.localeCompare(a.dt));
+        const all = pIdsOpen.has(I.key), shown = all ? ids : ids.slice(0, SHOW);
+        const idHTML = shown.map(t => `<span class="tid${OPEN.has(t.st) || WAIT.has(t.st) ? " o" : ""}" title="${esc(t.st)} · ${esc(fmtDate(t.dt))}">${t.id}</span>`).join(", ");
+        const dsc = descFor(I);
+        return `<tr><td class="pi">${esc(I.section ? I.path.slice(1).join(" › ") : I.name)}</td>
+          <td class="pdsc">${dsc.text ? `<span class="${dsc.ai ? "" : "fb"}">${esc(dsc.text)}</span>${dsc.stale ? `<span class="stl" title="Written for ${dsc.n} tickets in ${esc(dsc.range)}">written for ${dsc.n} tickets${dsc.range !== rangeLabel() ? `, ${esc(dsc.range)}` : ""}</span>` : ""}` : `<span class="fb">Not described yet</span>`}</td>
+          <td><span class="tg2 ${I.type}">${esc(I.tag)}</span></td>
+          <td class="num"><b>${I.n}</b></td>
+          <td class="num${I.open ? " w" : ""}"><b>${I.open}</b> of ${I.n}</td>${remarkCell(I.key, I.name)}
+          <td class="ids">${idHTML}${ids.length > SHOW ? ` <button class="lnk" data-idmore="${esc(I.key)}">${all ? "Show less" : `+${ids.length - SHOW} more`}</button>` : ""} <button class="lnk cp" data-idcopy="${esc(I.key)}" title="Copy all ${ids.length} ticket IDs">Copy</button></td></tr>`;
+      }).join("");
+    }).join("") + `</tbody></table>`;
+}
+function pTableCSV(){
+  const q = v => `"${String(v ?? "").replace(/"/g,'""')}"`;
+  return ["Subcategory,Issue,What these tickets are about,Status,Tickets,Still open,Expected fix by,Remark,Ticket IDs", ...pRows.map(({I}) => [I.section || I.name, I.section ? I.path.slice(1).join(" > ") : I.name, descFor(I).text, I.tag, I.n, `${I.open} of ${I.n}`, tree.remarks?.[I.key]?.due || "", tree.remarks?.[I.key]?.note || "", [...I.inR].sort((a,b) => b.dt.localeCompare(a.dt)).map(t => t.id).join(" ")].map(q).join(","))].join("\n");
+}
+
+/* ---------- sub-filters (inside the drilldown period) ---------- */
+let dcCtl = null, dcShowAll = false;
+const resHours = t => { if (!t.cl || !t.dt) return null; const h = (new Date(t.cl) - new Date(t.dt)) / 36e5; return h >= 0 ? h : null; };
+const fmtDur = h => h == null ? "—" : h < 1 ? "<1 h" : h < 48 ? `${Math.round(h)} h` : `${(h/24).toFixed(h < 240 ? 1 : 0)} d`;
+const median = a => { if (!a.length) return null; const s = [...a].sort((x,y) => x-y); return s[Math.floor(s.length/2)]; };
+const fmtEta = d => d == null ? "no fixes yet" : d < 1 ? "under a day" : d < 60 ? `~${Math.round(d)} days` : `~${(d/30).toFixed(d < 300 ? 1 : 0)} months`;
+function withRange(r, fn){ const saved = range; range = {preset:"custom", ...r}; try { return fn(); } finally { range = saved; } }
+const latestDay = () => T.filter(t => t.cat === cat).reduce((m,t) => t.dt > m ? t.dt : m, "").slice(0,10);
+const isOpen = t => OPEN.has(t.st) || WAIT.has(t.st);
+const loadSub = (k, d) => { try { const v = JSON.parse(localStorage.getItem(STORE_KEY + "-" + k) || "null"); if (v && v.preset) return v; } catch(e) {} return d; };
+let patSub = loadSub("patsub", {preset:"all", from:"", to:""});
+let dcSub = loadSub("dcsub", {preset:"latest", from:"", to:""});
+const SUBS = {
+  pat: [["all","Whole drilldown period"],["30d","Last 30 days"],["month","This month"],["7d","Last 7 days"],["2d","Last 2 days"],["yday","Yesterday"],["latest","Latest day in data"]],
+  dc: [["latest","Latest day in data"],["today","Today"],["yday","Yesterday"],["2d","Last 2 days"],["7d","Last 7 days"]]
+};
+function subRange(p){
+  const now = new Date(), today = ymd(now), back = n => { const d = new Date(now); d.setDate(d.getDate()-n); return ymd(d); };
+  switch (p) {
+    case "latest": { const l = latestDay(); return [l, l]; }
+    case "today": return [today, today];
+    case "yday": return [back(1), back(1)];
+    case "2d": return [back(1), today];
+    case "7d": return [back(6), today];
+    case "30d": return [back(29), today];
+    case "month": return [ymd(new Date(now.getFullYear(), now.getMonth(), 1)), today];
+    default: return ["", ""];
+  }
+}
+function effWindow(s, clip){
+  let [f, t] = s.preset === "custom" ? [s.from, s.to] : subRange(s.preset);
+  if (clip) { if (range.from && (!f || f < range.from)) f = range.from; if (range.to && (!t || t > range.to)) t = range.to; }
+  return {from: f || "", to: t || ""};
+}
+const winLabel = w => withRange(w, rangeLabel);
+function renderSubBar(kind){
+  const s = kind === "pat" ? patSub : dcSub, w = effWindow(s, kind === "pat");
+  const bar = $(kind === "pat" ? "#patSubBar" : "#dcSubBar");
+  const empty = w.from && w.to && w.from > w.to;
+  bar.innerHTML = `<div class="tabs">${SUBS[kind].map(([k, l]) => `<button data-sub="${kind}:${k}" class="${s.preset === k ? "on" : ""}">${esc(k === "latest" ? `${l} (${dayLbl(latestDay())})` : l)}</button>`).join("")}</div>
+    <div class="cust"><label for="${kind}From">From</label><input type="date" id="${kind}From" value="${esc(s.preset === "custom" ? s.from : w.from)}"><label for="${kind}To">to</label><input type="date" id="${kind}To" value="${esc(s.preset === "custom" ? s.to : w.to)}"></div>
+    <div class="rl">${empty ? `<b style="color:var(--bad)">Outside the drilldown period</b>` : `Showing <b>${esc(winLabel(w))}</b>`} · Drilldown period: <b>${esc(rangeLabel())}</b> <button class="lnk" data-view="drill">change</button></div>`;
+  return {w, empty};
+}
+function setSub(kind, preset, from, to){
+  const s = preset === "custom" ? {preset, from: from || "", to: to || ""} : {preset, from: "", to: ""};
+  if (s.preset === "custom" && s.from && s.to && s.from > s.to) [s.from, s.to] = [s.to, s.from];
+  if (kind === "pat") patSub = s; else dcSub = s;
+  try { localStorage.setItem(STORE_KEY + "-" + (kind === "pat" ? "patsub" : "dcsub"), JSON.stringify(s)); } catch(e) {}
+  kind === "pat" ? renderPatterns() : renderDailyCheck();
+}
+
+/* ---------- daily check ---------- */
+function dcData(w){
+  const leaves = issueLeaves();
+  const P = patternData();                      // statuses over the drilldown period
+  const inW = t => { const d = t.dt.slice(0,10); return (!w.from || d >= w.from) && (!w.to || d <= w.to); };
+  const winT = T.filter(t => t.cat === cat && t.dt && inW(t));
+  const saved = tree.checks || {};
+  const idx = new Map(); leaves.forEach(L => { if (!L.unsorted) L.list.forEach(t => idx.set(t.id, L.key)); });
+  const assign = {}, pending = [];
+  winT.forEach(t => { if (idx.has(t.id)) assign[t.id] = {k: idx.get(t.id)}; else if (saved[t.id]) assign[t.id] = saved[t.id]; else pending.push(t); });
+  const base = {from: range.from || T.filter(t => t.cat === cat).reduce((m,t) => !m || t.dt < m ? t.dt : m, "").slice(0,10), to: range.to || latestDay()};
+  const baseDays = Math.max(1, Math.round((new Date(base.to) - new Date(base.from)) / 864e5) + 1);
+  const closedInBase = t => { const c = (t.cl||"").slice(0,10); return c && c >= base.from && c <= base.to; };
+  const rows = leaves.filter(L => !L.unsorted).map(L => {
+    const I = P.issues.find(i => i.key === L.key);
+    const list = winT.filter(t => assign[t.id]?.k === L.key);
+    const allT = [...new Set([...L.list, ...T.filter(t => saved[t.id]?.k === L.key)])];
+    const backlog = allT.filter(isOpen), fixed = allT.filter(t => DONE.has(t.st) && closedInBase(t)), rate = fixed.length / baseDays;
+    return {key: L.key, nodeId: L.nodeId, section: L.split ? L.path[0] : null, name: L.split ? L.path.slice(1).join(" › ") : L.path[L.path.length-1],
+      tag: I?.tag || "Not in drilldown period", type: I?.type || "occ", list, baseN: I?.n || 0, backlog, rate, med: median(fixed.map(resHours).filter(h => h != null)),
+      eta: backlog.length ? (rate ? backlog.length / rate : null) : 0, desc: tree.descs?.[L.key]?.text || tree.nodes[L.nodeId]?.desc || ""};
+  });
+  const ng = {}; winT.filter(t => assign[t.id]?.k === "new").forEach(t => { const l = assign[t.id].label || "New issue", k = t.sub + "|" + l; (ng[k] = ng[k] || {key: "new:" + k, section: t.sub, name: l, tag: "New", type: "new", list: [], isNew: true}).list.push(t); });
+  return {w, base, baseDays, winT, rows, news: Object.values(ng), pending, leaves};
+}
+
+function renderDailyCheck(){
+  const {w, empty} = renderSubBar("dc");
+  const D = dcData(w);
+  $("#dcDesc").textContent = `${cat} · tickets from ${winLabel(w)}, checked against the problems you made for ${rangeLabel()}.`;
+  const hasSplits = D.leaves.some(L => L.split);
+  let h = "";
+  if (!hasSplits) h += `<section class="sec noai" style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between"><span>No problems defined yet. Split subcategories in <b>Drilldown</b>, or import the <b>Download CSV</b> from Problem patterns in your main dashboard.</span><button class="btn sm pri" data-import>Import problems CSV</button></section>`;
+  const newN = D.news.reduce((a,g) => a + g.list.length, 0), known = D.winT.length - newN - D.pending.length;
+  h += `<section class="sec"><div class="dcsum"><div><b class="big">${D.winT.length}</b> tickets</div><div><b class="big">${known}</b> fit a known problem</div>
+    <div><b class="big" style="color:var(--new)">${newN}</b> new issue ticket${newN === 1 ? "" : "s"}</div>
+    ${D.pending.length ? `<div><b class="big" style="color:var(--warn)">${D.pending.length}</b> not sorted yet <button class="btn sm pri" id="dcSort"${aiReady ? "" : " disabled"}>Sort with AI</button></div>` : ""}</div><div class="meta" id="dcMeta"></div></section>`;
+  if (!D.winT.length) { const l = latestDay(); h += `<section class="sec empty">No ${esc(cat)} tickets in ${esc(winLabel(w))}${w.from > l ? `. The loaded data ends on ${esc(dayLbl(l))}; load a newer export to check these days.` : "."}</section>`; $("#dcBody").innerHTML = h; return; }
+  // same table as Problem patterns
+  const secs = {}; const put = (s, r) => (secs[s] = secs[s] || []).push(r);
+  D.rows.forEach(r => put(r.section || "__other", r)); D.news.forEach(g => put(g.section, g));
+  const secTot = s => secs[s].reduce((a,r) => a + r.list.length, 0);
+  const order = Object.keys(secs).sort((a,b) => (a === "__other") - (b === "__other") || secTot(b) - secTot(a));
+  const hiddenN = D.rows.filter(r => !r.list.length).length;
+  h += `<section class="sec"><div class="sechead"><h2>Issues in ${esc(winLabel(w))}</h2><div class="row"><span class="hint">Open tickets are shown in <b style="color:var(--warn)">orange</b></span><button class="lnk" id="dcAll">${dcShowAll ? "Hide issues with no tickets" : `Show all issues (${hiddenN} with no tickets)`}</button></div></div>
+    <div class="tbl"><table class="ptab"><thead><tr><th>Issue</th><th>What these tickets are about</th><th>Status</th><th class="num">Tickets</th><th class="num">Still open</th><th>Remark: expected fix</th><th>Ticket IDs</th></tr></thead><tbody>` +
+    order.map(s => {
+      const list = secs[s].filter(r => dcShowAll || r.list.length).sort((a,b) => (b.isNew ? 1 : 0) - (a.isNew ? 1 : 0) || b.list.length - a.list.length || b.baseN - a.baseN);
+      if (!list.length) return "";
+      return `<tr class="pgrp"><th colspan="7">${esc(s === "__other" ? "Other subcategories (not split into problems)" : s)} <span class="hint">· ${secTot(s)} ticket${secTot(s) === 1 ? "" : "s"}</span></th></tr>` +
+        list.map(r => { const ids = [...r.list].sort((a,b) => b.dt.localeCompare(a.dt)); const o = ids.filter(isOpen).length;
+          return `<tr${r.list.length ? "" : ' class="dim"'}><td class="pi">${esc(r.name)}</td>
+            <td class="pdsc">${r.isNew ? `<span>${esc(clean(ids[0].tx, 140))}</span><span class="stl">From ticket ${ids[0].id}. Not like anything in the drilldown period.</span>` : r.desc ? esc(r.desc) : '<span class="fb">Not described yet</span>'}</td>
+            <td><span class="tg2 ${r.type}">${esc(r.tag)}</span></td>
+            <td class="num"><b>${r.list.length}</b></td><td class="num${o ? " w" : ""}"><b>${o}</b> of ${r.list.length}</td>${remarkCell(r.key, r.name, r.list)}
+            <td class="ids">${ids.map(t => `<span class="tid${isOpen(t) ? " o" : ""}" title="${esc(t.st)} · ${esc(fmtDate(t.dt))}">${t.id}</span>`).join(", ") || "—"}${ids.length > 1 ? ` <button class="lnk cp" data-dccopy="${esc(ids.map(t => t.id).join(", "))}">Copy</button>` : ""}</td></tr>`; }).join("");
+    }).join("") + `</tbody></table></div><div class="hint" style="margin-top:8px">Status comes from the whole drilldown period (${esc(rangeLabel())}): whether the problem is almost daily, recurring or a one-off spike there. <b style="color:var(--new)">New</b> means the AI found no matching problem.</div></section>`;
+  $("#dcBody").innerHTML = h;
+}
+
+async function dcSort(btn){
+  const {w} = {w: effWindow(dcSub, false)};
+  const D = dcData(w); if (!sample || !D.pending.length) return;
+  if (dcCtl) { dcCtl.abort(); return; }
+  dcCtl = new AbortController(); const me = dcCtl;
+  const known = D.leaves.filter(L => !L.unsorted && L.split);
+  btn.textContent = "Stop"; $("#dcMeta").textContent = `Sorting ${D.pending.length} tickets…`;
+  const header = `${INTRO}
+
+Known problems from ${rangeLabel()}, grouped by subcategory, each with a short description and example tickets:
+${known.map((L, i) => `\n${i+1}. [${L.path[0]}] ${L.path.slice(1).join(" › ")}${(tree.descs?.[L.key]?.text || tree.nodes[L.nodeId]?.desc) ? ` — ${tree.descs?.[L.key]?.text || tree.nodes[L.nodeId]?.desc}` : ""}\n` + spread(L.list.filter(inRange), 4).map(t => "   e.g. " + clean(t.tx, 150)).join("\n")).join("\n")}
+
+Newer tickets are below. Assign each to the number of the known problem it matches. Only use a problem from the ticket’s own subcategory. If it matches none (a different problem, or something that never came up before), use 0 and give a short label (max 6 words) naming the new problem; reuse the same label for tickets about the same new problem.
+Reply with only JSON: {"<ticket id>": {"i": <number>, "new": "<label, only when i is 0>"}}. Include every ticket.
+
+Tickets (#id | subcategory | text):
+`;
+  try {
+    tree.checks = tree.checks || {}; let done = 0;
+    for (let i = 0; i < D.pending.length; i += 40) {
+      const b = D.pending.slice(i, i+40);
+      const r = await sample.json(header + b.map(t => `#${t.id} | ${t.sub} | ${clean(t.tx, 350)}`).join("\n"), {signal: me.signal, modelTier: "default", cache: false});
+      b.forEach(t => { const v = r?.[t.id] ?? r?.["#"+t.id]; const L = known[Number(v?.i ?? v) - 1];
+        tree.checks[t.id] = L && L.path[0] === t.sub ? {k: L.key} : {k: "new", label: clean(v?.new || "New issue", 60)}; });
+      done += b.length; $("#dcMeta").textContent = `Sorted ${done} of ${D.pending.length}…`; save();
+    }
+    renderDailyCheck(); $("#dcMeta").textContent = `Sorted ${done} tickets. Saved in this browser.`;
+  } catch (e) { renderDailyCheck(); if (e?.code !== "cancelled") $("#dcMeta").textContent = errText(e); }
+  finally { dcCtl = null; }
+}
+
+function importIssues(file){
+  Papa.parse(file, {header: true, skipEmptyLines: true, complete: res => {
+    const rows = res.data.filter(r => r["Ticket IDs"] && r["Issue"]);
+    const cc = {}; rows.forEach(r => String(r["Ticket IDs"]).split(/[\s,]+/).forEach(x => { const t = byId.get(Number(x)); if (t) cc[t.cat] = (cc[t.cat]||0) + 1; }));
+    const icat = Object.keys(cc).sort((a,b) => cc[b]-cc[a])[0];
+    if (!icat) { toast("That file has no ticket IDs that match the loaded data. Use the Download CSV from Problem patterns.", true); return; }
+    snapshot();
+    const bySub = {};
+    rows.forEach(r => { const sub = clean(r["Subcategory"]), iss = clean(r["Issue"]); if (!sub || sub === iss || /^Not sorted/i.test(iss)) return; (bySub[sub] = bySub[sub] || []).push(r); });
+    let n = 0;
+    Object.entries(bySub).forEach(([sub, list]) => {
+      const rid = rootId(icat, sub), root = node(rid);
+      (root.children||[]).forEach(removeSubtree); root.children = []; root.splitPrompt = "Imported from Problem patterns";
+      list.forEach((r, i) => {
+        const id = `${rid}/imp${Date.now().toString(36)}${i}`, name = clean(r["Issue"]).replace(/ > /g, " › ");
+        const ids = [...new Set(String(r["Ticket IDs"]).split(/[\s,]+/).map(Number).filter(x => byId.has(x)))];
+        tree.nodes[id] = {id, name, desc: clean(r["What these tickets are about"] || "", 240), other: /other|new issue/i.test(name), parent: rid, ids, children: []};
+        root.children.push(id); n++;
+      });
+    });
+    save(); cat = icat; renderCats(); go(rootId(cat, ALL)); setView("daily");
+    toast(`Imported ${n} problems across ${Object.keys(bySub).length} subcategor${Object.keys(bySub).length === 1 ? "y" : "ies"}`);
+  }, error: () => toast("Couldn’t read that file.", true)});
+}
+
+/* ---------- remarks (expected fix timeline) ---------- */
+function remarkChip(key, list){
+  const r = tree.remarks?.[key]; if (!r?.due) return "";
+  const today = ymd(new Date()), days = Math.round((new Date(r.due+"T00:00:00") - new Date(today+"T00:00:00")) / 864e5);
+  const after = (list || []).filter(t => t.dt.slice(0,10) > r.due).length;
+  let chip = days > 0 ? `<span class="rchip ok">Due in ${days} day${days === 1 ? "" : "s"}</span>` : days === 0 ? `<span class="rchip warn">Due today</span>` : `<span class="rchip bad">Overdue by ${-days} day${days === -1 ? "" : "s"}</span>`;
+  if (after) chip += `<span class="rchip bad">${after} ticket${after === 1 ? "" : "s"} after the due date</span>`;
+  return chip;
+}
+function remarkCell(key, name, list){
+  const r = tree.remarks?.[key] || {}; const sid = "rm-" + key.replace(/[^\w-]/g, "_").slice(-60);
+  return `<td class="rmk" data-rkey="${esc(key)}"><div class="rrow"><label class="rlbl" for="${sid}-d">Fix by</label><input type="date" id="${sid}-d" data-rdue="${esc(key)}" value="${esc(r.due || "")}" aria-label="Expected fix date for ${esc(name)}"></div>
+    <input type="text" id="${sid}-n" data-rnote="${esc(key)}" value="${esc(r.note || "")}" maxlength="200" placeholder="Owner’s plan or timeline" aria-label="Remark for ${esc(name)}">
+    <div class="rchips">${remarkChip(key, list)}</div></td>`;
+}
+document.addEventListener("change", e => {
+  const d = e.target.closest?.("[data-rdue]"), n = e.target.closest?.("[data-rnote]"); if (!d && !n) return;
+  const key = (d || n).dataset.rdue || (d || n).dataset.rnote;
+  tree.remarks = tree.remarks || {}; const r = tree.remarks[key] = {...(tree.remarks[key] || {})};
+  if (d) r.due = d.value; else r.note = clean(n.value, 200);
+  r.at = Date.now(); if (!r.due && !r.note) delete tree.remarks[key];
+  save();
+  const td = e.target.closest("td.rmk"); if (td) { let list = null;
+    if (view === "daily") { const D = dcData(effWindow(dcSub, false)); const row = D.rows.find(x => x.key === key) || D.news.find(x => x.key === key); list = row?.list; }
+    td.querySelector(".rchips").innerHTML = remarkChip(key, list); }
+});
+
+/* ---------- wiring ---------- */
+function disableAI(){ aiReady = false; $("#noAI").hidden = false; busy(false); }
+function setRail(open){ $("#rail").classList.toggle("closed", !open); $("#menuBtn").setAttribute("aria-expanded", String(open)); }
+document.addEventListener("click", e => {
+  if (e.target.id === "undoAct") { undo(); return; }
+  const vw = e.target.closest("[data-view]"); if (vw) { setView(vw.dataset.view); return; }
+  const im = e.target.closest("[data-idmore]"); if (im) { const k = im.dataset.idmore; pIdsOpen.has(k) ? pIdsOpen.delete(k) : pIdsOpen.add(k); renderPatterns(); return; }
+  const ic = e.target.closest("[data-idcopy]"); if (ic && lastP) { const I = lastP.issues.find(i => i.key === ic.dataset.idcopy); if (I) { const txt = [...I.inR].sort((a,b) => b.dt.localeCompare(a.dt)).map(t => t.id).join(", "); navigator.clipboard?.writeText(txt).then(() => { ic.textContent = "Copied"; setTimeout(() => ic.textContent = "Copy", 1500); }).catch(() => { const r = document.createRange(); r.selectNodeContents(ic.parentElement); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }); } return; }
+  const sb = e.target.closest("[data-sub]"); if (sb) { const [k, p] = sb.dataset.sub.split(":"); setSub(k, p); return; }
+  const dcc = e.target.closest("[data-dccopy]"); if (dcc) { navigator.clipboard?.writeText(dcc.dataset.dccopy).then(() => { dcc.textContent = "Copied"; setTimeout(() => dcc.textContent = "Copy", 1500); }).catch(() => {}); return; }
+  if (e.target.closest("[data-import]")) { $("#issIn").click(); return; }
+  if (e.target.id === "dcSort") { dcSort(e.target); return; }
+  if (e.target.id === "dcAll") { dcShowAll = !dcShowAll; renderDailyCheck(); return; }
+  const cn = e.target.closest("[data-copynote]"); if (cn) { const pre = $("#note-" + cn.dataset.copynote); navigator.clipboard?.writeText(pre.textContent).then(() => { cn.textContent = "Copied"; setTimeout(() => cn.textContent = "Copy", 1500); }).catch(() => { const r = document.createRange(); r.selectNodeContents(pre); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }); return; }
+  if (e.target.id === "pDesc") { describeIssues(e.target); return; }
+  if (e.target.id === "pDl" && downloads) { downloads.save({filename: `issues-${cat.replace(/[^\w]+/g,"-").toLowerCase()}-${(range.from||"all")}-${(range.to||"")}.csv`.replace(/-+/g,"-"), data: pTableCSV()}).catch(() => {}); return; }
+  const pi = e.target.closest("[data-pissue]"); if (pi && lastP) { pOpen = pOpen === pi.dataset.pissue ? null : pi.dataset.pissue; renderPatterns(); return; }
+  const gi = e.target.closest("[data-goissue]"); if (gi) { setView("drill"); go(gi.dataset.goissue); window.scrollTo({top:0}); return; }
+  const mbk = e.target.closest("[data-mergeback]"); if (mbk) { mergeBackOf(mbk.dataset.mergeback); return; }
+  const tg = e.target.closest("[data-tog]"); if (tg) { const id = tg.dataset.tog; const open = tg.getAttribute("aria-expanded") === "true"; if (open) { navOpen.delete(id); if (cur && cur.id !== id) { let x = cur; while (x && x.id !== id) x = x.parent ? tree.nodes[x.parent] : null; if (x) { go(id); return; } } } else navOpen.add(id); renderNav(); return; }
+  if (e.target.id === "clearSel") { sel.clear(); renderTickets(); return; }
+  const rn = e.target.closest("[data-rename]"); if (rn) { startRename(rn.dataset.rename); return; }
+  const ug = e.target.closest("[data-ungroup]"); if (ug) { ungroup(ug.dataset.ungroup); return; }
+  if (e.target.closest(".gact") || e.target.closest(".ren")) return;
+  const op = e.target.closest("[data-open]"); if (op) { go(op.dataset.open); window.scrollTo({top:0}); return; }
+  const nd = e.target.closest("[data-node]"); if (nd) { if (view !== "drill") setView("drill"); go(nd.dataset.node); window.scrollTo({top:0}); return; }
+  if (e.target.closest("input[type=checkbox]")) return;
+  const tab = e.target.closest("[data-tab]");
+  if (tab) { document.querySelectorAll("[data-tab]").forEach(b => b.classList.toggle("on", b === tab)); document.querySelectorAll("[data-pane]").forEach(p => p.hidden = p.dataset.pane !== tab.dataset.tab); return; }
+  const chip = e.target.closest("[data-chip]"); if (chip) { $("#splitIn").value = chip.dataset.chip === "Find the natural groups" ? "" : chip.dataset.chip; $("#splitIn").focus(); return; }
+  const tr = e.target.closest("tr.t"); if (tr) { const id = Number(tr.dataset.t); openRow = openRow === id ? null : id; renderTickets(); return; }
+  if (e.target.id === "moreBtn") { showN += 50; renderTickets(); return; }
+  if (e.target.id === "sortBtn") { sortUnsorted(); return; }
+});
+document.addEventListener("change", e => {
+  const m = e.target.closest?.("[data-merge]"); if (m && m.value) { mergeGroups(m.dataset.merge, m.value); return; }
+  if (e.target.id === "bulkMove" && e.target.value) { moveTickets([...sel], e.target.value); return; }
+  if (e.target.id === "selAll") { lastFiltered.slice(0, showN).forEach(t => e.target.checked ? sel.add(t.id) : sel.delete(t.id)); renderTickets(); return; }
+  const s = e.target.closest?.("[data-sel]"); if (s) { const id = Number(s.dataset.sel); s.checked ? sel.add(id) : sel.delete(id); s.closest("tr").classList.toggle("sel", s.checked); renderStrip(); const all = $("#selAll"); if (all) all.checked = lastFiltered.slice(0, showN).every(t => sel.has(t.id)); }
+});
+/* drag and drop */
+let drag = null;
+document.addEventListener("dragstart", e => {
+  const g = e.target.closest?.(".g[draggable]"), tr = e.target.closest?.("tr.t[draggable]");
+  if (g) drag = {type:"group", id: g.dataset.open};
+  else if (tr) { const id = Number(tr.dataset.t); drag = {type:"tickets", ids: sel.has(id) ? [...sel] : [id]}; }
+  else return;
+  e.dataTransfer.effectAllowed = "move";
+  try { e.dataTransfer.setData("text/plain", drag.type === "group" ? tree.nodes[drag.id].name : drag.ids.map(i => "#"+i).join(" ")); } catch(_) {}
+  const gh = $("#ghost"); gh.textContent = drag.type === "group" ? `Merge “${tree.nodes[drag.id].name}” into…` : `Move ${drag.ids.length} ticket${drag.ids.length>1?"s":""}`;
+  try { e.dataTransfer.setDragImage(gh, 12, 12); } catch(_) {}
+  requestAnimationFrame(() => document.body.classList.add("dragging", drag?.type === "group" ? "drag-g" : "drag-t"));
+});
+const endDrag = () => { drag = null; document.body.classList.remove("dragging","drag-g","drag-t"); document.querySelectorAll(".over").forEach(x => x.classList.remove("over")); };
+document.addEventListener("dragend", endDrag);
+const dropOk = t => { if (!drag || !t) return false; const d = t.dataset.drop; if (drag.type === "group") return d !== drag.id && (d === "__unsorted" || tree.nodes[d]?.parent === tree.nodes[drag.id]?.parent); return true; };
+document.addEventListener("dragover", e => { const t = e.target.closest?.("[data-drop]"); if (!dropOk(t)) return; e.preventDefault(); e.dataTransfer.dropEffect = "move"; document.querySelectorAll(".over").forEach(x => x !== t && x.classList.remove("over")); t.classList.add("over"); });
+document.addEventListener("dragleave", e => { const t = e.target.closest?.("[data-drop]"); if (t && !t.contains(e.relatedTarget)) t.classList.remove("over"); });
+document.addEventListener("drop", e => { const t = e.target.closest?.("[data-drop]"); if (!dropOk(t)) return; e.preventDefault(); const d = drag, target = t.dataset.drop; endDrag(); if (d.type === "group") mergeGroups(d.id, target); else moveTickets(d.ids, target); });
+new ResizeObserver(() => document.documentElement.style.setProperty("--rbh", $("#rangeBar").offsetHeight + "px")).observe($("#rangeBar"));
+document.addEventListener("keydown", e => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !e.target.closest?.("input,textarea")) { if (undoStack.length) { e.preventDefault(); undo(); } return; }
+  const gc = e.target.closest?.(".g[data-open]"); if (gc && e.target === gc && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); go(gc.dataset.open); return; } const tr = e.target.closest?.("tr.t"); if (tr && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); tr.click(); } });
+$("#presets").addEventListener("click", e => { const b = e.target.closest("[data-range]"); if (b) setRange(b.dataset.range); });
+$("#dFrom").onchange = () => setRange("custom", $("#dFrom").value, $("#dTo").value);
+$("#dTo").onchange = () => setRange("custom", $("#dFrom").value, $("#dTo").value);
+$("#catSel").onchange = e => { cat = e.target.value; go(rootId(cat, ALL)); };
+$("#q").oninput = () => { showN = 50; renderTickets(); };
+$("#fStatus").onchange = () => { showN = 50; renderTickets(); };
+$("#fSort").onchange = renderTickets;
+$("#sumBtn").onclick = summarize;
+$("#splitBtn").onclick = split;
+$("#undoBtn").onclick = mergeAllBack;
+$("#newBtn").onclick = spotNew;
+$("#askBtn").onclick = ask;
+$("#stopBtn").onclick = () => ctl?.abort();
+document.addEventListener("change", e => { const id = e.target.id; if (!/^(pat|dc)(From|To)$/.test(id)) return; const k = id.startsWith("pat") ? "pat" : "dc"; setSub(k, "custom", $("#" + k + "From").value, $("#" + k + "To").value); });
+$("#issIn").onchange = e => { const f = e.target.files[0]; if (f) importIssues(f); e.target.value = ""; };
+$("#reloadBtn").onclick = () => loadFromDb(true);
+$("#menuBtn").onclick = () => setRail($("#rail").classList.contains("closed"));
+function setRailMin(min){
+  const app = document.querySelector(".app"); app.classList.toggle("rail-min", min);
+  const b = $("#railMinBtn"); b.setAttribute("aria-expanded", String(!min));
+  const l = min ? "Expand the navigator" : "Collapse the navigator"; b.setAttribute("aria-label", l); b.title = l;
+  try { localStorage.setItem(STORE_KEY + "-railmin", min ? "1" : ""); } catch(e) {}
+  // The expanded pattern chart sizes itself from the board's width at render time.
+  setTimeout(() => { if (view === "pat" && lastP && pOpen) renderPatterns(); }, 220);
+}
+$("#railMinBtn").onclick = () => setRailMin(!document.querySelector(".app").classList.contains("rail-min"));
+try { if (localStorage.getItem(STORE_KEY + "-railmin")) setRailMin(true); } catch(e) {}
+$("#dlBtn").onclick = async () => { if (!downloads) return; const name = (cur.name||"tickets").replace(/[^\w]+/g,"-").replace(/^-|-$/g,"").toLowerCase(); try { await downloads.save({filename:`${name}.csv`, data: toCSV(curList)}); } catch(e) {} };
+
+/* boot - tickets come from the portal's own database (GET /api/daily-issue/tickets) */
+async function fetchTickets(){
+  const res = await fetch("/api/daily-issue/tickets", {cache: "no-store"});
+  if (res.status === 401) { window.top.location = "/login"; throw new Error("not logged in"); }
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+async function loadFromDb(reload){
+  const btn = $("#reloadBtn"); if (btn) btn.disabled = true;
+  $("#srcInfo").textContent = reload ? "Reloading from the database…" : "Loading tickets from the database…";
+  try {
+    const d = await fetchTickets();
+    setData(d.rows.map(mk), `live database, loaded ${new Date().toLocaleString("en-IN", {dateStyle: "medium", timeStyle: "short"})}`);
+    if (d.ai) enableAI(); else disableAI();
+    if (reload) { renderCats(); go(cur && tree.nodes[cur.id] && rootOf(cur).cat === cat ? cur.id : rootId(cat, ALL)); toast(`Reloaded ${fmtN(T.length)} tickets`, true); }
+    return true;
+  } catch (e) {
+    $("#srcInfo").textContent = `Couldn’t load tickets (${e.message}). Use “Reload from database” to retry.`;
+    return false;
+  } finally { if (btn) btn.disabled = false; }
+}
+if (!(await loadFromDb(false))) return;
+renderCats();
+let start = rootId(cat, ALL);
+const firstSub = (() => { const c = {}; T.forEach(t => { if (t.cat === cat) c[t.sub] = (c[t.sub]||0)+1; }); return Object.keys(c).sort((a,b)=>c[b]-c[a])[0]; })();
+if (firstSub) start = rootId(cat, firstSub);
+try { const last = localStorage.getItem(STORE_KEY+"-last"); if (last && (last.startsWith("root::") || tree.nodes[last])) { const n = node(last); if (n) { cat = rootOf(n).cat; renderCats(); start = last; } } } catch(e) {}
+go(start);
+setView(view);
+busy(false);
+let rsT = null; window.addEventListener("resize", () => { clearTimeout(rsT); rsT = setTimeout(() => { if (view === "pat" && lastP && pOpen) renderPatterns(); }, 150); });
+
+downloads = {save: async ({filename, data}) => {
+  const url = URL.createObjectURL(new Blob([data], {type: "text/csv;charset=utf-8"}));
+  const a = document.createElement("a"); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}};
+$("#dlBtn").hidden = false; $("#pDl").hidden = false;
+window.addEventListener("storage", e => { if (e.key === "theme") document.documentElement.setAttribute("data-theme", e.newValue === "dark" ? "dark" : "light"); });
+})();
+</script>
+</body>
+</html>

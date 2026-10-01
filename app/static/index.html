@@ -161,10 +161,51 @@ try {
   .theme-toggle .theme-toggle-label::after{ content:"Dark mode"; }
   :root[data-theme="dark"] .theme-toggle .theme-toggle-label::after{ content:"Light mode"; }
 
+  /* --- Collapsible sidebar (desktop) - icons only, so every tab gets the
+     width back. Phones keep the slide-in drawer above instead. --- */
+  .sidebar{ transition:width .2s ease, flex-basis .2s ease; }
+  .sidebar-collapse{
+    margin-left:auto; flex-shrink:0; width:28px; height:28px; padding:0;
+    display:flex; align-items:center; justify-content:center;
+    background:transparent; border:none; border-radius:6px; cursor:pointer;
+    color:var(--sidebar-header-text); opacity:.8;
+  }
+  .sidebar-collapse:hover{ background:var(--sidebar-hover-bg); opacity:1; filter:none; }
+  .sidebar-collapse svg{ transition:transform .2s ease; }
+  @media (min-width: 861px){
+    .app-shell.sidebar-collapsed .sidebar{ width:64px; flex-basis:64px; }
+    .app-shell.sidebar-collapsed .app-name,
+    .app-shell.sidebar-collapsed .workspace-selector,
+    .app-shell.sidebar-collapsed .nav-section-title,
+    .app-shell.sidebar-collapsed .nav-label,
+    .app-shell.sidebar-collapsed .theme-toggle-label{ display:none; }
+    .app-shell.sidebar-collapsed .sidebar-header{ flex-direction:column; gap:10px; padding:16px 0; }
+    .app-shell.sidebar-collapsed .sidebar-collapse{ margin-left:0; }
+    .app-shell.sidebar-collapsed .sidebar-collapse svg{ transform:rotate(180deg); }
+    .app-shell.sidebar-collapsed .nav-section{ padding:0 10px; }
+    .app-shell.sidebar-collapsed .sidebar-footer{ padding:14px 10px 20px; }
+    .app-shell.sidebar-collapsed .nav-item{ justify-content:center; padding:10px 0; }
+  }
+  @media (max-width: 860px){ .sidebar-collapse{ display:none; } }
+  @media (prefers-reduced-motion: reduce){ .sidebar, .sidebar-collapse svg{ transition:none; } }
+
   /* --- Main content --- */
   .main-content{ flex:1; min-width:0; padding:32px 40px 80px; }
   .wrap{ max-width:900px; }
+  /* Dashboards (Pulse, Stats) grow with the room a collapsed sidebar or a
+     wide window gives them; editors/embedded pages take all of it. */
+  .wrap.wrap-wide{ max-width:1440px; }
   .wrap.wrap-full{ max-width:none; }
+
+  /* Daily Issue Check: its own page in a full-height frame, edge to edge. */
+  .main-content.main-flush{ padding:0; }
+  .main-content.main-flush .main-topbar,
+  .main-content.main-flush #pendingBanner{ display:none !important; }
+  #dailyIssueFrame{ display:block; width:100%; height:100vh; height:100dvh; border:0; background:var(--bg); }
+  @media (max-width: 860px){
+    .main-content.main-flush{ padding-top:64px; }
+    #dailyIssueFrame{ height:calc(100vh - 64px); height:calc(100dvh - 64px); }
+  }
 
   .main-topbar{ display:flex; align-items:center; justify-content:flex-end; gap:10px; margin-bottom:24px; }
 
@@ -272,7 +313,6 @@ try {
   }
   a.download-link:hover{ border-color:var(--accent); color:var(--accent); }
 
-  #zohoStatusBadge{ cursor:help; }
 
   .daily-bar{
     display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
@@ -528,14 +568,15 @@ try {
 
   #pulseView .grid-2, #statsView .grid-2{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
 
-  @media (max-width: 1100px){
-    #pulseView .tiles, #statsView .tiles{ grid-template-columns:repeat(2, 1fr); }
-    #pulseView .tiles-7{ grid-template-columns:repeat(3, 1fr); }
-    #pulseView .uni-cards{ grid-template-columns:repeat(2, 1fr); }
-    #pulseView .grid-2, #statsView .grid-2{ grid-template-columns:1fr; }
-    #pulseView .range-summary, #statsView .range-summary{ margin-left:0; width:100%; }
-    #statsView .perf-grid{ grid-template-columns:1fr; }
-  }
+  /* Keyed on the content column's real width (set by watchContentWidth()),
+     not the viewport - collapsing or expanding the sidebar changes the room
+     these grids have without the window itself resizing. */
+  .app-shell.content-narrow #pulseView .tiles, .app-shell.content-narrow #statsView .tiles{ grid-template-columns:repeat(2, 1fr); }
+  .app-shell.content-narrow #pulseView .tiles-7{ grid-template-columns:repeat(3, 1fr); }
+  .app-shell.content-narrow #pulseView .uni-cards{ grid-template-columns:repeat(2, 1fr); }
+  .app-shell.content-narrow #pulseView .grid-2, .app-shell.content-narrow #statsView .grid-2{ grid-template-columns:1fr; }
+  .app-shell.content-narrow #pulseView .range-summary, .app-shell.content-narrow #statsView .range-summary{ margin-left:0; width:100%; }
+  .app-shell.content-narrow #statsView .perf-grid{ grid-template-columns:1fr; }
 
   /* ---------- Insights tab (Weekly Resolution Insights) - own components on top of the shared tokens above ---------- */
   #statsView .delta-chip{ font-family:var(--mono); font-size:var(--fs-xs); padding:2px 7px; border-radius:999px; display:inline-block; white-space:nowrap; }
@@ -675,6 +716,9 @@ try {
     <div class="sidebar-header">
       <div class="logo-badge">N</div>
       <span class="app-name">NIAT</span>
+      <button class="sidebar-collapse" id="sidebarCollapseBtn" type="button" onclick="toggleSidebarCollapsed()" aria-label="Collapse sidebar" aria-expanded="true" aria-controls="appSidebar" title="Collapse sidebar">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m11 17-5-5 5-5"/><path d="m18 17-5-5 5-5"/></svg>
+      </button>
     </div>
     <button class="workspace-selector" type="button">
       NIAT Campus Operations
@@ -686,29 +730,35 @@ try {
     <nav class="sidebar-nav">
       <div class="nav-section">
         <div class="nav-section-title">Instructors Ticketing System</div>
-        <button class="nav-item" id="navBtn-pulse" onclick="switchTab('pulse')" type="button">
+        <button class="nav-item" id="navBtn-pulse" onclick="switchTab('pulse')" type="button" title="Pulse">
           <span class="nav-icon">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
           </span>
-          Pulse
+          <span class="nav-label">Pulse</span>
         </button>
-        <button class="nav-item active" id="navBtn-tickets" onclick="switchTab('tickets')" type="button">
+        <button class="nav-item active" id="navBtn-tickets" onclick="switchTab('tickets')" type="button" title="Tickets">
           <span class="nav-icon">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v3a2 2 0 0 1 0 4v3a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3a2 2 0 0 1 0-4V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2Z"/><path d="M13 5v2M13 17v2M13 11v2"/></svg>
           </span>
-          Tickets
+          <span class="nav-label">Tickets</span>
         </button>
-        <button class="nav-item" id="navBtn-stats" onclick="switchTab('stats')" type="button">
+        <button class="nav-item" id="navBtn-stats" onclick="switchTab('stats')" type="button" title="Stats">
           <span class="nav-icon">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>
           </span>
-          Stats
+          <span class="nav-label">Stats</span>
         </button>
-        <button class="nav-item" id="navBtn-taxonomy" onclick="switchTab('taxonomy')" type="button">
+        <button class="nav-item" id="navBtn-taxonomy" onclick="switchTab('taxonomy')" type="button" title="Taxonomy">
           <span class="nav-icon">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/></svg>
           </span>
-          Taxonomy
+          <span class="nav-label">Taxonomy</span>
+        </button>
+        <button class="nav-item" id="navBtn-dailyissue" onclick="switchTab('dailyissue')" type="button" title="Daily Issue Check">
+          <span class="nav-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="m9 16 2 2 4-4"/></svg>
+          </span>
+          <span class="nav-label">Daily Issue Check</span>
         </button>
       </div>
     </nav>
@@ -721,11 +771,11 @@ try {
         </span>
         <span class="theme-toggle-label"></span>
       </button>
-      <a href="#" class="nav-item" id="logoutLink" onclick="logout(event)">
+      <a href="#" class="nav-item" id="logoutLink" onclick="logout(event)" title="Log out">
         <span class="nav-icon">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         </span>
-        Log out
+        <span class="nav-label">Log out</span>
       </a>
     </div>
   </aside>
@@ -734,8 +784,6 @@ try {
     <div class="wrap">
       <div class="main-topbar">
         <a class="download-link" href="/api/taxonomy/export.csv" download="taxonomy.csv">&darr; Taxonomy CSV</a>
-        <a class="download-link" href="/api/tickets/export.csv" download="tickets_all.csv">&darr; All Tickets CSV</a>
-        <span id="zohoStatusBadge" class="badge" title="Zoho credentials live in .env on the server (ZOHO_INVOKE_URL / ZOHO_API_KEY) - there is no in-browser control for them, same as the admin password.">zoho: checking…</span>
       </div>
 
       <div id="pendingBanner" class="panel pending-banner" style="display:none;">
@@ -985,6 +1033,10 @@ try {
         </section>
       </div>
 
+      <div id="dailyIssueView" style="display:none;">
+        <iframe id="dailyIssueFrame" title="Daily Issue Check"></iframe>
+      </div>
+
       <div id="taxonomyView" style="display:none;">
         <div class="p-header">
           <div>
@@ -1052,22 +1104,6 @@ async function loadTaxonomy() {
   });
 }
 
-async function loadZohoStatus() {
-  const el = document.getElementById('zohoStatusBadge');
-  try {
-    const res = await fetch('/api/zoho/status');
-    if (!res.ok) throw new Error(`status ${res.status}`);
-    const data = await res.json();
-    const isSample = data.invoke_url_is_sample || data.api_key_is_sample;
-    const color = isSample ? 'var(--amber)' : 'var(--accent)';
-    const label = isSample ? 'zoho: sample/mock config' : 'zoho: configured';
-    el.innerHTML = `<span class="swatch" style="background:${color}"></span>${label}`;
-  } catch (e) {
-    el.innerHTML = `<span class="swatch" style="background:var(--coral)"></span>zoho: status unknown`;
-    console.error(e);
-  }
-}
-
 // ---- Ticket ID chips across Pulse tiles/tables: click to copy ----------
 // No per-ticket record URL exists in Zoho, and a plain web page can't
 // reach into a different tab's DOM to run Zoho's own search UI the way
@@ -1120,6 +1156,34 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') pulseToggleSidebar(false);
 });
 
+// ---- Collapsible sidebar (desktop): icons only, remembered per browser ----
+function toggleSidebarCollapsed(force) {
+  const shell = document.getElementById('appShell');
+  const collapsed = typeof force === 'boolean' ? force : !shell.classList.contains('sidebar-collapsed');
+  shell.classList.toggle('sidebar-collapsed', collapsed);
+  const btn = document.getElementById('sidebarCollapseBtn');
+  const label = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
+  btn.setAttribute('aria-expanded', String(!collapsed));
+  btn.setAttribute('aria-label', label);
+  btn.title = label;
+  try { localStorage.setItem('sidebarCollapsed', collapsed ? '1' : ''); } catch (e) {}
+}
+try { if (localStorage.getItem('sidebarCollapsed')) toggleSidebarCollapsed(true); } catch (e) {}
+
+// Narrow-layout switch for the dashboards' grids, keyed on how wide the
+// content column actually is (sidebar expanded or collapsed, any window
+// size) - see the .content-narrow rules in the stylesheet. 800px matches
+// where the old 1100px-viewport breakpoint used to kick in with the
+// sidebar expanded.
+(function watchContentWidth() {
+  const shell = document.getElementById('appShell');
+  const wrap = document.querySelector('.main-content .wrap');
+  const apply = () => shell.classList.toggle('content-narrow', wrap.clientWidth < 800);
+  if (window.ResizeObserver) new ResizeObserver(apply).observe(wrap);
+  else window.addEventListener('resize', apply);
+  apply();
+})();
+
 // ---- Theme toggle (light is the default; dark is opt-in, see the inline
 // <head> script that restores it before first paint) --------------------
 function pulseToggleTheme() {
@@ -1128,6 +1192,11 @@ function pulseToggleTheme() {
   if (next) document.documentElement.setAttribute('data-theme', 'dark');
   else document.documentElement.removeAttribute('data-theme');
   try { localStorage.setItem('theme', next ? 'dark' : 'light'); } catch (e) {}
+  // The embedded Daily Issue Check page follows the same theme.
+  try {
+    const doc = document.getElementById('dailyIssueFrame').contentDocument;
+    if (doc && doc.documentElement) doc.documentElement.setAttribute('data-theme', next ? 'dark' : 'light');
+  } catch (e) {}
   document.querySelectorAll('.theme-toggle').forEach(btn => btn.setAttribute('aria-pressed', String(next)));
 }
 document.querySelectorAll('.theme-toggle').forEach(btn => {
@@ -1561,13 +1630,24 @@ function switchTab(tab) {
   document.getElementById('statsView').style.display = tab === 'stats' ? '' : 'none';
   document.getElementById('pulseView').style.display = tab === 'pulse' ? '' : 'none';
   document.getElementById('taxonomyView').style.display = tab === 'taxonomy' ? '' : 'none';
+  document.getElementById('dailyIssueView').style.display = tab === 'dailyissue' ? '' : 'none';
   document.getElementById('navBtn-tickets').classList.toggle('active', tab === 'tickets');
   document.getElementById('navBtn-stats').classList.toggle('active', tab === 'stats');
   document.getElementById('navBtn-pulse').classList.toggle('active', tab === 'pulse');
   document.getElementById('navBtn-taxonomy').classList.toggle('active', tab === 'taxonomy');
-  // The taxonomy editor wants every column visible at once - break out of
-  // the 900px reading-width column the other tabs use.
-  document.querySelector('.wrap').classList.toggle('wrap-full', tab === 'taxonomy');
+  document.getElementById('navBtn-dailyissue').classList.toggle('active', tab === 'dailyissue');
+  // Tickets keeps the 900px reading column; dashboards widen with the
+  // available room; the taxonomy editor and the embedded Daily Issue Check
+  // page take the whole width.
+  const wrap = document.querySelector('.wrap');
+  wrap.classList.toggle('wrap-full', tab === 'taxonomy' || tab === 'dailyissue');
+  wrap.classList.toggle('wrap-wide', tab === 'pulse' || tab === 'stats');
+  document.querySelector('.main-content').classList.toggle('main-flush', tab === 'dailyissue');
+  if (tab === 'dailyissue') {
+    // Loaded on first visit only - it pulls every ticket from the database.
+    const frame = document.getElementById('dailyIssueFrame');
+    if (!frame.getAttribute('src')) frame.setAttribute('src', '/daily-issue-check');
+  }
   if (tab === 'stats' && !insightLoadedOnce) {
     insightLoadedOnce = true;
     insightBoot();
@@ -2109,7 +2189,6 @@ async function classifyPendingNow() {
 }
 
 loadTaxonomy();
-loadZohoStatus();
 loadPendingCount();
 insightInitToggle();
 insightInitPersonTable();

@@ -78,6 +78,10 @@ FEWSHOT_K = int(_env("FEWSHOT_K", "5"))
 # `similarity` values retrieve_similar() returns for known-good vs.
 # known-bad matches once enough correction history exists.
 FEWSHOT_MIN_SIMILARITY = float(_env("FEWSHOT_MIN_SIMILARITY", "0.15"))
+# Model behind the Daily Issue Check tab's summaries / grouping / questions
+# (app/daily_issue.py) - separate from classification so either can change
+# without the other.
+DAILY_ISSUE_MODEL = _env("OPENROUTER_DAILY_ISSUE_MODEL", "openai/gpt-4o-mini")
 # Extra few-shot examples pulled from the reporter's own subcategory (and
 # its siblings) when the Zoho form came with one - see memory.retrieve_
 # similar's also_from_categories.

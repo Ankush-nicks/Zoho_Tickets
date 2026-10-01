@@ -37,3 +37,8 @@ skills-lock.json
 # Per-POC extension config files contain a real, live auth token once filled
 # in by the operator - only the *.example.js template is tracked
 extensions/*/config.js
+
+# Standalone original of the Daily Issue Check page - embeds a full ticket
+# export (PII). The app serves app/static/daily-issue-check.html instead,
+# which loads tickets from the database.
+/daily-issue-check.html

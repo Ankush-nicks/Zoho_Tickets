@@ -162,6 +162,20 @@ first and writes only after you confirm.
   shown, so the live webhook isn't blocked. If an import is interrupted,
   re-upload the same file: it only writes what's missing, never duplicates.
 
+### Daily Issue Check tab
+
+Drill down tickets by category → subcategory → AI-made groups, spot problem
+patterns, and run a daily check of new tickets against known problems.
+`app/static/daily-issue-check.html` is shown in a frame inside the app and
+loads every Zoho ticket from the database (`GET /api/daily-issue/tickets`).
+Its AI features (summarise, split into groups, spot new issues, ask a
+question, describe issues, sort new tickets) call OpenRouter through the
+server (`/api/daily-issue/ai/text` streamed, `/api/daily-issue/ai/json`),
+with the model set by `OPENROUTER_DAILY_ISSUE_MODEL` (default
+`openai/gpt-4o-mini`). They only run when someone clicks them. Groups,
+remarks and descriptions you make are saved in your browser, not the
+database.
+
 ## Key config (`.env`)
 
 | Var | Default | Effect |

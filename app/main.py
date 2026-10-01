@@ -1,6 +1,8 @@
 import asyncio
 import csv
+import gzip
 import io
+import json
 import secrets
 import threading
 import time
@@ -12,11 +14,11 @@ import logging
 from fastapi import Depends, FastAPI, File, Header, HTTPException, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response, StreamingResponse
 from openai import RateLimitError
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import auth, config, db, memory, classifier, quality_scorer, poc_queue, zoho_csv
+from . import auth, config, db, memory, classifier, quality_scorer, poc_queue, zoho_csv, daily_issue
 from .taxonomy import taxonomy
 from .auth import require_login
 from .models import (
@@ -138,6 +140,49 @@ def index(request: Request):
     if not request.session.get("user"):
         return RedirectResponse("/login")
     return FileResponse(str(STATIC_DIR / "index.html"))
+
+
+@app.get("/daily-issue-check")
+def daily_issue_page(request: Request):
+    """The Daily Issue Check tab's page - shown in an iframe inside the main
+    app, so its own styles can't collide with index.html's."""
+    if not request.session.get("user"):
+        return RedirectResponse("/login")
+    return FileResponse(str(STATIC_DIR / "daily-issue-check.html"))
+
+
+@app.get("/api/daily-issue/tickets")
+def daily_issue_tickets(request: Request, user: str = Depends(require_login)):
+    """Every Zoho ticket in the Daily Issue Check page's row shape (see
+    app/daily_issue.py). Several MB as JSON, so gzipped when the browser
+    accepts it."""
+    body = json.dumps({
+        "rows": daily_issue.build_rows(db.list_all_tickets()),
+        "ai": daily_issue.ai_enabled(),
+        "model": config.DAILY_ISSUE_MODEL,
+    }, separators=(",", ":")).encode("utf-8")
+    headers = {"Cache-Control": "no-store"}
+    if "gzip" in request.headers.get("accept-encoding", ""):
+        body = gzip.compress(body, compresslevel=5)
+        headers["Content-Encoding"] = "gzip"
+        headers["Vary"] = "Accept-Encoding"
+    return Response(content=body, media_type="application/json", headers=headers)
+
+
+@app.post("/api/daily-issue/ai/text")
+def daily_issue_ai_text(payload: dict, user: str = Depends(require_login)):
+    """Streamed plain-text answer (summaries, new-issue spotting, questions)."""
+    return StreamingResponse(
+        daily_issue.stream_text(payload.get("prompt")),
+        media_type="text/plain; charset=utf-8",
+        headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
+    )
+
+
+@app.post("/api/daily-issue/ai/json")
+def daily_issue_ai_json(payload: dict, user: str = Depends(require_login)):
+    """JSON-mode answer (defining groups, sorting tickets into them, issue descriptions)."""
+    return daily_issue.complete_json(payload.get("prompt"))
 
 
 @app.get("/login")
