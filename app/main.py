@@ -137,7 +137,7 @@ async def _settle_pending_csv_imports_at_startup():
 
 # Sidebar pages - all served by index(). Also the only places login will
 # send you back to, so ?next= can't be used as an open redirect.
-PAGE_PATHS = ("/tickets", "/pulse", "/stats", "/taxonomy", "/daily-issue")
+PAGE_PATHS = ("/daily", "/pulse", "/stats", "/taxonomy", "/daily-issue")
 
 
 def _login_redirect(next_path: str) -> RedirectResponse:
@@ -147,7 +147,7 @@ def _login_redirect(next_path: str) -> RedirectResponse:
 
 
 @app.get("/")
-@app.get("/tickets")
+@app.get("/daily")
 @app.get("/pulse")
 @app.get("/stats")
 @app.get("/taxonomy")
@@ -160,12 +160,19 @@ def index(request: Request):
     return FileResponse(str(STATIC_DIR / "index.html"))
 
 
+@app.get("/tickets")
+def old_tickets_page():
+    """The Tickets page was replaced by Daily check; keep old links working."""
+    return RedirectResponse("/daily")
+
+
 @app.get("/daily-issue-check")
 def daily_issue_page(request: Request):
     """The Daily Issue Check tab's page - shown in an iframe inside the main
-    app, so its own styles can't collide with index.html's."""
+    app, so its own styles can't collide with index.html's. With ?all=1 it is
+    the Daily check page (every category's daily check)."""
     if not request.session.get("user"):
-        return _login_redirect("/daily-issue")
+        return _login_redirect("/daily" if "all" in request.query_params else "/daily-issue")
     return FileResponse(str(STATIC_DIR / "daily-issue-check.html"))
 
 

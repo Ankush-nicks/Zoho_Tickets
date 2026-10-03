@@ -163,14 +163,14 @@
   .wrap.wrap-wide{ max-width:1440px; }
   .wrap.wrap-full{ max-width:none; }
 
-  /* Daily Issue Check: its own page in a full-height frame, edge to edge. */
+  /* Daily check and Daily Issue Check: their own page in a full-height frame, edge to edge. */
   .main-content.main-flush{ padding:0; }
   .main-content.main-flush .main-topbar,
   .main-content.main-flush #pendingBanner{ display:none !important; }
-  #dailyIssueFrame{ display:block; width:100%; height:100vh; height:100dvh; border:0; background:var(--bg); }
+  .page-frame{ display:block; width:100%; height:100vh; height:100dvh; border:0; background:var(--bg); }
   @media (max-width: 860px){
     .main-content.main-flush{ padding-top:64px; }
-    #dailyIssueFrame{ height:calc(100vh - 64px); height:calc(100dvh - 64px); }
+    .page-frame{ height:calc(100vh - 64px); height:calc(100dvh - 64px); }
   }
 
   .main-topbar{ display:flex; align-items:center; justify-content:flex-end; gap:10px; margin-bottom:24px; }
@@ -679,11 +679,11 @@
           </span>
           <span class="nav-label">Pulse</span>
         </a>
-        <a class="nav-item active" id="navBtn-tickets" href="/tickets" onclick="navClick(event, 'tickets')" title="Tickets">
+        <a class="nav-item active" id="navBtn-daily" href="/daily" onclick="navClick(event, 'daily')" title="Daily check">
           <span class="nav-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v3a2 2 0 0 1 0 4v3a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3a2 2 0 0 1 0-4V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2Z"/><path d="M13 5v2M13 17v2M13 11v2"/></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/></svg>
           </span>
-          <span class="nav-label">Tickets</span>
+          <span class="nav-label">Daily check</span>
         </a>
         <a class="nav-item" id="navBtn-stats" href="/stats" onclick="navClick(event, 'stats')" title="Stats">
           <span class="nav-icon">
@@ -727,25 +727,8 @@
         <button class="secondary" id="classifyNowBtn" onclick="classifyPendingNow()">Classify Now</button>
       </div>
 
-      <div id="ticketsView">
-
-      <div class="panel daily-bar">
-        <div class="left">
-          <button class="secondary day-nav-btn" onclick="shiftDate(-1)" title="Previous day">&lsaquo;</button>
-          <input type="date" id="dateInput" onchange="onDateChange()" />
-          <button class="secondary day-nav-btn" onclick="shiftDate(1)" title="Next day">&rsaquo;</button>
-          <button class="secondary" onclick="jumpToday()">Today</button>
-          <button class="secondary day-nav-btn" onclick="loadDailyTickets()" title="Refresh">&#8635;</button>
-          <a class="download-link" id="exportDayLink" href="/api/tickets/export.csv" download="tickets_day.csv">&darr; This Day CSV</a>
-        </div>
-        <div id="dailySummary" class="status-line"></div>
-      </div>
-
-      <div id="statusTagBar" class="status-tag-bar"></div>
-
-      <div id="log" class="log">
-        <div class="empty loader-block" role="status"><span class="loader-text">Loading today's tickets…</span></div>
-      </div>
+      <div id="dailyView" style="display:none;">
+        <iframe id="dailyFrame" class="page-frame" title="Daily check"></iframe>
       </div>
 
       <div id="statsView" style="display:none;">
@@ -970,7 +953,7 @@
       </div>
 
       <div id="dailyIssueView" style="display:none;">
-        <iframe id="dailyIssueFrame" title="Daily Issue Check"></iframe>
+        <iframe id="dailyIssueFrame" class="page-frame" title="Daily Issue Check"></iframe>
       </div>
 
       <div id="taxonomyView" style="display:none;">
@@ -1020,7 +1003,6 @@
 <script>
 let groups = [];
 let leafMap = {}; // subcategory id -> { name, groupId, groupName }
-const log = document.getElementById('log');
 
 // Login page URL that returns to the current page once signed back in
 // (used when a session expires mid-use; logging out on purpose doesn't).
@@ -1127,233 +1109,8 @@ try { if (localStorage.getItem('sidebarCollapsed')) toggleSidebarCollapsed(true)
   apply();
 })();
 
-function confBand(c) {
-  if (c === null || c === undefined) return { color: 'var(--muted)', segs: 0 };
-  if (c < 0.4) return { color: 'var(--coral)', segs: Math.max(1, Math.round(c * 5)) };
-  if (c < 0.65) return { color: 'var(--amber)', segs: Math.round(c * 5) };
-  return { color: 'var(--accent)', segs: Math.round(c * 5) };
-}
-
 function categoryName(id) {
   return leafMap[id] ? leafMap[id].name : id;
-}
-
-function renderMeter(confidence) {
-  const band = confBand(confidence);
-  let segs = '';
-  for (let i = 0; i < 5; i++) {
-    segs += `<i class="${i < band.segs ? 'on' : ''}" style="--seg-color:${band.color}"></i>`;
-  }
-  return `<div class="meter">${segs}</div><div class="conf-label">confidence ${confidence !== null && confidence !== undefined ? confidence.toFixed(2) : '—'}</div>`;
-}
-
-function statusLabel(status) {
-  return {
-    classified: 'Routed',
-    awaiting_clarification: 'Awaiting clarification',
-    needs_human_review: 'Needs human review',
-    corrected: 'Corrected',
-  }[status] || status;
-}
-
-function categoryOptionsGrouped(selectedId) {
-  return groups.map(g => {
-    const opts = (g.subcategories || []).map(s =>
-      `<option value="${s.id}" ${s.id === selectedId ? 'selected' : ''}>${esc(s.name)}</option>`
-    ).join('');
-    return `<optgroup label="${esc(g.name)}">${opts}</optgroup>`;
-  }).join('');
-}
-
-function clarifyHTML(state) {
-  return `
-    <div class="clarify">
-      <div class="q">${esc(state.clarifying_question || 'Could you provide more detail?')}</div>
-      <input type="text" placeholder="Your answer..." />
-      <button onclick="respond('${state.ticket_id}', this)">Send answer</button>
-    </div>
-  `;
-}
-
-function correctionHTML(state) {
-  return `
-    <div class="correction">
-      <label class="field-label">Not right? Correct it</label>
-      <select>${categoryOptionsGrouped(state.category_id)}</select>
-      <button class="secondary" onclick="correct('${state.ticket_id}', this)">Submit correction</button>
-    </div>
-  `;
-}
-
-function zohoCardHTML(state) {
-  const band = confBand(state.confidence);
-  const showClarify = state.status === 'awaiting_clarification';
-  const canCorrect = state.status === 'classified' || state.status === 'needs_human_review';
-
-  const threadHTML = (state.conversation || []).map(t =>
-    `<div class="qa">${t.role === 'system_question' ? '→ ' : '↳ '}${esc(t.content)}</div>`
-  ).join('');
-
-  return `
-    <div class="ticket-id-line">Ticket ID: <span class="mono">${esc(state.zoho_ticket_id)}</span> &middot; ${statusLabel(state.status)}</div>
-
-    ${state.category_id ? `
-      <div class="field-label">Category</div>
-      <div class="category-value">${esc(state.category_group_name || '—')}</div>
-      <div class="field-label" style="margin-top:12px;">Sub-category</div>
-      <span class="badge"><span class="swatch" style="background:${band.color}"></span>${esc(state.category_name || state.category_id)}</span>
-      ${renderMeter(state.confidence)}
-      ${state.reasoning ? `<div class="reasoning">${esc(state.reasoning)}</div>` : ''}
-      ${(state.assigned_team || state.poc_primary) ? `
-        <div class="routing">
-          ${state.assigned_team ? `<div><b>Team</b>${esc(state.assigned_team)}</div>` : ''}
-          ${state.poc_primary ? `<div><b>POC</b>${esc(state.poc_primary)}</div>` : ''}
-        </div>
-      ` : ''}
-    ` : '<div class="reasoning">Not yet classified.</div>'}
-    ${zohoAgreementHTML(state)}
-    ${resolutionQualityHTML(state)}
-    ${threadHTML ? `<div class="thread">${threadHTML}</div>` : ''}
-    ${showClarify ? clarifyHTML(state) : ''}
-    ${canCorrect ? correctionHTML(state) : ''}
-
-    <div class="ticket-details">
-      <button class="details-toggle" onclick="toggleDetails('${state.ticket_id}', this)">
-        <span class="chevron">&#9656;</span> Ticket Details (${ticketDetailsFieldCount(state)})
-      </button>
-      <div class="details-body" id="details-${state.ticket_id}" style="display:none;">
-        ${ticketDetailsHTML(state)}
-      </div>
-    </div>
-  `;
-}
-
-function toggleDetails(ticketId, btnEl) {
-  const body = document.getElementById('details-' + ticketId);
-  const isOpen = body.style.display !== 'none';
-  body.style.display = isOpen ? 'none' : 'block';
-  btnEl.classList.toggle('open', !isOpen);
-}
-
-// Walks the raw Zoho payload at any depth/shape into a flat list of
-// [path, value] pairs so every field that came in is visible, regardless
-// of how it's nested - same approach the old zoho-debug page used.
-function flattenObj(node, path, out) {
-  if (node !== null && typeof node === 'object' && !Array.isArray(node)) {
-    const keys = Object.keys(node);
-    if (keys.length === 0) out.push([path || '(root)', '{}']);
-    for (const k of keys) flattenObj(node[k], path ? `${path}.${k}` : k, out);
-  } else if (Array.isArray(node)) {
-    if (node.length === 0) out.push([path || '(root)', '[]']);
-    node.forEach((item, i) => flattenObj(item, `${path}[${i}]`, out));
-  } else {
-    out.push([path || '(root)', node]);
-  }
-  return out;
-}
-
-function fieldLabelFromKey(key) {
-  return key.replace(/\[\d+\]/g, '').split(/[._]/).filter(Boolean)
-    .map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-}
-
-function ticketDetailsFieldCount(state) {
-  return state.raw_payload ? flattenObj(state.raw_payload, '', []).length : 1;
-}
-
-function ticketDetailsHTML(state) {
-  if (!state.raw_payload) {
-    return `<table class="fields"><tr><th>Issue In Detail</th><td>${esc(state.issue_in_detail || '—')}</td></tr></table>`;
-  }
-  const rows = flattenObj(state.raw_payload, '', []).map(([k, v]) =>
-    `<tr><th>${esc(fieldLabelFromKey(k))}</th><td>${esc(v)}</td></tr>`
-  ).join('');
-  return `<table class="fields">${rows}</table>`;
-}
-
-function zohoAgreementHTML(state) {
-  const zohoTag = state.zoho_subcategory || state.zoho_category;
-  if (!zohoTag) return '';
-  if (state.zoho_agrees === null || state.zoho_agrees === undefined) return '';
-  const color = state.zoho_agrees ? 'var(--accent)' : 'var(--coral)';
-  const label = state.zoho_agrees ? 'matches Zoho tag' : 'differs from Zoho tag';
-  return `
-    <div class="routing" style="margin-top:8px;">
-      <div><b>Zoho tag</b>${esc(zohoTag)}</div>
-      <div><b>Agreement</b><span class="badge"><span class="swatch" style="background:${color}"></span>${label}</span></div>
-    </div>
-  `;
-}
-
-// Resolution Quality-Check score (app/quality_scorer.py) for a closed,
-// graded ticket - blank for anything not yet closed/graded, so this is a
-// no-op on most open tickets.
-function resolutionQualityHTML(state) {
-  if (!state.resolution_scored_at) return '';
-  const score = state.resolution_score;
-  const color = score >= 7 ? 'var(--accent)' : score >= 5 ? 'var(--amber)' : 'var(--coral)';
-  const criteria = [
-    ['Ack', state.resolution_ack, 2],
-    ['Investigation', state.resolution_investigation, 1.5],
-    ['Root Cause', state.resolution_root_cause, 2.5],
-    ['SLA', state.resolution_sla, 2],
-    ['Resolution', state.resolution_detail, 2],
-  ];
-  return `
-    <div class="resolution-quality">
-      <div class="rq-header">
-        <span class="field-label" style="margin:0;">Resolution Quality</span>
-        <span class="badge"><span class="swatch" style="background:${color}"></span>${score.toFixed(1)} / 10</span>
-      </div>
-      <div class="rq-criteria">${criteria.map(([label, v, max]) => `<span class="rq-chip">${label} ${v.toFixed(1)}/${max}</span>`).join('')}</div>
-      ${state.resolution_evidence ? `<div class="reasoning">${esc(state.resolution_evidence)}</div>` : ''}
-    </div>
-  `;
-}
-
-function cardHTML(state) {
-  if (state.zoho_ticket_id) return zohoCardHTML(state);
-
-  const band = confBand(state.confidence);
-  const showClarify = state.status === 'awaiting_clarification';
-  const canCorrect = state.status === 'classified' || state.status === 'needs_human_review';
-
-  const threadHTML = (state.conversation || []).map(t =>
-    `<div class="qa">${t.role === 'system_question' ? '→ ' : '↳ '}${esc(t.content)}</div>`
-  ).join('');
-
-  return `
-    <div class="ticket-id">#${state.ticket_id} · ${statusLabel(state.status)}</div>
-    <div class="ticket-text" data-original></div>
-    ${state.category_id ? `
-      ${state.category_group_name ? `<div class="group-label">${esc(state.category_group_name)}</div>` : ''}
-      <span class="badge"><span class="swatch" style="background:${band.color}"></span>${esc(state.category_name || state.category_id)}</span>
-      ${renderMeter(state.confidence)}
-      ${state.reasoning ? `<div class="reasoning">${esc(state.reasoning)}</div>` : ''}
-      ${(state.assigned_team || state.poc_primary) ? `
-        <div class="routing">
-          ${state.assigned_team ? `<div><b>Team</b>${esc(state.assigned_team)}</div>` : ''}
-          ${state.poc_primary ? `<div><b>POC</b>${esc(state.poc_primary)}</div>` : ''}
-        </div>
-      ` : ''}
-    ` : ''}
-    ${resolutionQualityHTML(state)}
-    ${threadHTML ? `<div class="thread">${threadHTML}</div>` : ''}
-    ${showClarify ? `
-      <div class="clarify">
-        <div class="q">${esc(state.clarifying_question || 'Could you provide more detail?')}</div>
-        <input type="text" placeholder="Your answer..." />
-        <button onclick="respond('${state.ticket_id}', this)">Send answer</button>
-      </div>
-    ` : ''}
-    ${canCorrect ? `
-      <div class="correction">
-        <label class="field-label">Not right? Correct it</label>
-        <select>${categoryOptionsGrouped(state.category_id)}</select>
-        <button class="secondary" onclick="correct('${state.ticket_id}', this)">Submit correction</button>
-      </div>
-    ` : ''}
-  `;
 }
 
 function esc(s) {
@@ -1363,155 +1120,6 @@ function esc(s) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
-}
-
-function upsertCard(state) {
-  let el = document.getElementById('card-' + state.ticket_id);
-  if (!el) {
-    if (log.querySelector('.empty')) log.innerHTML = '';
-    el = document.createElement('div');
-    el.className = 'card';
-    el.id = 'card-' + state.ticket_id;
-    log.prepend(el);
-  }
-  el.innerHTML = cardHTML(state);
-}
-
-function showInlineError(btnEl, message) {
-  let errEl = btnEl.nextElementSibling;
-  if (!errEl || !errEl.classList.contains('inline-error')) {
-    errEl = document.createElement('span');
-    errEl.className = 'inline-error status-line';
-    errEl.style.color = 'var(--coral)';
-    errEl.style.marginLeft = '8px';
-    btnEl.insertAdjacentElement('afterend', errEl);
-  }
-  errEl.innerText = message;
-  setTimeout(() => { errEl.innerText = ''; }, 5000);
-}
-
-async function respond(ticketId, btnEl) {
-  const wrap = btnEl.closest('.clarify');
-  const input = wrap.querySelector('input');
-  const answer = input.value.trim();
-  if (!answer) return;
-  btnEl.disabled = true;
-  try {
-    const res = await fetch(`/api/tickets/${ticketId}/respond`, {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ answer })
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new Error(body.detail || `request failed (${res.status})`);
-    }
-    const state = await res.json();
-    upsertCard(state);
-  } catch (e) {
-    showInlineError(btnEl, e.message);
-    console.error(e);
-    btnEl.disabled = false;
-  }
-}
-
-async function correct(ticketId, btnEl) {
-  const wrap = btnEl.closest('.correction');
-  const select = wrap.querySelector('select');
-  btnEl.disabled = true;
-  try {
-    const res = await fetch(`/api/tickets/${ticketId}/correct`, {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ corrected_category_id: select.value, corrected_by: 'ui-operator' })
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new Error(body.detail || `request failed (${res.status})`);
-    }
-    const state = await res.json();
-    upsertCard(state);
-  } catch (e) {
-    showInlineError(btnEl, e.message);
-    console.error(e);
-    btnEl.disabled = false;
-  }
-}
-
-let currentDate = todayStr(); // YYYY-MM-DD (UTC calendar day)
-
-function todayStr() {
-  return new Date().toISOString().slice(0, 10); // UTC, matches the server's day bucketing
-}
-
-function addDaysUTC(dateStr, deltaDays) {
-  const [y, m, d] = dateStr.split('-').map(Number);
-  const dt = new Date(Date.UTC(y, m - 1, d));
-  dt.setUTCDate(dt.getUTCDate() + deltaDays);
-  return dt.toISOString().slice(0, 10);
-}
-
-function shiftDate(deltaDays) {
-  document.getElementById('dateInput').value = addDaysUTC(currentDate, deltaDays);
-  loadDailyTickets();
-}
-
-function jumpToday() {
-  document.getElementById('dateInput').value = todayStr();
-  loadDailyTickets();
-}
-
-let currentDayTickets = [];
-let activeStatusTag = 'all';
-let statusTagKeys = [];
-
-// Zoho's own workflow status (ticket_status in raw_payload) - separate
-// from this app's classification status. null when unset/not a Zoho ticket.
-function ticketZohoStatus(t) {
-  const v = t.raw_payload && t.raw_payload.ticket_status;
-  return v ? String(v).trim() : null;
-}
-
-function renderStatusTagBar() {
-  const bar = document.getElementById('statusTagBar');
-  if (!currentDayTickets.length) { bar.innerHTML = ''; return; }
-
-  const counts = {};
-  currentDayTickets.forEach(t => {
-    const s = ticketZohoStatus(t) || '(not set)';
-    counts[s] = (counts[s] || 0) + 1;
-  });
-  statusTagKeys = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
-
-  let html = `<button class="status-tag ${activeStatusTag === 'all' ? 'active' : ''}" onclick="setStatusTag('all')">All (${currentDayTickets.length})</button>`;
-  // index-based onclick, not the raw tag text - ticket_status comes from
-  // Zoho and shouldn't be interpolated directly into an inline JS string.
-  statusTagKeys.forEach((tag, i) => {
-    html += `<button class="status-tag ${activeStatusTag === tag ? 'active' : ''}" onclick="setStatusTagByIndex(${i})">${esc(tag)} (${counts[tag]})</button>`;
-  });
-  bar.innerHTML = html;
-}
-
-function setStatusTagByIndex(i) {
-  setStatusTag(statusTagKeys[i]);
-}
-
-function setStatusTag(tag) {
-  activeStatusTag = tag;
-  renderStatusTagBar();
-  renderFilteredTickets();
-}
-
-function renderFilteredTickets() {
-  const filtered = activeStatusTag === 'all'
-    ? currentDayTickets
-    : currentDayTickets.filter(t => (ticketZohoStatus(t) || '(not set)') === activeStatusTag);
-  log.innerHTML = '';
-  if (!filtered.length) {
-    log.innerHTML = `<div class="empty">${currentDayTickets.length ? 'No tickets match this filter.' : 'No tickets for this day yet.'}</div>`;
-  } else {
-    // newest-first, but upsertCard always prepends - reverse so the
-    // on-screen order still ends up newest-first after each prepend.
-    [...filtered].reverse().forEach(state => upsertCard(state));
-  }
 }
 
 // ---- Loading indicator (hamster from /static/loader.css) ----
@@ -1525,44 +1133,6 @@ function insertLoader(root = document) {
   });
 }
 
-// showLoader=false for background refreshes, so the list doesn't blank out.
-async function loadDailyTickets(showLoader = true) {
-  const input = document.getElementById('dateInput');
-  currentDate = input.value || todayStr();
-  input.value = currentDate;
-  document.getElementById('exportDayLink').href = `/api/tickets/export.csv?date=${encodeURIComponent(currentDate)}`;
-  document.getElementById('exportDayLink').download = `tickets_${currentDate}.csv`;
-  const summary = document.getElementById('dailySummary');
-  summary.innerText = ''; // the hamster in the list shows it's loading
-  if (showLoader) {
-    log.innerHTML = '<div class="empty loader-block" role="status"><span class="loader-text">Loading tickets…</span></div>';
-    insertLoader(log);
-  }
-  try {
-    const res = await fetch(`/api/tickets?date=${encodeURIComponent(currentDate)}`);
-    if (!res.ok) throw new Error(`failed (${res.status})`);
-    currentDayTickets = await res.json();
-    activeStatusTag = 'all';
-    renderStatusTagBar();
-    renderFilteredTickets();
-
-    const needReview = currentDayTickets.filter(t => t.status === 'needs_human_review').length;
-    const comparable = currentDayTickets.filter(t => t.zoho_agrees !== null && t.zoho_agrees !== undefined);
-    const agree = comparable.filter(t => t.zoho_agrees).length;
-    summary.innerText = `${currentDayTickets.length} ticket${currentDayTickets.length === 1 ? '' : 's'}` +
-      (needReview ? ` · ${needReview} need review` : '') +
-      (comparable.length ? ` · ${agree}/${comparable.length} match Zoho tag` : '');
-  } catch (e) {
-    summary.innerText = 'failed to load tickets';
-    if (log.querySelector('.loader-block')) log.innerHTML = `<div class="empty">Couldn't load tickets.</div>`;
-    console.error(e);
-  }
-}
-
-function onDateChange() {
-  loadDailyTickets();
-}
-
 let insightLoadedOnce = false;
 
 // ---- Pages: each sidebar tab has its own URL (served by app/main.py as
@@ -1570,7 +1140,7 @@ let insightLoadedOnce = false;
 // back/forward move between them. The sidebar stays the one header. ----
 const PAGES = {
   pulse:      { path: '/pulse',       title: 'Pulse' },
-  tickets:    { path: '/tickets',     title: 'Tickets' },
+  daily:      { path: '/daily',       title: 'Daily check' },
   stats:      { path: '/stats',       title: 'Stats' },
   taxonomy:   { path: '/taxonomy',    title: 'Taxonomy' },
   dailyissue: { path: '/daily-issue', title: 'Daily Issue Check' },
@@ -1578,7 +1148,7 @@ const PAGES = {
 
 function tabFromPath(pathname) {
   const path = pathname.replace(/\/+$/, '') || '/';
-  return Object.keys(PAGES).find(t => PAGES[t].path === path) || 'tickets';
+  return Object.keys(PAGES).find(t => PAGES[t].path === path) || 'daily';
 }
 
 // Plain clicks swap the page in place; ctrl/cmd/shift/middle clicks fall
@@ -1600,27 +1170,28 @@ function switchTab(tab) {
     if (t === tab) link.setAttribute('aria-current', 'page');
     else link.removeAttribute('aria-current');
   });
-  document.getElementById('ticketsView').style.display = tab === 'tickets' ? '' : 'none';
+  document.getElementById('dailyView').style.display = tab === 'daily' ? '' : 'none';
   document.getElementById('statsView').style.display = tab === 'stats' ? '' : 'none';
   document.getElementById('pulseView').style.display = tab === 'pulse' ? '' : 'none';
   document.getElementById('taxonomyView').style.display = tab === 'taxonomy' ? '' : 'none';
   document.getElementById('dailyIssueView').style.display = tab === 'dailyissue' ? '' : 'none';
-  document.getElementById('navBtn-tickets').classList.toggle('active', tab === 'tickets');
+  document.getElementById('navBtn-daily').classList.toggle('active', tab === 'daily');
   document.getElementById('navBtn-stats').classList.toggle('active', tab === 'stats');
   document.getElementById('navBtn-pulse').classList.toggle('active', tab === 'pulse');
   document.getElementById('navBtn-taxonomy').classList.toggle('active', tab === 'taxonomy');
   document.getElementById('navBtn-dailyissue').classList.toggle('active', tab === 'dailyissue');
-  // Tickets keeps the 900px reading column; dashboards widen with the
-  // available room; the taxonomy editor and the embedded Daily Issue Check
-  // page take the whole width.
+  // Dashboards widen with the available room; the taxonomy editor and the
+  // embedded pages (Daily check, Daily Issue Check) take the whole width.
+  const framed = tab === 'daily' || tab === 'dailyissue';
   const wrap = document.querySelector('.wrap');
-  wrap.classList.toggle('wrap-full', tab === 'taxonomy' || tab === 'dailyissue');
+  wrap.classList.toggle('wrap-full', tab === 'taxonomy' || framed);
   wrap.classList.toggle('wrap-wide', tab === 'pulse' || tab === 'stats');
-  document.querySelector('.main-content').classList.toggle('main-flush', tab === 'dailyissue');
-  if (tab === 'dailyissue') {
+  document.querySelector('.main-content').classList.toggle('main-flush', framed);
+  if (framed) {
     // Loaded on first visit only - it pulls every ticket from the database.
-    const frame = document.getElementById('dailyIssueFrame');
-    if (!frame.getAttribute('src')) frame.setAttribute('src', '/daily-issue-check');
+    // Daily check is Daily Issue Check's daily view for every category.
+    const frame = document.getElementById(tab === 'daily' ? 'dailyFrame' : 'dailyIssueFrame');
+    if (!frame.getAttribute('src')) frame.setAttribute('src', tab === 'daily' ? '/daily-issue-check?all=1' : '/daily-issue-check');
   }
   if (tab === 'stats' && !insightLoadedOnce) {
     insightLoadedOnce = true;
@@ -2151,8 +1722,6 @@ async function classifyPendingNow() {
     if (data.remaining) msg += `, ${data.remaining} still pending`;
     if (data.stopped_early) msg += ' - stopped early (rate limited), will retry automatically';
     text.innerText = msg;
-    // refresh whatever's currently visible so newly-classified tickets show up
-    loadDailyTickets(false);
     if (insightLoadedOnce) insightBoot();
   } catch (e) {
     text.innerText = e.message;
@@ -2167,8 +1736,6 @@ loadTaxonomy();
 loadPendingCount();
 insightInitToggle();
 insightInitPersonTable();
-document.getElementById('dateInput').value = currentDate;
-loadDailyTickets();
 
 // ============================================================
 // Pulse tab - analytics dashboard, loaded lazily on first visit.
@@ -3508,6 +3075,8 @@ async function taxoBoot() {
 }
 
 // Open the page the URL names. Last, so every tab's state above exists.
+// The old /tickets address now opens Daily check.
+if (location.pathname.replace(/\/+$/, '') === '/tickets') history.replaceState(null, '', '/daily');
 switchTab(tabFromPath(location.pathname));
 </script>
 </body>

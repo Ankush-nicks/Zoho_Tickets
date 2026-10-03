@@ -29,6 +29,12 @@ button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .app{display:grid;grid-template-columns:330px minmax(0,1fr);min-height:100vh}
+/* ?all=1 - the portal's Daily check page: every category, daily check only */
+.allcats .app{grid-template-columns:minmax(0,1fr)}
+.allcats .rail,.allcats .viewtabs{display:none !important}
+.dccat{display:flex;flex-direction:column;gap:12px}
+.dccat>h2{font-family:var(--f-display);font-size:20px;margin:8px 0 0}
+.dccat>h2 .hint{font-family:var(--f-body);font-size:13px;font-weight:400}
 /* rail */
 .rail{background:#FBF7F3;border-right:1px solid var(--line);padding:18px 14px;display:flex;flex-direction:column;gap:14px;position:sticky;top:env(safe-area-inset-top,0px);height:100vh;overflow:auto}
 .brand{font-family:var(--f-display);font-weight:700;font-size:18px;letter-spacing:-.01em}
@@ -518,6 +524,11 @@ tr.x td{background:var(--bg);font-size:14px}
 (async () => {
 "use strict";
 const $ = s => document.querySelector(s);
+// /daily-issue-check?all=1 is the portal's Daily check page: the daily check
+// for every category at once, with no browse rail or other views.
+const ALLMODE = new URLSearchParams(location.search).has("all");
+document.documentElement.classList.toggle("allcats", ALLMODE);
+const LOGIN_URL = `/login?next=${ALLMODE ? "/daily" : "/daily-issue"}`;
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fmtN = n => n.toLocaleString("en-IN");
 const DEFAULT_CAT = "Instructor Platform (Teach OS)";
@@ -558,7 +569,7 @@ async function flushSave(){
   saving = (async () => {
     try {
       const res = await fetch(STATE_URL, {method: "PUT", headers: {"Content-Type": "application/json"}, body: JSON.stringify({value: tree, version: treeVersion})});
-      if (res.status === 401) { window.top.location = "/login?next=/daily-issue"; return; }
+      if (res.status === 401) { window.top.location = LOGIN_URL; return; }
       const d = await res.json().catch(() => ({}));
       if (res.status === 409) { saveAgain = false; adoptServerTree(d, `${d.updated_by || "Someone else"} changed the groups just now. Showing their latest version: redo your last change if it’s missing.`); return; }
       if (!res.ok) throw new Error(typeof d.detail === "string" ? d.detail : `HTTP ${res.status}`);
@@ -576,7 +587,7 @@ function adoptServerTree(d, msg){
 }
 async function loadSharedTree(){
   const res = await fetch(STATE_URL, {cache: "no-store"});
-  if (res.status === 401) { window.top.location = "/login?next=/daily-issue"; throw new Error("not logged in"); }
+  if (res.status === 401) { window.top.location = LOGIN_URL; throw new Error("not logged in"); }
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const d = await res.json();
   if (d.value && d.value.nodes) { tree = d.value; treeVersion = d.version; return false; }
@@ -919,7 +930,7 @@ async function aiFetch(path, prompt, signal){
   let res;
   try { res = await fetch(path, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({prompt}), signal}); }
   catch (e) { throw {code: e?.name === "AbortError" ? "cancelled" : "network"}; }
-  if (res.status === 401) { window.top.location = "/login?next=/daily-issue"; throw {code: "session_expired"}; }
+  if (res.status === 401) { window.top.location = LOGIN_URL; throw {code: "session_expired"}; }
   if (!res.ok) { const d = await res.json().catch(() => ({})); throw {code: d?.detail?.code || "error"}; }
   return res;
 }
@@ -1194,7 +1205,7 @@ let pOpen = null, lastP = null;
 const dayLbl = (d, o = {day:"numeric", month:"short"}) => new Date(d+"T00:00:00").toLocaleDateString("en-IN", o);
 
 function setView(v){
-  view = v; try { localStorage.setItem(STORE_KEY+"-view", v); } catch(e) {}
+  view = v; if (!ALLMODE) try { localStorage.setItem(STORE_KEY+"-view", v); } catch(e) {}
   document.querySelectorAll("[data-view]").forEach(b => { b.classList.toggle("on", b.dataset.view === v); b.setAttribute("aria-selected", String(b.dataset.view === v)); });
   $("#drillHead").hidden = $("#drillView").hidden = v !== "drill";
   $("#patHead").hidden = $("#patView").hidden = v !== "pat";
@@ -1389,7 +1400,10 @@ const fmtDur = h => h == null ? "—" : h < 1 ? "<1 h" : h < 48 ? `${Math.round(
 const median = a => { if (!a.length) return null; const s = [...a].sort((x,y) => x-y); return s[Math.floor(s.length/2)]; };
 const fmtEta = d => d == null ? "no fixes yet" : d < 1 ? "under a day" : d < 60 ? `~${Math.round(d)} days` : `~${(d/30).toFixed(d < 300 ? 1 : 0)} months`;
 function withRange(r, fn){ const saved = range; range = {preset:"custom", ...r}; try { return fn(); } finally { range = saved; } }
-const latestDay = () => T.filter(t => t.cat === cat).reduce((m,t) => t.dt > m ? t.dt : m, "").slice(0,10);
+const latestDay = () => T.filter(t => ALLMODE || t.cat === cat).reduce((m,t) => t.dt > m ? t.dt : m, "").slice(0,10);
+// Run fn with `cat` switched to c (the daily check is computed per category).
+function withCat(c, fn){ const saved = cat; cat = c; try { return fn(); } finally { cat = saved; } }
+const allCats = () => [...new Set(T.map(t => t.cat))];
 const isOpen = t => OPEN.has(t.st) || WAIT.has(t.st);
 const loadSub = (k, d) => { try { const v = JSON.parse(localStorage.getItem(STORE_KEY + "-" + k) || "null"); if (v && v.preset) return v; } catch(e) {} return d; };
 let patSub = loadSub("patsub", {preset:"all", from:"", to:""});
@@ -1423,7 +1437,7 @@ function renderSubBar(kind){
   const empty = w.from && w.to && w.from > w.to;
   bar.innerHTML = `<div class="tabs">${SUBS[kind].map(([k, l]) => `<button data-sub="${kind}:${k}" class="${s.preset === k ? "on" : ""}">${esc(k === "latest" ? `${l} (${dayLbl(latestDay())})` : l)}</button>`).join("")}</div>
     <div class="cust"><label for="${kind}From">From</label><input type="date" id="${kind}From" value="${esc(s.preset === "custom" ? s.from : w.from)}"><label for="${kind}To">to</label><input type="date" id="${kind}To" value="${esc(s.preset === "custom" ? s.to : w.to)}"></div>
-    <div class="rl">${empty ? `<b style="color:var(--bad)">Outside the drilldown period</b>` : `Showing <b>${esc(winLabel(w))}</b>`} · Drilldown period: <b>${esc(rangeLabel())}</b> <button class="lnk" data-view="drill">change</button></div>`;
+    <div class="rl">${empty ? `<b style="color:var(--bad)">Outside the drilldown period</b>` : `Showing <b>${esc(winLabel(w))}</b>`} · Drilldown period: <b>${esc(rangeLabel())}</b> ${ALLMODE ? `<a class="lnk" href="/daily-issue" target="_top">change in Daily Issue Check</a>` : `<button class="lnk" data-view="drill">change</button>`}</div>`;
   return {w, empty};
 }
 function setSub(kind, preset, from, to){
@@ -1460,25 +1474,21 @@ function dcData(w){
   return {w, base, baseDays, winT, rows, news: Object.values(ng), pending, leaves};
 }
 
-function renderDailyCheck(){
-  const {w, empty} = renderSubBar("dc");
-  const D = dcData(w);
-  $("#dcDesc").textContent = `${cat} · tickets from ${winLabel(w)}, checked against the problems you made for ${rangeLabel()}.`;
-  const hasSplits = D.leaves.some(L => L.split);
-  let h = "";
-  if (!hasSplits) h += `<section class="sec noai" style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between"><span>No problems defined yet. Split subcategories in <b>Drilldown</b>, or import the <b>Download CSV</b> from Problem patterns in your main dashboard.</span><button class="btn sm pri" data-import>Import problems CSV</button></section>`;
-  const newN = D.news.reduce((a,g) => a + g.list.length, 0), known = D.winT.length - newN - D.pending.length;
-  h += `<section class="sec"><div class="dcsum"><div><b class="big">${D.winT.length}</b> tickets</div><div><b class="big">${known}</b> fit a known problem</div>
+function dcSummary(winT, news, pending){
+  const newN = news.reduce((a,g) => a + g.list.length, 0), known = winT.length - newN - pending.length;
+  return `<section class="sec"><div class="dcsum"><div><b class="big">${winT.length}</b> tickets</div><div><b class="big">${known}</b> fit a known problem</div>
     <div><b class="big" style="color:var(--new)">${newN}</b> new issue ticket${newN === 1 ? "" : "s"}</div>
-    ${D.pending.length ? `<div><b class="big" style="color:var(--warn)">${D.pending.length}</b> not sorted yet <button class="btn sm pri" id="dcSort"${aiReady ? "" : " disabled"}>Sort with AI</button></div>` : ""}</div><div class="meta" id="dcMeta"></div></section>`;
-  if (!D.winT.length) { const l = latestDay(); h += `<section class="sec empty">No ${esc(cat)} tickets in ${esc(winLabel(w))}${w.from > l ? `. The loaded data ends on ${esc(dayLbl(l))}; load a newer export to check these days.` : "."}</section>`; $("#dcBody").innerHTML = h; return; }
-  // same table as Problem patterns
+    ${pending.length ? `<div><b class="big" style="color:var(--warn)">${pending.length}</b> not sorted yet <button class="btn sm pri" id="dcSort"${aiReady ? "" : " disabled"}>Sort with AI</button></div>` : ""}</div><div class="meta" id="dcMeta"></div></section>`;
+}
+
+// The issues table for the current `cat` (same table as Problem patterns).
+function dcIssuesTable(D, title){
   const secs = {}; const put = (s, r) => (secs[s] = secs[s] || []).push(r);
   D.rows.forEach(r => put(r.section || "__other", r)); D.news.forEach(g => put(g.section, g));
   const secTot = s => secs[s].reduce((a,r) => a + r.list.length, 0);
   const order = Object.keys(secs).sort((a,b) => (a === "__other") - (b === "__other") || secTot(b) - secTot(a));
   const hiddenN = D.rows.filter(r => !r.list.length).length;
-  h += `<section class="sec"><div class="sechead"><h2>Issues in ${esc(winLabel(w))}</h2><div class="row"><span class="hint">Open tickets are shown in <b style="color:var(--warn)">orange</b></span><button class="lnk" id="dcAll">${dcShowAll ? "Hide issues with no tickets" : `Show all issues (${hiddenN} with no tickets)`}</button></div></div>
+  return `<section class="sec"><div class="sechead"><h2>${esc(title)}</h2><div class="row"><span class="hint">Open tickets are shown in <b style="color:var(--warn)">orange</b></span><button class="lnk" data-dcall>${dcShowAll ? "Hide issues with no tickets" : `Show all issues (${hiddenN} with no tickets)`}</button></div></div>
     <div class="tbl"><table class="ptab"><thead><tr><th>Issue</th><th>What these tickets are about</th><th>Status</th><th class="num">Tickets</th><th class="num">Still open</th><th>Remark: expected fix</th><th>Ticket IDs</th></tr></thead><tbody>` +
     order.map(s => {
       const list = secs[s].filter(r => dcShowAll || r.list.length).sort((a,b) => (b.isNew ? 1 : 0) - (a.isNew ? 1 : 0) || b.list.length - a.list.length || b.baseN - a.baseN);
@@ -1491,16 +1501,67 @@ function renderDailyCheck(){
             <td class="num"><b>${r.list.length}</b></td><td class="num${o ? " w" : ""}"><b>${o}</b> of ${r.list.length}</td>${remarkCell(r.key, r.name, r.list)}
             <td class="ids">${ids.map(t => `<span class="tid${isOpen(t) ? " o" : ""}" title="${esc(t.st)} · ${esc(fmtDate(t.dt))}">${t.id}</span>`).join(", ") || "—"}${ids.length > 1 ? ` <button class="lnk cp" data-dccopy="${esc(ids.map(t => t.id).join(", "))}">Copy</button>` : ""}</td></tr>`; }).join("");
     }).join("") + `</tbody></table></div><div class="hint" style="margin-top:8px">Status comes from the whole drilldown period (${esc(rangeLabel())}): whether the problem is almost daily, recurring or a one-off spike there. <b style="color:var(--new)">New</b> means the AI found no matching problem.</div></section>`;
+}
+
+function renderDailyCheck(){
+  if (ALLMODE) { renderDailyAll(); return; }
+  const {w, empty} = renderSubBar("dc");
+  const D = dcData(w);
+  $("#dcDesc").textContent = `${cat} · tickets from ${winLabel(w)}, checked against the problems you made for ${rangeLabel()}.`;
+  const hasSplits = D.leaves.some(L => L.split);
+  let h = "";
+  if (!hasSplits) h += `<section class="sec noai" style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between"><span>No problems defined yet. Split subcategories in <b>Drilldown</b>, or import the <b>Download CSV</b> from Problem patterns in your main dashboard.</span><button class="btn sm pri" data-import>Import problems CSV</button></section>`;
+  h += dcSummary(D.winT, D.news, D.pending);
+  if (!D.winT.length) { const l = latestDay(); h += `<section class="sec empty">No ${esc(cat)} tickets in ${esc(winLabel(w))}${w.from > l ? `. The loaded data ends on ${esc(dayLbl(l))}; load a newer export to check these days.` : "."}</section>`; $("#dcBody").innerHTML = h; return; }
+  h += dcIssuesTable(D, `Issues in ${winLabel(w)}`);
+  $("#dcBody").innerHTML = h;
+}
+
+// Every category's daily check on one page, busiest category first.
+function dcAllData(w){
+  return allCats().map(c => withCat(c, () => ({cat: c, D: dcData(w)})))
+    .filter(x => x.D.winT.length)
+    .sort((a,b) => b.D.winT.length - a.D.winT.length);
+}
+function renderDailyAll(){
+  const {w} = renderSubBar("dc");
+  const cats = dcAllData(w);
+  $("#dcDesc").textContent = `Every category · tickets from ${winLabel(w)}, checked against the problems made in Daily Issue Check for ${rangeLabel()}.`;
+  const all = k => cats.flatMap(x => x.D[k]);
+  let h = dcSummary(all("winT"), all("news"), all("pending"));
+  if (!cats.length) {
+    const l = latestDay();
+    h += `<section class="sec empty">No tickets in ${esc(winLabel(w))}${w.from > l ? `. The loaded data ends on ${esc(dayLbl(l))}.` : "."}</section>`;
+  } else {
+    h += cats.map(({cat: c, D}) => withCat(c, () => {
+      const unsorted = D.pending.length ? ` · <span style="color:var(--warn)">${D.pending.length} not sorted yet</span>` : "";
+      return `<div class="dccat"><h2>${esc(c)} <span class="hint">· ${D.winT.length} ticket${D.winT.length === 1 ? "" : "s"}${unsorted}</span></h2>${dcIssuesTable(D, `Issues in ${winLabel(w)}`)}</div>`;
+    })).join("");
+  }
   $("#dcBody").innerHTML = h;
 }
 
 async function dcSort(btn){
-  const {w} = {w: effWindow(dcSub, false)};
-  const D = dcData(w); if (!sample || !D.pending.length) return;
   if (dcCtl) { dcCtl.abort(); return; }
+  const w = effWindow(dcSub, false);
+  const todo = ALLMODE ? dcAllData(w).filter(x => x.D.pending.length).map(x => x.cat) : [cat];
+  const total = todo.reduce((a, c) => a + withCat(c, () => dcData(w)).pending.length, 0);
+  if (!sample || !total) return;
   dcCtl = new AbortController(); const me = dcCtl;
+  btn.textContent = "Stop"; $("#dcMeta").textContent = `Sorting ${total} tickets…`;
+  const home = cat; let done = 0;
+  try {
+    tree.checks = tree.checks || {};
+    for (const c of todo) {
+      cat = c;  // held for the whole (async) category: its prompt, problems and ranges are per category
+      done = await dcSortCat(dcData(w), me, done, total);
+    }
+    cat = home; renderDailyCheck(); $("#dcMeta").textContent = `Sorted ${done} tickets. Saved for the team.`;
+  } catch (e) { cat = home; renderDailyCheck(); if (e?.code !== "cancelled") $("#dcMeta").textContent = errText(e); }
+  finally { cat = home; dcCtl = null; }
+}
+async function dcSortCat(D, me, done, total){
   const known = D.leaves.filter(L => !L.unsorted && L.split);
-  btn.textContent = "Stop"; $("#dcMeta").textContent = `Sorting ${D.pending.length} tickets…`;
   const header = `${INTRO}
 
 Known problems from ${rangeLabel()}, grouped by subcategory, each with a short description and example tickets:
@@ -1511,18 +1572,14 @@ Reply with only JSON: {"<ticket id>": {"i": <number>, "new": "<label, only when 
 
 Tickets (#id | subcategory | text):
 `;
-  try {
-    tree.checks = tree.checks || {}; let done = 0;
-    for (let i = 0; i < D.pending.length; i += 40) {
-      const b = D.pending.slice(i, i+40);
-      const r = await sample.json(header + b.map(t => `#${t.id} | ${t.sub} | ${clean(t.tx, 350)}`).join("\n"), {signal: me.signal, modelTier: "default", cache: false});
-      b.forEach(t => { const v = r?.[t.id] ?? r?.["#"+t.id]; const L = known[Number(v?.i ?? v) - 1];
-        tree.checks[t.id] = L && L.path[0] === t.sub ? {k: L.key} : {k: "new", label: clean(v?.new || "New issue", 60)}; });
-      done += b.length; $("#dcMeta").textContent = `Sorted ${done} of ${D.pending.length}…`; save();
-    }
-    renderDailyCheck(); $("#dcMeta").textContent = `Sorted ${done} tickets. Saved for the team.`;
-  } catch (e) { renderDailyCheck(); if (e?.code !== "cancelled") $("#dcMeta").textContent = errText(e); }
-  finally { dcCtl = null; }
+  for (let i = 0; i < D.pending.length; i += 40) {
+    const b = D.pending.slice(i, i+40);
+    const r = await sample.json(header + b.map(t => `#${t.id} | ${t.sub} | ${clean(t.tx, 350)}`).join("\n"), {signal: me.signal, modelTier: "default", cache: false});
+    b.forEach(t => { const v = r?.[t.id] ?? r?.["#"+t.id]; const L = known[Number(v?.i ?? v) - 1];
+      tree.checks[t.id] = L && L.path[0] === t.sub ? {k: L.key} : {k: "new", label: clean(v?.new || "New issue", 60)}; });
+    done += b.length; $("#dcMeta").textContent = `Sorted ${done} of ${total}…`; save();
+  }
+  return done;
 }
 
 function importIssues(file){
@@ -1573,7 +1630,7 @@ document.addEventListener("change", e => {
   r.at = Date.now(); if (!r.due && !r.note) delete tree.remarks[key];
   save();
   const td = e.target.closest("td.rmk"); if (td) { let list = null;
-    if (view === "daily") { const D = dcData(effWindow(dcSub, false)); const row = D.rows.find(x => x.key === key) || D.news.find(x => x.key === key); list = row?.list; }
+    if (view === "daily") { const w = effWindow(dcSub, false); for (const c of ALLMODE ? allCats() : [cat]) { const D = withCat(c, () => dcData(w)); const row = D.rows.find(x => x.key === key) || D.news.find(x => x.key === key); if (row) { list = row.list; break; } } }
     td.querySelector(".rchips").innerHTML = remarkChip(key, list); }
 });
 
@@ -1589,7 +1646,7 @@ document.addEventListener("click", e => {
   const dcc = e.target.closest("[data-dccopy]"); if (dcc) { navigator.clipboard?.writeText(dcc.dataset.dccopy).then(() => { dcc.textContent = "Copied"; setTimeout(() => dcc.textContent = "Copy", 1500); }).catch(() => {}); return; }
   if (e.target.closest("[data-import]")) { $("#issIn").click(); return; }
   if (e.target.id === "dcSort") { dcSort(e.target); return; }
-  if (e.target.id === "dcAll") { dcShowAll = !dcShowAll; renderDailyCheck(); return; }
+  if (e.target.closest("[data-dcall]")) { dcShowAll = !dcShowAll; renderDailyCheck(); return; }
   const cn = e.target.closest("[data-copynote]"); if (cn) { const pre = $("#note-" + cn.dataset.copynote); navigator.clipboard?.writeText(pre.textContent).then(() => { cn.textContent = "Copied"; setTimeout(() => cn.textContent = "Copy", 1500); }).catch(() => { const r = document.createRange(); r.selectNodeContents(pre); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }); return; }
   if (e.target.id === "pDesc") { describeIssues(e.target); return; }
   if (e.target.id === "pDl" && downloads) { downloads.save({filename: `issues-${cat.replace(/[^\w]+/g,"-").toLowerCase()}-${(range.from||"all")}-${(range.to||"")}.csv`.replace(/-+/g,"-"), data: pTableCSV()}).catch(() => {}); return; }
@@ -1664,7 +1721,7 @@ $("#dlBtn").onclick = async () => { if (!downloads) return; const name = (cur.na
 /* boot - tickets come from the portal's own database (GET /api/daily-issue/tickets) */
 async function fetchTickets(){
   const res = await fetch("/api/daily-issue/tickets", {cache: "no-store"});
-  if (res.status === 401) { window.top.location = "/login?next=/daily-issue"; throw new Error("not logged in"); }
+  if (res.status === 401) { window.top.location = LOGIN_URL; throw new Error("not logged in"); }
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
@@ -1698,7 +1755,7 @@ const firstSub = (() => { const c = {}; T.forEach(t => { if (t.cat === cat) c[t.
 if (firstSub) start = rootId(cat, firstSub);
 try { const last = localStorage.getItem(STORE_KEY+"-last"); if (last && (last.startsWith("root::") || tree.nodes[last])) { const n = node(last); if (n) { cat = rootOf(n).cat; renderCats(); start = last; } } } catch(e) {}
 go(start);
-setView(view);
+setView(ALLMODE ? "daily" : view);
 $("#pageLoader").hidden = true;
 if (movedLegacy) toast("Moved the groups saved in this browser to the shared copy - your team sees them now.", true);
 busy(false);
