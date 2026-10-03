@@ -162,15 +162,15 @@ def index(request: Request):
 
 @app.get("/tickets")
 def old_tickets_page():
-    """The Tickets page was replaced by Daily check; keep old links working."""
+    """The Tickets page was replaced by Daily report; keep old links working."""
     return RedirectResponse("/daily")
 
 
 @app.get("/daily-issue-check")
 def daily_issue_page(request: Request):
-    """The Daily Issue Check tab's page - shown in an iframe inside the main
-    app, so its own styles can't collide with index.html's. With ?all=1 it is
-    the Daily check page (every category's daily check)."""
+    """The Drill down page (formerly Daily Issue Check) - shown in an iframe
+    inside the main app, so its own styles can't collide with index.html's.
+    With ?all=1 it is the Daily report page (every category's daily check)."""
     if not request.session.get("user"):
         return _login_redirect("/daily" if "all" in request.query_params else "/daily-issue")
     return FileResponse(str(STATIC_DIR / "daily-issue-check.html"))

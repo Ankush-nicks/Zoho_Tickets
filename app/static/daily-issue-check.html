@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Daily Issue Check</title>
+<title>Drill down</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -29,7 +29,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .app{display:grid;grid-template-columns:330px minmax(0,1fr);min-height:100vh}
-/* ?all=1 - the portal's Daily check page: every category, daily check only */
+/* ?all=1 - the portal's Daily report page: every category, daily check only */
 .allcats .app{grid-template-columns:minmax(0,1fr)}
 .allcats .rail,.allcats .viewtabs{display:none !important}
 .dccat{display:flex;flex-direction:column;gap:12px}
@@ -524,10 +524,11 @@ tr.x td{background:var(--bg);font-size:14px}
 (async () => {
 "use strict";
 const $ = s => document.querySelector(s);
-// /daily-issue-check?all=1 is the portal's Daily check page: the daily check
+// /daily-issue-check?all=1 is the portal's Daily report page: the daily check
 // for every category at once, with no browse rail or other views.
 const ALLMODE = new URLSearchParams(location.search).has("all");
 document.documentElement.classList.toggle("allcats", ALLMODE);
+if (ALLMODE) { document.title = "Daily report"; $("#dcHead h1").textContent = "Daily report"; }
 const LOGIN_URL = `/login?next=${ALLMODE ? "/daily" : "/daily-issue"}`;
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fmtN = n => n.toLocaleString("en-IN");
@@ -1437,7 +1438,7 @@ function renderSubBar(kind){
   const empty = w.from && w.to && w.from > w.to;
   bar.innerHTML = `<div class="tabs">${SUBS[kind].map(([k, l]) => `<button data-sub="${kind}:${k}" class="${s.preset === k ? "on" : ""}">${esc(k === "latest" ? `${l} (${dayLbl(latestDay())})` : l)}</button>`).join("")}</div>
     <div class="cust"><label for="${kind}From">From</label><input type="date" id="${kind}From" value="${esc(s.preset === "custom" ? s.from : w.from)}"><label for="${kind}To">to</label><input type="date" id="${kind}To" value="${esc(s.preset === "custom" ? s.to : w.to)}"></div>
-    <div class="rl">${empty ? `<b style="color:var(--bad)">Outside the drilldown period</b>` : `Showing <b>${esc(winLabel(w))}</b>`} · Drilldown period: <b>${esc(rangeLabel())}</b> ${ALLMODE ? `<a class="lnk" href="/daily-issue" target="_top">change in Daily Issue Check</a>` : `<button class="lnk" data-view="drill">change</button>`}</div>`;
+    <div class="rl">${empty ? `<b style="color:var(--bad)">Outside the drilldown period</b>` : `Showing <b>${esc(winLabel(w))}</b>`} · Drilldown period: <b>${esc(rangeLabel())}</b> ${ALLMODE ? `<a class="lnk" href="/daily-issue" target="_top">change in Drill down</a>` : `<button class="lnk" data-view="drill">change</button>`}</div>`;
   return {w, empty};
 }
 function setSub(kind, preset, from, to){
@@ -1526,7 +1527,7 @@ function dcAllData(w){
 function renderDailyAll(){
   const {w} = renderSubBar("dc");
   const cats = dcAllData(w);
-  $("#dcDesc").textContent = `Every category · tickets from ${winLabel(w)}, checked against the problems made in Daily Issue Check for ${rangeLabel()}.`;
+  $("#dcDesc").textContent = `Every category · tickets from ${winLabel(w)}, checked against the problems made in Drill down for ${rangeLabel()}.`;
   const all = k => cats.flatMap(x => x.D[k]);
   let h = dcSummary(all("winT"), all("news"), all("pending"));
   if (!cats.length) {

@@ -129,7 +129,7 @@
   .wrap.wrap-wide{ max-width:1440px; }
   .wrap.wrap-full{ max-width:none; }
 
-  /* Daily check and Daily Issue Check: their own page in a full-height frame, edge to edge. */
+  /* Daily report and Drill down: their own page in a full-height frame, edge to edge. */
   .main-content.main-flush{ padding:0; }
   .main-content.main-flush .main-topbar,
   .main-content.main-flush #pendingBanner{ display:none !important; }
@@ -494,17 +494,17 @@
       <span class="brand-text"><span class="app-name">NIAT</span><span class="brand-sub">Campus Operations</span></span>
     </a>
     <nav class="site-nav" id="siteNav" aria-label="Pages">
+      <a class="nav-item active" id="navBtn-daily" href="/daily" onclick="navClick(event, 'daily')" title="Daily report">
+        <span class="nav-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/></svg>
+        </span>
+        <span class="nav-label">Daily report</span>
+      </a>
       <a class="nav-item" id="navBtn-pulse" href="/pulse" onclick="navClick(event, 'pulse')" title="Pulse">
         <span class="nav-icon">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
         </span>
         <span class="nav-label">Pulse</span>
-      </a>
-      <a class="nav-item active" id="navBtn-daily" href="/daily" onclick="navClick(event, 'daily')" title="Daily check">
-        <span class="nav-icon">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/></svg>
-        </span>
-        <span class="nav-label">Daily check</span>
       </a>
       <a class="nav-item" id="navBtn-stats" href="/stats" onclick="navClick(event, 'stats')" title="Stats">
         <span class="nav-icon">
@@ -512,17 +512,17 @@
         </span>
         <span class="nav-label">Stats</span>
       </a>
+      <a class="nav-item" id="navBtn-dailyissue" href="/daily-issue" onclick="navClick(event, 'dailyissue')" title="Drill down">
+        <span class="nav-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="m9 16 2 2 4-4"/></svg>
+        </span>
+        <span class="nav-label">Drill down</span>
+      </a>
       <a class="nav-item" id="navBtn-taxonomy" href="/taxonomy" onclick="navClick(event, 'taxonomy')" title="Taxonomy">
         <span class="nav-icon">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/></svg>
         </span>
         <span class="nav-label">Taxonomy</span>
-      </a>
-      <a class="nav-item" id="navBtn-dailyissue" href="/daily-issue" onclick="navClick(event, 'dailyissue')" title="Daily Issue Check">
-        <span class="nav-icon">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="m9 16 2 2 4-4"/></svg>
-        </span>
-        <span class="nav-label">Daily Issue Check</span>
       </a>
     </nav>
     <div class="header-actions" id="headerActions">
@@ -550,7 +550,7 @@
       </div>
 
       <div id="dailyView" style="display:none;">
-        <iframe id="dailyFrame" class="page-frame" title="Daily check"></iframe>
+        <iframe id="dailyFrame" class="page-frame" title="Daily report"></iframe>
       </div>
 
       <div id="statsView" style="display:none;">
@@ -775,7 +775,7 @@
       </div>
 
       <div id="dailyIssueView" style="display:none;">
-        <iframe id="dailyIssueFrame" class="page-frame" title="Daily Issue Check"></iframe>
+        <iframe id="dailyIssueFrame" class="page-frame" title="Drill down"></iframe>
       </div>
 
       <div id="taxonomyView" style="display:none;">
@@ -950,11 +950,11 @@ let insightLoadedOnce = false;
 // this same shell), so pages can be bookmarked, shared and reloaded, and
 // back/forward move between them. The header is shared by every page. ----
 const PAGES = {
+  daily:      { path: '/daily',       title: 'Daily report' },
   pulse:      { path: '/pulse',       title: 'Pulse' },
-  daily:      { path: '/daily',       title: 'Daily check' },
   stats:      { path: '/stats',       title: 'Stats' },
+  dailyissue: { path: '/daily-issue', title: 'Drill down' },
   taxonomy:   { path: '/taxonomy',    title: 'Taxonomy' },
-  dailyissue: { path: '/daily-issue', title: 'Daily Issue Check' },
 };
 
 function tabFromPath(pathname) {
@@ -992,7 +992,7 @@ function switchTab(tab) {
   document.getElementById('navBtn-taxonomy').classList.toggle('active', tab === 'taxonomy');
   document.getElementById('navBtn-dailyissue').classList.toggle('active', tab === 'dailyissue');
   // Dashboards widen with the available room; the taxonomy editor and the
-  // embedded pages (Daily check, Daily Issue Check) take the whole width.
+  // embedded pages (Daily report, Drill down) take the whole width.
   const framed = tab === 'daily' || tab === 'dailyissue';
   const wrap = document.querySelector('.wrap');
   wrap.classList.toggle('wrap-full', tab === 'taxonomy' || framed);
@@ -1000,7 +1000,7 @@ function switchTab(tab) {
   document.querySelector('.main-content').classList.toggle('main-flush', framed);
   if (framed) {
     // Loaded on first visit only - it pulls every ticket from the database.
-    // Daily check is Daily Issue Check's daily view for every category.
+    // Daily report is Drill down's daily check for every category.
     const frame = document.getElementById(tab === 'daily' ? 'dailyFrame' : 'dailyIssueFrame');
     if (!frame.getAttribute('src')) frame.setAttribute('src', tab === 'daily' ? '/daily-issue-check?all=1' : '/daily-issue-check');
   }
@@ -2886,7 +2886,7 @@ async function taxoBoot() {
 }
 
 // Open the page the URL names. Last, so every tab's state above exists.
-// The old /tickets address now opens Daily check.
+// The old /tickets address now opens Daily report.
 if (location.pathname.replace(/\/+$/, '') === '/tickets') history.replaceState(null, '', '/daily');
 switchTab(tabFromPath(location.pathname));
 </script>
