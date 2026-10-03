@@ -551,7 +551,7 @@ async function flushSave(){
   saving = (async () => {
     try {
       const res = await fetch(STATE_URL, {method: "PUT", headers: {"Content-Type": "application/json"}, body: JSON.stringify({value: tree, version: treeVersion})});
-      if (res.status === 401) { window.top.location = "/login"; return; }
+      if (res.status === 401) { window.top.location = "/login?next=/daily-issue"; return; }
       const d = await res.json().catch(() => ({}));
       if (res.status === 409) { saveAgain = false; adoptServerTree(d, `${d.updated_by || "Someone else"} changed the groups just now. Showing their latest version: redo your last change if it’s missing.`); return; }
       if (!res.ok) throw new Error(typeof d.detail === "string" ? d.detail : `HTTP ${res.status}`);
@@ -569,7 +569,7 @@ function adoptServerTree(d, msg){
 }
 async function loadSharedTree(){
   const res = await fetch(STATE_URL, {cache: "no-store"});
-  if (res.status === 401) { window.top.location = "/login"; throw new Error("not logged in"); }
+  if (res.status === 401) { window.top.location = "/login?next=/daily-issue"; throw new Error("not logged in"); }
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const d = await res.json();
   if (d.value && d.value.nodes) { tree = d.value; treeVersion = d.version; return false; }
@@ -912,7 +912,7 @@ async function aiFetch(path, prompt, signal){
   let res;
   try { res = await fetch(path, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({prompt}), signal}); }
   catch (e) { throw {code: e?.name === "AbortError" ? "cancelled" : "network"}; }
-  if (res.status === 401) { window.top.location = "/login"; throw {code: "session_expired"}; }
+  if (res.status === 401) { window.top.location = "/login?next=/daily-issue"; throw {code: "session_expired"}; }
   if (!res.ok) { const d = await res.json().catch(() => ({})); throw {code: d?.detail?.code || "error"}; }
   return res;
 }
@@ -1657,7 +1657,7 @@ $("#dlBtn").onclick = async () => { if (!downloads) return; const name = (cur.na
 /* boot - tickets come from the portal's own database (GET /api/daily-issue/tickets) */
 async function fetchTickets(){
   const res = await fetch("/api/daily-issue/tickets", {cache: "no-store"});
-  if (res.status === 401) { window.top.location = "/login"; throw new Error("not logged in"); }
+  if (res.status === 401) { window.top.location = "/login?next=/daily-issue"; throw new Error("not logged in"); }
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }

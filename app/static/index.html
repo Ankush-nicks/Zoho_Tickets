@@ -672,36 +672,36 @@
     <nav class="sidebar-nav">
       <div class="nav-section">
         <div class="nav-section-title">Instructors Ticketing System</div>
-        <button class="nav-item" id="navBtn-pulse" onclick="switchTab('pulse')" type="button" title="Pulse">
+        <a class="nav-item" id="navBtn-pulse" href="/pulse" onclick="navClick(event, 'pulse')" title="Pulse">
           <span class="nav-icon">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
           </span>
           <span class="nav-label">Pulse</span>
-        </button>
-        <button class="nav-item active" id="navBtn-tickets" onclick="switchTab('tickets')" type="button" title="Tickets">
+        </a>
+        <a class="nav-item active" id="navBtn-tickets" href="/tickets" onclick="navClick(event, 'tickets')" title="Tickets">
           <span class="nav-icon">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v3a2 2 0 0 1 0 4v3a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3a2 2 0 0 1 0-4V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2Z"/><path d="M13 5v2M13 17v2M13 11v2"/></svg>
           </span>
           <span class="nav-label">Tickets</span>
-        </button>
-        <button class="nav-item" id="navBtn-stats" onclick="switchTab('stats')" type="button" title="Stats">
+        </a>
+        <a class="nav-item" id="navBtn-stats" href="/stats" onclick="navClick(event, 'stats')" title="Stats">
           <span class="nav-icon">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>
           </span>
           <span class="nav-label">Stats</span>
-        </button>
-        <button class="nav-item" id="navBtn-taxonomy" onclick="switchTab('taxonomy')" type="button" title="Taxonomy">
+        </a>
+        <a class="nav-item" id="navBtn-taxonomy" href="/taxonomy" onclick="navClick(event, 'taxonomy')" title="Taxonomy">
           <span class="nav-icon">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/></svg>
           </span>
           <span class="nav-label">Taxonomy</span>
-        </button>
-        <button class="nav-item" id="navBtn-dailyissue" onclick="switchTab('dailyissue')" type="button" title="Daily Issue Check">
+        </a>
+        <a class="nav-item" id="navBtn-dailyissue" href="/daily-issue" onclick="navClick(event, 'dailyissue')" title="Daily Issue Check">
           <span class="nav-icon">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="m9 16 2 2 4-4"/></svg>
           </span>
           <span class="nav-label">Daily Issue Check</span>
-        </button>
+        </a>
       </div>
     </nav>
 
@@ -1020,6 +1020,13 @@
 let groups = [];
 let leafMap = {}; // subcategory id -> { name, groupId, groupName }
 const log = document.getElementById('log');
+
+// Login page URL that returns to the current page once signed back in
+// (used when a session expires mid-use; logging out on purpose doesn't).
+function loginUrl() {
+  const path = location.pathname;
+  return path === '/' ? '/login' : `/login?next=${encodeURIComponent(path)}`;
+}
 
 async function logout(e) {
   e.preventDefault();
@@ -1540,8 +1547,41 @@ function onDateChange() {
 
 let insightLoadedOnce = false;
 
+// ---- Pages: each sidebar tab has its own URL (served by app/main.py as
+// this same shell), so pages can be bookmarked, shared and reloaded, and
+// back/forward move between them. The sidebar stays the one header. ----
+const PAGES = {
+  pulse:      { path: '/pulse',       title: 'Pulse' },
+  tickets:    { path: '/tickets',     title: 'Tickets' },
+  stats:      { path: '/stats',       title: 'Stats' },
+  taxonomy:   { path: '/taxonomy',    title: 'Taxonomy' },
+  dailyissue: { path: '/daily-issue', title: 'Daily Issue Check' },
+};
+
+function tabFromPath(pathname) {
+  const path = pathname.replace(/\/+$/, '') || '/';
+  return Object.keys(PAGES).find(t => PAGES[t].path === path) || 'tickets';
+}
+
+// Plain clicks swap the page in place; ctrl/cmd/shift/middle clicks fall
+// through to the link so "open in new tab" still works.
+function navClick(e, tab) {
+  if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  e.preventDefault();
+  if (location.pathname !== PAGES[tab].path) history.pushState({ tab }, '', PAGES[tab].path);
+  switchTab(tab);
+}
+
+window.addEventListener('popstate', () => switchTab(tabFromPath(location.pathname)));
+
 function switchTab(tab) {
   pulseToggleSidebar(false); // no-op on desktop; closes the mobile drawer after navigating
+  document.title = `${PAGES[tab].title} · Ticket Router`;
+  Object.keys(PAGES).forEach(t => {
+    const link = document.getElementById(`navBtn-${t}`);
+    if (t === tab) link.setAttribute('aria-current', 'page');
+    else link.removeAttribute('aria-current');
+  });
   document.getElementById('ticketsView').style.display = tab === 'tickets' ? '' : 'none';
   document.getElementById('statsView').style.display = tab === 'stats' ? '' : 'none';
   document.getElementById('pulseView').style.display = tab === 'pulse' ? '' : 'none';
@@ -2042,7 +2082,7 @@ async function insightBoot() {
       fetch('/api/tickets/range'),
       fetch('/api/corrections'),
     ]);
-    if (ticketsRes.status === 401 || correctionsRes.status === 401) { window.location = '/login'; return; }
+    if (ticketsRes.status === 401 || correctionsRes.status === 401) { window.location = loginUrl(); return; }
     if (!ticketsRes.ok) throw new Error(`HTTP ${ticketsRes.status}`);
     if (!correctionsRes.ok) throw new Error(`HTTP ${correctionsRes.status}`);
     const tickets = await ticketsRes.json();
@@ -3043,7 +3083,7 @@ async function pulseBoot() {
   const loadingEl = document.getElementById('pulseLoadingState');
   try {
     const res = await fetch('/api/tickets/range');
-    if (res.status === 401) { window.location = '/login'; return; }
+    if (res.status === 401) { window.location = loginUrl(); return; }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const tickets = await res.json();
 
@@ -3110,7 +3150,7 @@ async function taxoUnlock() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ password }),
     });
-    if (res.status === 401) { window.location = '/login'; return; }
+    if (res.status === 401) { window.location = loginUrl(); return; }
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       throw new Error(data.detail || 'Incorrect password.');
@@ -3314,7 +3354,7 @@ async function taxoSave() {
       headers: { 'Content-Type': 'application/json', 'X-Taxonomy-Password': taxoPassword || '' },
       body: JSON.stringify(taxoState),
     });
-    if (res.status === 401) { window.location = '/login'; return; }
+    if (res.status === 401) { window.location = loginUrl(); return; }
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
     taxoState = { version: data.version, categories: data.categories };
@@ -3352,7 +3392,7 @@ async function taxoImportPost(file, dryRun) {
     headers: { 'X-Taxonomy-Password': taxoPassword || '' },
     body: form,
   });
-  if (res.status === 401) { window.location = '/login'; return null; }
+  if (res.status === 401) { window.location = loginUrl(); return null; }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
   return data;
@@ -3406,7 +3446,7 @@ async function taxoImportTickets(input) {
       taxoSetStatus(`Importing ${file.name}… ${job.done} / ${job.total}`);
       await new Promise(r => setTimeout(r, 1500));
       const res = await fetch('/api/tickets/import-csv/status');
-      if (res.status === 401) { window.location = '/login'; return; }
+      if (res.status === 401) { window.location = loginUrl(); return; }
       if (res.ok) job = await res.json();
     }
     if (job.state === 'error') {
@@ -3435,7 +3475,7 @@ async function taxoBoot() {
   const loadingEl = document.getElementById('taxoLoadingState');
   try {
     const res = await fetch('/api/taxonomy');
-    if (res.status === 401) { window.location = '/login'; return; }
+    if (res.status === 401) { window.location = loginUrl(); return; }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     taxoState = { version: data.version, categories: data.categories };
@@ -3447,6 +3487,9 @@ async function taxoBoot() {
     loadingEl.textContent = `Couldn't load taxonomy: ${err.message}`;
   }
 }
+
+// Open the page the URL names. Last, so every tab's state above exists.
+switchTab(tabFromPath(location.pathname));
 </script>
 </body>
 </html>

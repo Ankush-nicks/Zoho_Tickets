@@ -135,10 +135,28 @@ async def _settle_pending_csv_imports_at_startup():
         logger.error("startup settle of pending CSV imports failed: %s", e)
 
 
+# Sidebar pages - all served by index(). Also the only places login will
+# send you back to, so ?next= can't be used as an open redirect.
+PAGE_PATHS = ("/tickets", "/pulse", "/stats", "/taxonomy", "/daily-issue")
+
+
+def _login_redirect(next_path: str) -> RedirectResponse:
+    if next_path in PAGE_PATHS:
+        return RedirectResponse(f"/login?next={next_path}")
+    return RedirectResponse("/login")
+
+
 @app.get("/")
+@app.get("/tickets")
+@app.get("/pulse")
+@app.get("/stats")
+@app.get("/taxonomy")
+@app.get("/daily-issue")
 def index(request: Request):
+    """Every sidebar page is the same shell (one shared sidebar); index.html
+    reads the path to decide which page to show."""
     if not request.session.get("user"):
-        return RedirectResponse("/login")
+        return _login_redirect(request.url.path)
     return FileResponse(str(STATIC_DIR / "index.html"))
 
 
@@ -147,7 +165,7 @@ def daily_issue_page(request: Request):
     """The Daily Issue Check tab's page - shown in an iframe inside the main
     app, so its own styles can't collide with index.html's."""
     if not request.session.get("user"):
-        return RedirectResponse("/login")
+        return _login_redirect("/daily-issue")
     return FileResponse(str(STATIC_DIR / "daily-issue-check.html"))
 
 
@@ -219,9 +237,9 @@ def daily_issue_ai_json(payload: dict, user: str = Depends(require_login)):
 
 
 @app.get("/login")
-def login_page(request: Request):
+def login_page(request: Request, next: str = ""):
     if request.session.get("user"):
-        return RedirectResponse("/")
+        return RedirectResponse(next if next in PAGE_PATHS else "/")
     return FileResponse(str(STATIC_DIR / "login.html"))
 
 

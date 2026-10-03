@@ -161,7 +161,11 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
       const body = await res.json().catch(() => ({}));
       throw new Error(body.detail || 'login failed');
     }
-    window.location = '/';
+    // Back to the page that sent us here - only known app pages, never an
+    // arbitrary URL (mirrors PAGE_PATHS in app/main.py).
+    const nextPath = new URLSearchParams(location.search).get('next');
+    const pages = ['/tickets', '/pulse', '/stats', '/taxonomy', '/daily-issue'];
+    window.location = pages.includes(nextPath) ? nextPath : '/';
   } catch (e) {
     err.innerText = e.message;
     btn.disabled = false;
