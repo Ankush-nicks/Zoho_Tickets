@@ -131,11 +131,9 @@
 
   /* Daily report and Drill down: their own page in a full-height frame, edge to edge. */
   .main-content.main-flush{ padding:0; }
-  .main-content.main-flush .main-topbar,
   .main-content.main-flush #pendingBanner{ display:none !important; }
   .page-frame{ display:block; width:100%; height:calc(100vh - var(--header-h)); height:calc(100dvh - var(--header-h)); border:0; background:var(--bg); }
 
-  .main-topbar{ display:flex; align-items:center; justify-content:flex-end; gap:10px; margin-bottom:24px; }
 
   .panel{
     background:var(--panel); border:1px solid var(--border); border-radius:10px;
@@ -156,12 +154,6 @@
   button:disabled{ opacity:.5; cursor:not-allowed; }
   button.secondary{ background:#fff; border:1px solid var(--border); color:var(--text); }
 
-  a.download-link{
-    font-family:var(--mono); font-size:var(--fs-xs); letter-spacing:.04em; text-transform:uppercase;
-    color:var(--text); text-decoration:none; border:1px solid var(--border); border-radius:6px;
-    padding:8px 14px; background:#fff;
-  }
-  a.download-link:hover{ border-color:var(--accent); color:var(--accent); }
 
   .pending-banner{
     display:flex; align-items:center; justify-content:space-between; gap:12px;
@@ -441,6 +433,7 @@
     color:var(--p-text-primary); border:1px solid var(--p-border); border-radius:6px;
     padding:7px 12px; background:var(--p-surface-1); cursor:pointer;
   }
+  #taxonomyView a.taxo-btn{ display:inline-flex; align-items:center; text-decoration:none; }
   #taxonomyView .taxo-btn:hover{ border-color:var(--p-accent); color:var(--p-accent); }
   #taxonomyView .taxo-btn:disabled{ opacity:.4; cursor:default; border-color:var(--p-border); color:var(--p-text-muted); }
   #taxonomyView .taxo-btn.primary{ background:var(--p-accent); border-color:var(--p-accent); color:var(--p-accent-ink); }
@@ -540,10 +533,6 @@
 
   <main class="main-content">
     <div class="wrap">
-      <div class="main-topbar">
-        <a class="download-link" href="/api/taxonomy/export.csv" download="taxonomy.csv">&darr; Taxonomy CSV</a>
-      </div>
-
       <div id="pendingBanner" class="panel pending-banner" style="display:none;">
         <span id="pendingBannerText"></span>
         <button class="secondary" id="classifyNowBtn" onclick="classifyPendingNow()">Classify Now</button>
@@ -796,6 +785,7 @@
           <button class="taxo-btn" id="taxoUnlockBtn" onclick="taxoUnlock()"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px; margin-right:4px;"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Unlock to edit</button>
           <button class="taxo-btn" id="taxoImportBtn" onclick="document.getElementById('taxoImportFile').click()" style="display:none;" title="Upsert tickets from a Zoho 'Instructors Ticketing System' CSV export, matched by Ticket ID">&uarr; Upload tickets CSV</button>
           <input type="file" id="taxoImportFile" accept=".csv,text/csv" style="display:none;" onchange="taxoImportTickets(this)">
+          <a class="taxo-btn" href="/api/taxonomy/export.csv" download="taxonomy.csv" title="Every category and subcategory with its description, team, POC and examples">&darr; Download CSV</a>
           <span class="taxo-status" id="taxoStatus">Read-only &mdash; unlock to edit</span>
           <button class="taxo-btn primary" id="taxoSaveBtn" onclick="taxoSave()" disabled style="display:none;">Save changes</button>
         </div>

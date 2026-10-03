@@ -325,21 +325,28 @@ def update_taxonomy(
 
 @app.get("/api/taxonomy/export.csv")
 def export_taxonomy_csv(user: str = Depends(require_login)):
+    """The whole taxonomy, one row per subcategory, every field included.
+    Each example gets its own column (example_1, example_2, ...) - some
+    examples contain line breaks, so they can't share one cell."""
+    subs = [(g, s) for g in taxonomy.groups for s in g.get("subcategories", [])]
+    max_examples = max((len(s.get("examples", [])) for _, s in subs), default=0)
     buf = io.StringIO()
+    buf.write("\ufeff")  # BOM, so Excel reads the examples' non-ASCII text as UTF-8
     writer = csv.writer(buf)
     writer.writerow([
         "category_id", "category_name",
         "subcategory_id", "subcategory_name", "description",
         "assigned_team", "poc_primary", "example_count",
+        *(f"example_{i}" for i in range(1, max_examples + 1)),
     ])
-    for group in taxonomy.groups:
-        for sub in group.get("subcategories", []):
-            writer.writerow([
-                group["id"], group["name"],
-                sub["id"], sub["name"], sub.get("description", ""),
-                sub.get("assigned_team", ""), sub.get("poc_primary", ""),
-                len(sub.get("examples", [])),
-            ])
+    for group, sub in subs:
+        examples = sub.get("examples", [])
+        writer.writerow([
+            group["id"], group["name"],
+            sub["id"], sub["name"], sub.get("description", ""),
+            sub.get("assigned_team", ""), sub.get("poc_primary", ""),
+            len(examples), *examples, *([""] * (max_examples - len(examples))),
+        ])
     return Response(
         content=buf.getvalue(),
         media_type="text/csv",
