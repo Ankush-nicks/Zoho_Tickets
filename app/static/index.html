@@ -1533,7 +1533,7 @@ async function loadDailyTickets(showLoader = true) {
   document.getElementById('exportDayLink').href = `/api/tickets/export.csv?date=${encodeURIComponent(currentDate)}`;
   document.getElementById('exportDayLink').download = `tickets_${currentDate}.csv`;
   const summary = document.getElementById('dailySummary');
-  summary.innerText = 'loading…';
+  summary.innerText = ''; // the hamster in the list shows it's loading
   if (showLoader) {
     log.innerHTML = '<div class="empty loader-block" role="status"><span class="loader-text">Loading tickets…</span></div>';
     insertLoader(log);
