@@ -6,6 +6,7 @@
 <title>Ticket Router</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/loader.css">
 <style>
   :root{
     --bg: #FFFFFF;
@@ -743,7 +744,7 @@
       <div id="statusTagBar" class="status-tag-bar"></div>
 
       <div id="log" class="log">
-        <div class="empty">Loading today's tickets…</div>
+        <div class="empty loader-block" role="status"><span class="loader-text">Loading today's tickets…</span></div>
       </div>
       </div>
 
@@ -761,7 +762,7 @@
           <button class="secondary" id="insightScoreNowBtn" onclick="scoreResolutionsNow()">Score Now</button>
         </div>
 
-        <div class="empty-state" id="insightLoadingState">Loading live resolution data&hellip;</div>
+        <div class="empty-state loader-block" id="insightLoadingState" role="status"><span class="loader-text">Loading live resolution data&hellip;</span></div>
 
         <div class="range-bar">
           <span class="range-label">Window</span>
@@ -847,7 +848,7 @@
             <div id="pulseUniCountMeta"></div>
           </div>
         </div>
-        <div class="empty-state" id="pulseLoadingState">Loading live ticket data&hellip;</div>
+        <div class="empty-state loader-block" id="pulseLoadingState" role="status"><span class="loader-text">Loading live ticket data&hellip;</span></div>
 
         <div class="range-bar">
           <span class="range-label">Window</span>
@@ -983,7 +984,7 @@
             <div id="taxoCountMeta">&ndash;</div>
           </div>
         </div>
-        <div class="empty-state" id="taxoLoadingState">Loading taxonomy&hellip;</div>
+        <div class="empty-state loader-block" id="taxoLoadingState" role="status"><span class="loader-text">Loading taxonomy&hellip;</span></div>
 
         <div class="taxo-toolbar" id="taxoToolbar" style="display:none;">
           <button class="taxo-btn" id="taxoAddCatBtn" onclick="taxoAddCategory()" style="display:none;">+ Add category</button>
@@ -1513,7 +1514,19 @@ function renderFilteredTickets() {
   }
 }
 
-async function loadDailyTickets() {
+// ---- Loading indicator (hamster from /static/loader.css) ----
+const HAMSTER_HTML = '<div class="wheel-and-hamster" aria-hidden="true"><div class="wheel"></div><div class="hamster"><div class="hamster__body"><div class="hamster__head"><div class="hamster__ear"></div><div class="hamster__eye"></div><div class="hamster__nose"></div></div><div class="hamster__limb hamster__limb--fr"></div><div class="hamster__limb hamster__limb--fl"></div><div class="hamster__limb hamster__limb--br"></div><div class="hamster__limb hamster__limb--bl"></div><div class="hamster__tail"></div></div></div><div class="spoke"></div></div>';
+
+// Put the hamster into every .loader-block that doesn't have one yet. Error
+// paths overwrite a block's textContent, which drops the hamster with it.
+function insertLoader(root = document) {
+  root.querySelectorAll('.loader-block').forEach(el => {
+    if (!el.querySelector('.wheel-and-hamster')) el.insertAdjacentHTML('afterbegin', HAMSTER_HTML);
+  });
+}
+
+// showLoader=false for background refreshes, so the list doesn't blank out.
+async function loadDailyTickets(showLoader = true) {
   const input = document.getElementById('dateInput');
   currentDate = input.value || todayStr();
   input.value = currentDate;
@@ -1521,6 +1534,10 @@ async function loadDailyTickets() {
   document.getElementById('exportDayLink').download = `tickets_${currentDate}.csv`;
   const summary = document.getElementById('dailySummary');
   summary.innerText = 'loading…';
+  if (showLoader) {
+    log.innerHTML = '<div class="empty loader-block" role="status"><span class="loader-text">Loading tickets…</span></div>';
+    insertLoader(log);
+  }
   try {
     const res = await fetch(`/api/tickets?date=${encodeURIComponent(currentDate)}`);
     if (!res.ok) throw new Error(`failed (${res.status})`);
@@ -1537,6 +1554,7 @@ async function loadDailyTickets() {
       (comparable.length ? ` · ${agree}/${comparable.length} match Zoho tag` : '');
   } catch (e) {
     summary.innerText = 'failed to load tickets';
+    if (log.querySelector('.loader-block')) log.innerHTML = `<div class="empty">Couldn't load tickets.</div>`;
     console.error(e);
   }
 }
@@ -2134,7 +2152,7 @@ async function classifyPendingNow() {
     if (data.stopped_early) msg += ' - stopped early (rate limited), will retry automatically';
     text.innerText = msg;
     // refresh whatever's currently visible so newly-classified tickets show up
-    loadDailyTickets();
+    loadDailyTickets(false);
     if (insightLoadedOnce) insightBoot();
   } catch (e) {
     text.innerText = e.message;
@@ -2144,6 +2162,7 @@ async function classifyPendingNow() {
   loadPendingCount();
 }
 
+insertLoader();
 loadTaxonomy();
 loadPendingCount();
 insightInitToggle();

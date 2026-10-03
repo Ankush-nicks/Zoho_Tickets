@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/static/loader.css">
 <style>
 /* Layout: fixed-width navigator rail (category → subcategory → AI-made groups) beside a working pane: node header, AI panel, groups, ticket ledger. */
 :root{
@@ -343,6 +344,12 @@ tr.x td{background:var(--bg);font-size:14px}
 </style>
 </head>
 <body>
+
+<!-- Shown until the tickets are loaded and drawn (and again on "Reload from database"). -->
+<div class="loader-overlay loader-block" id="pageLoader" role="status">
+  <div class="wheel-and-hamster" aria-hidden="true"><div class="wheel"></div><div class="hamster"><div class="hamster__body"><div class="hamster__head"><div class="hamster__ear"></div><div class="hamster__eye"></div><div class="hamster__nose"></div></div><div class="hamster__limb hamster__limb--fr"></div><div class="hamster__limb hamster__limb--fl"></div><div class="hamster__limb hamster__limb--br"></div><div class="hamster__limb hamster__limb--bl"></div><div class="hamster__tail"></div></div></div><div class="spoke"></div></div>
+  <span class="loader-text" id="pageLoaderText">Loading tickets from the database…</span>
+</div>
 
 <div class="app">
   <aside class="rail" id="rail">
@@ -1664,6 +1671,8 @@ async function fetchTickets(){
 async function loadFromDb(reload){
   const btn = $("#reloadBtn"); if (btn) btn.disabled = true;
   $("#srcInfo").textContent = reload ? "Reloading from the database…" : "Loading tickets from the database…";
+  $("#pageLoaderText").textContent = $("#srcInfo").textContent;
+  $("#pageLoader").hidden = false;
   try {
     const d = await fetchTickets();
     setData(d.rows.map(mk), `updated ${new Date().toLocaleTimeString("en-IN", {hour: "numeric", minute: "2-digit"})}`);
@@ -1672,8 +1681,12 @@ async function loadFromDb(reload){
     return true;
   } catch (e) {
     $("#srcInfo").textContent = `Couldn’t load tickets (${e.message}). Use “Reload from database” to retry.`;
+    $("#pageLoader").hidden = true;
     return false;
-  } finally { if (btn) btn.disabled = false; }
+  } finally {
+    if (btn) btn.disabled = false;
+    if (reload) $("#pageLoader").hidden = true; // first load hides it once drawn, below
+  }
 }
 if (!(await loadFromDb(false))) return;
 let movedLegacy = false;
@@ -1686,6 +1699,7 @@ if (firstSub) start = rootId(cat, firstSub);
 try { const last = localStorage.getItem(STORE_KEY+"-last"); if (last && (last.startsWith("root::") || tree.nodes[last])) { const n = node(last); if (n) { cat = rootOf(n).cat; renderCats(); start = last; } } } catch(e) {}
 go(start);
 setView(view);
+$("#pageLoader").hidden = true;
 if (movedLegacy) toast("Moved the groups saved in this browser to the shared copy - your team sees them now.", true);
 busy(false);
 let rsT = null; window.addEventListener("resize", () => { clearTimeout(rsT); rsT = setTimeout(() => { if (view === "pat" && lastP && pOpen) renderPatterns(); }, 150); });
