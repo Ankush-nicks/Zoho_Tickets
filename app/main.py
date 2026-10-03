@@ -135,7 +135,7 @@ async def _settle_pending_csv_imports_at_startup():
         logger.error("startup settle of pending CSV imports failed: %s", e)
 
 
-# Sidebar pages - all served by index(). Also the only places login will
+# App pages - all served by index(). Also the only places login will
 # send you back to, so ?next= can't be used as an open redirect.
 PAGE_PATHS = ("/daily", "/pulse", "/stats", "/taxonomy", "/daily-issue")
 
@@ -153,7 +153,7 @@ def _login_redirect(next_path: str) -> RedirectResponse:
 @app.get("/taxonomy")
 @app.get("/daily-issue")
 def index(request: Request):
-    """Every sidebar page is the same shell (one shared sidebar); index.html
+    """Every page is the same shell (one shared header); index.html
     reads the path to decide which page to show."""
     if not request.session.get("user"):
         return _login_redirect(request.url.path)
