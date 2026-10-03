@@ -164,7 +164,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     // Back to the page that sent us here - only known app pages, never an
     // arbitrary URL (mirrors PAGE_PATHS in app/main.py).
     const nextPath = new URLSearchParams(location.search).get('next');
-    const pages = ['/daily', '/pulse', '/stats', '/taxonomy', '/daily-issue'];
+    const pages = ['/daily', '/pulse', '/stats', '/taxonomy', '/drill-down'];
     window.location = pages.includes(nextPath) ? nextPath : '/';
   } catch (e) {
     err.innerText = e.message;

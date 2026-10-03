@@ -529,7 +529,7 @@ const $ = s => document.querySelector(s);
 const ALLMODE = new URLSearchParams(location.search).has("all");
 document.documentElement.classList.toggle("allcats", ALLMODE);
 if (ALLMODE) { document.title = "Daily report"; $("#dcHead h1").textContent = "Daily report"; }
-const LOGIN_URL = `/login?next=${ALLMODE ? "/daily" : "/daily-issue"}`;
+const LOGIN_URL = `/login?next=${ALLMODE ? "/daily" : "/drill-down"}`;
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fmtN = n => n.toLocaleString("en-IN");
 const DEFAULT_CAT = "Instructor Platform (Teach OS)";
@@ -1438,7 +1438,7 @@ function renderSubBar(kind){
   const empty = w.from && w.to && w.from > w.to;
   bar.innerHTML = `<div class="tabs">${SUBS[kind].map(([k, l]) => `<button data-sub="${kind}:${k}" class="${s.preset === k ? "on" : ""}">${esc(k === "latest" ? `${l} (${dayLbl(latestDay())})` : l)}</button>`).join("")}</div>
     <div class="cust"><label for="${kind}From">From</label><input type="date" id="${kind}From" value="${esc(s.preset === "custom" ? s.from : w.from)}"><label for="${kind}To">to</label><input type="date" id="${kind}To" value="${esc(s.preset === "custom" ? s.to : w.to)}"></div>
-    <div class="rl">${empty ? `<b style="color:var(--bad)">Outside the drilldown period</b>` : `Showing <b>${esc(winLabel(w))}</b>`} · Drilldown period: <b>${esc(rangeLabel())}</b> ${ALLMODE ? `<a class="lnk" href="/daily-issue" target="_top">change in Drill down</a>` : `<button class="lnk" data-view="drill">change</button>`}</div>`;
+    <div class="rl">${empty ? `<b style="color:var(--bad)">Outside the drilldown period</b>` : `Showing <b>${esc(winLabel(w))}</b>`} · Drilldown period: <b>${esc(rangeLabel())}</b> ${ALLMODE ? `<a class="lnk" href="/drill-down" target="_top">change in Drill down</a>` : `<button class="lnk" data-view="drill">change</button>`}</div>`;
   return {w, empty};
 }
 function setSub(kind, preset, from, to){
