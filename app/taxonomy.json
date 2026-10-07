@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "categories": [
     {
       "id": "G01",
@@ -8,14 +8,14 @@
         {
           "id": "G01-S01",
           "name": "Feedback Too Generic or Vague",
-          "description": "QA report was generated but comments lack specific timestamps, examples, or actionable detail.",
+          "description": "The QA report was generated and the instructor doesn't dispute the score itself; the complaint is that the comments are generic, missing, or have no timestamps, examples or action items to act on. If the instructor disputes the score or says the rubric doesn't fit the session, use Scorecard / Rubric Discrepancy.",
           "assigned_team": "IAS/SET",
           "poc_primary": "ranjith.kumar@nxtwave.co.in",
           "examples": [
             "Hi Team, This is to inform you that my score in the QA report has been marked as 2.7, even though I have implemented the required criteria during the session. I noticed that no scores have been given ...",
             "I am facing an issue with the Curriculum Alignment & Content Accuracy evaluation. The score is displayed as 0.0/10.0, but no detailed feedback or explanation is provided to understand why the score wa...",
-            "I would like to request a review of the QA feedback provided for my session. The observed session was designed as an activity-based session, not a slide-based lecture. As per the curriculum flow, I fi...",
-            "Subject: Request to Remove QA Report from Performance Analysis. we are also unable to upload any files in upload supporting files. please look at this issue. Dear QA Team, I covered all the required q..."
+            "QA Report giving low Scores and no action items",
+            "No Action Items but low Score"
           ]
         },
         {
@@ -33,14 +33,17 @@
         {
           "id": "G01-S03",
           "name": "Scorecard / Rubric Discrepancy",
-          "description": "The QA report WAS generated, but the instructor is disputing its content -- a specific rubric/category missing, scored zero, an unexpectedly low or dropped score, or a mismatch between the report and what actually happened in session. A content dispute, not a technical failure.",
+          "description": "The QA report WAS generated and the instructor disputes the score because the evaluation judged the session the wrong way. This includes: the rubric doesn't fit the session type (student practicals or presentations where students speak, invigilation where other people's speech is recorded, activity-based sessions); the PPT/material was already in Teach OS but the report says it was missing or scores coverage near zero; the report expects topics outside the session's PROD scope (e.g. a recap topic that wasn't taught yet); a recurring zero score because the uploaded audio isn't being evaluated properly; or a request to review a period of past scores affected by a now-resolved constraint (e.g. before a mic was provided). Route here even if the ticket also mentions a mis-transcription, as long as the main complaint is coverage, rubric fit or the overall score. NOT this: report never generated or failed -> Instructor Scorecard Issues; the main complaint is the AI inventing or mishearing specific statements at timestamps -> AI / Automated Evaluation Accuracy Error; the session itself was disrupted (late start, cut short, no students, mid-session outage) -> Any Issue Leading to Session Disruption; the content is wrong, missing or too long for the slot -> Content & Curriculum.",
           "assigned_team": "IAS/SET",
           "poc_primary": "ranjith.kumar@nxtwave.co.in",
           "examples": [
-            "Very Low Score for Invigilation",
-            "No Action Items but low Score",
-            "QA Report giving low Scores and no action items",
-            "QA Report giving low Scores"
+            "The portal is giving 0.5 rating for the content accuracy was not aligned and it was asking me to attach ppt there. But all the content was already kept there while scheduling the lecture like PPT, study material and all of that",
+            "Subject: Formal Request for Manual Audit: Correction of System Errors in QA Report for Session To: Academic Quality Assurance Team Trainer Name: Mounika Chiluka Session Topic: Integrating Ollama with AI Coding Agents Dear Quality...",
+            "TeachOS did not detect the uploaded audio and flagged the session, marked me zero in the evaluation. This is a recurring issue. Students are giving their English practical where they have to speak and present their topics.",
+            "While invigilation for module quiz, one of the success coach came to the class for taking the pictures of the students whose exam got terminated, so whatever they spoke with students whatever students spoke with success coach got...",
+            "The List Methods session recap includes the “Reversing a List using Recursion” problem, and the QA report states that this problem should have been covered. However, as per the PROD sequence, the previous session was Built-in...",
+            "My TeachOS performance was significantly affected during the period before I received the required microphone. I request you to please review those sessions and consider the technical limitation, as it had a major impact on my...",
+            "I would like to request a review of the QA feedback provided for my session. The observed session was designed as an activity-based session, not a slide-based lecture. As per the curriculum flow, I fi..."
           ]
         }
       ]
@@ -52,27 +55,30 @@
         {
           "id": "G02-S01",
           "name": "Content Sequence / Incorrect Examples / Logic / Formula",
-          "description": "The written or shown content in a slide, video, or reading material is factually wrong — incorrect formula, wrong code, wrong explanation.",
+          "description": "The content itself is wrong: a slide, video or reading has an incorrect formula, code, output or explanation, OR the PPT/slides attached in Teach OS belong to a different session than the one scheduled (e.g. next session's slides, or a Confidence Intervals PPT on a Testing of Hypothesis session). Route here even when the instructor's main complaint is the QA score that resulted from the wrong slides.",
           "assigned_team": "Content Team",
           "poc_primary": "Respective POC based on the course chosen (see subject breakdown)",
           "examples": [
             "In the image in slide 57, both scenarios have FLAT 80 on the box.",
             "In the Scope and Namespace section, Slides 29, 30, and 31 contain incorrect outputs. They also mention the global keyword incorrectly.",
             "In the introduction to matrices the slides are wrong -- the operation we are performing is addition of two matrices but in the slide it shows a different operation.",
-            "Looking at the third graph in attached screenshot (Amplitude Modulated Signal) on Slide 47, there is an explicit labeling error -- 'Minimum Amplitude' points to two different spots."
+            "first i was getting the next session slides on this coding practice walkthrough session since yesterday and now when i have taken the session using the right slide, it has given me rating from next sessions slide which results in...",
+            "The session scheduled is for Testing of Hypothesis - Means. But the ppt uploaded in the instructor portal is for Confidence Intervals, due to which there is a discrepancy in evaluating my session and i have scored extremely less...",
+            "During today's session, I was scheduled to conduct the 'Designing Clear Prompts' topic. However, the Teach OS portal displayed the 'Mastering the Art of Discussion' presentation instead, so the conten..."
           ]
         },
         {
           "id": "G02-S02",
           "name": "Learning Hours Discrepancy",
-          "description": "Estimated learning time shown on the portal is significantly more or less than the actual content duration.",
+          "description": "The amount of content doesn't fit the allotted session time: too many slides or too long for one slot (or too thin for a full slot), or the portal's estimated time doesn't match the real duration. Route here even when the instructor's complaint is that QA coverage dropped because the content couldn't be finished in one slot. If the instructor is only asking Ops to schedule an extra slot, use Extra Session Required.",
           "assigned_team": "Content Team",
           "poc_primary": "Respective POC based on the course chosen (see subject breakdown)",
           "examples": [
             "I have completed the class only half since it's very lengthy and covered remaining half topic in the next session. But it's evaluating for the full content.",
-            "For LLM (Today's topic) the session is partially completed as students need groq and openweathermap API key which is activated few hours after creation and students were having multiple errors for the same. \nthe session is also a bit lengthy and requires  20-30 more mins to be completed.\nI want this session to be continued in the next slots.",
             "Roots in AP, GP, and HP\nRelationship Between Roots and Coefficients\nRoot Transformations\nFormation of Equations\nThe PPT's of all these topics have same repeating things i.e. how to form equations using available roots and is very short for 1 hour session. I think these PPT's needs to be combined in a proper manner so that we are not giving monotonous feel to the students. \nSome PPT's are hard to cover in 1 hour while some has very few things to cover in 1 hour.",
-            "The session contains approximately 80 slides, and the corresponding video duration exceeds one hour, making it impractical to complete within a single scheduled session. Please either split the content into two sessions or provide 2 slots in the prod sequence."
+            "The session contains approximately 80 slides, and the corresponding video duration exceeds one hour, making it impractical to complete within a single scheduled session. Please either split the content into two sessions or provide 2 slots in the prod sequence.",
+            "I would like to raise a concern regarding the QA rating for the Nested Conditions session. The topic consists of around 70 slides, which is not practically possible to cover effectively within a 50-minute session while ensuring...",
+            "I would like to raise a concern regarding the Curriculum Alignment & Content Accuracy evaluation for the Filtering and Sorting session. This session contains approximately 115–120 slides, including co..."
           ]
         },
         {
@@ -104,14 +110,15 @@
         {
           "id": "G02-S05",
           "name": "Missing Content / Topic Not Covered",
-          "description": "A topic expected to be part of the course is absent from the portal with no content published for it.",
+          "description": "Content that should exist is absent: a topic is missing from the portal, a project file or hands-on link is missing, or no PPT/slides were uploaded in Teach OS for the session. Route here even when the instructor's complaint is that QA dropped because there was no PPT. If the PPT was present but the QA report still says it's missing, use Scorecard / Rubric Discrepancy.",
           "assigned_team": "Content Team",
           "poc_primary": "Respective POC based on the course chosen (see subject breakdown)",
           "examples": [
             "I checked the project 'PDF Content Previewer' and found that the instructions mention a prefilled PDF file named attention_all_you_need.pdf. However, this file is not available in the Cloud IDE/project files.",
             "After the recent portal update, the initial four ReactJS topics are no longer visible in the course.",
             "In this session, HTML, CSS, and JavaScript were explained. However, the respective playground also uses Tailwind CSS along with HTML, and Tailwind CSS has not yet been covered in the sessions.",
-            "Missing hands on Collab Link."
+            "Missing hands on Collab Link.",
+            "QA report score got affected as there was no PPT. This PPT uploading in TeachOS is not my responsibility but my rating got affected. take necessary action to make sure this is not repeated again. FYI: in AI FOR FINANCE, there is..."
           ]
         },
         {
@@ -161,66 +168,68 @@
         {
           "id": "G03-S01",
           "name": "Platform Bug / Other Technical Issue",
-          "description": "A Teach OS feature, button, or workflow doesn't work as expected, or the issue doesn't fit a more specific bug category.",
+          "description": "A Teach OS feature, button or workflow doesn't work as expected (attendance page, portal reloading, malpractice flag on a genuine upload) and it doesn't fit a more specific Teach OS sub-category. Feature requests go to Instructor Feedback & Initiatives; a wrong PPT shown for the session goes to Content & Curriculum.",
           "assigned_team": "Product Team",
           "poc_primary": "catherine.joannamathews@nxtwave.co.in, gauthami.chandil@nxtwave.co.in, ankon.nandi@nxtwave.co.in",
           "examples": [
-            "I would like to request a feature enhancement for the student attendance page of Teach OS sessions. Currently, the roll numbers of students are not displayed on that page; only their names and photogr...",
             "whenever i start recording session after session it shows like not recorded but it got saved in downloads after 4 hrs and when i go to teach os for uploading audio it says suspected malpractice",
-            "While marking the attendance, portal got reloaded automatically whitout my presence, due to which my entire cllass recording got refreshed and started recording again in the end. \"Hall 4 July 18th Com...",
-            "During today's session, I was scheduled to conduct the 'Designing Clear Prompts' topic. However, the Teach OS portal displayed the 'Mastering the Art of Discussion' presentation instead, so the conten..."
+            "While marking the attendance, portal got reloaded automatically whitout my presence, due to which my entire cllass recording got refreshed and started recording again in the end. \"Hall 4 July 18th Com..."
           ]
         },
         {
           "id": "G03-S02",
           "name": "Teach OS Performance / Speed Issue",
-          "description": "Teach OS is loading very slowly, freezing, or crashing during use.",
+          "description": "Teach OS itself is loading very slowly, freezing, hanging or crashing while being used. Recording or upload failures go to Recording Issue; missing or failed QA reports go to Instructor Scorecard Issues.",
           "assigned_team": "Product Team",
           "poc_primary": "catherine.joannamathews@nxtwave.co.in, gauthami.chandil@nxtwave.co.in, ankon.nandi@nxtwave.co.in",
           "examples": [
-            "Power outage, could not record session in teachOS, have recorded the session in phone but cannot upload that audio since it says \"malpractice\" also unable to upload the audio recording in \"supporting ...",
-            "As soon as i started the recording it got submitted and i recorded the session in my phone to upload, but i am unable to upload the recording now. The Q/A rating for the session is scored-1/10.0. Plea...",
-            "In Teachos I'm not getting a score for the Curriculum alignment parameter and giving very less score which is effecting my overall performance please i request you to Evaluate my QA report provide wit...",
-            "The Teach OS recording is not available and. I couldn't find the recording. I have a backup recording. But I am unable to upload it."
+            "[Placeholder - replace with a real ticket] Teach OS takes several minutes to load the session page and freezes when I click Start Session.",
+            "[Placeholder - replace with a real ticket] The portal hangs every time I open the attendance tab and I have to refresh multiple times."
           ]
         },
         {
           "id": "G03-S03",
           "name": "Instructor Scorecard Issues",
-          "description": "The QA report itself never got created -- stuck, failed, or missing entirely -- with no specific rubric/score named to dispute yet. A platform/technical failure preventing the scorecard from generating at all.",
+          "description": "The QA report itself never got created: the status shows Failed, 'failed to evaluate', 0.0 with no View Report option, or it is stuck or missing, even though the recording was submitted. A platform failure, not a dispute about the score.",
           "assigned_team": "Product Team",
           "poc_primary": "catherine.joannamathews@nxtwave.co.in, gauthami.chandil@nxtwave.co.in, ankon.nandi@nxtwave.co.in",
           "examples": [
             "report failed to generate even though it was successfully uploaded.",
-            "I've start class and click on start recording but somehow it didn't work and now it's not showing anything.",
             "QA Report Failed",
-            "Qa report did not generated, got the status a s failed for HTML/CSS session."
+            "Qa report did not generated, got the status a s failed for HTML/CSS session.",
+            "My recording has been submitted, and the student comments are visible. The QA rating is showuing 0.0 and instead of the “View Report” option, it is showing “Failed.”",
+            "my recording is not uploading it was showing like failed to evaluate",
+            "report is no generated yet & it is failed & unable to reupload the audio as it is already taken."
           ]
         },
         {
           "id": "G03-S04",
           "name": "Recording Issue (Platform / Software)",
-          "description": "TeachOS itself failed to capture, process, or upload the recording despite working equipment -- a software/platform bug. Routed first to the instructor's Capability Manager to confirm it isn't an equipment issue, then escalated to the Product team if it's genuinely a platform failure.",
+          "description": "A specific session's recording is missing, stuck, not uploaded, not detected, or contaminated (e.g. another instructor's voice in the mic), and the ask is about the recording itself: recover it, re-process it, accept a re-upload or mobile recording. Route here whatever the cause, including a power cut, network issue or device problem. NOT this: the instructor says the session itself was disrupted or cut short and wants the QA impact considered -> Any Issue Leading to Session Disruption; the instructor is asking for the equipment to be provided or fixed -> Facilities & Equipment.",
           "assigned_team": "Capability Manager (first) -> Central Team / Product (escalation)",
           "poc_primary": "Respective Capability Manager; escalate to catherine.joannamathews@nxtwave.co.in, gauthami.chandil@nxtwave.co.in, ankon.nandi@nxtwave.co.in",
           "examples": [
             "Audio not recorded",
-            "My session ended before even I started and they could't realot the slot. So, I took the session in google meet and recorded the session manually in my mobile phone.",
             "The audio is not being uploaded.",
-            "Unable to upload recording. Same issue that was reported on Monday. It says the audio is unverified."
+            "Unable to upload recording. Same issue that was reported on Monday. It says the audio is unverified.",
+            "My recording for “More CSS Selectors MCQ Practice” dated 09-09-2026 is stuck at 56% and is still showing “Recording…”. I need the audio/recording of this session. Could you please recover the recording from the server or help me...",
+            "Due to power cut my audio didn't get recorded. Kindly look into it.",
+            "I had a Practical in section 2 where students gave their presentations. The TeachOS QA report gave 0 because the audio was not detected. I have uploaded the session audio again for correct evaluation.",
+            "in my recording i got the voice collapsed of another instructor in my mic & that affected my QA report"
           ]
         },
         {
           "id": "G03-S05",
           "name": "AI / Automated Evaluation Accuracy Error",
-          "description": "The automated QA/evaluation tool got something factually wrong -- misheard/mis-transcribed audio, misread a classroom interaction, misjudged an instructor's example, raised a false grooming flag, or a recording problem that's explicitly reported as impacting the QA evaluation. An AI/tool accuracy issue, filed under QA Report since it's about evaluation correctness, but fixed by the Product team.",
+          "description": "The main complaint is that the AI report states something that didn't happen: it mis-transcribed specific words (e.g. heard 'LCM' when the instructor said 'HCF'), attributed statements, phone calls, topics or language switches that never occurred, or cites timestamps that don't match what was happening. The instructor usually quotes the report's claim and the timestamp and asks for a manual review. NOT this: coverage or rubric scored low, the rubric doesn't fit the session type, or the uploaded audio isn't being evaluated -> Scorecard / Rubric Discrepancy; the session was disrupted and the AI penalised how it was handled -> Any Issue Leading to Session Disruption; the report never generated -> Instructor Scorecard Issues.",
           "assigned_team": "Product Team",
           "poc_primary": "catherine.joannamathews@nxtwave.co.in, gauthami.chandil@nxtwave.co.in, ankon.nandi@nxtwave.co.in",
           "examples": [
-            "The rubric - curriculum alignment and content accuracy is not evaluated",
-            "HTML & CSS Session 20, 30 July 2026 - language rubric is evaluated to flag the usage of Telugu",
-            "Two planned question types (man-days variation and contractor problem) were left unillustrated because you did not work out questions 09 and 10 during the session. This weakens the completeness of exa...",
-            "I would like to raise a concern regarding the Curriculum Alignment & Content Accuracy evaluation for the Filtering and Sorting session. This session contains approximately 115–120 slides, including co..."
+            "Subject: Dispute / Appeal Regarding AI Quality Report for Session: \"Introduction to SDLC\" Dear Quality & Evaluation Team, I am requesting a manual human review of the automated AI evaluation report generated for my session on...",
+            "Subject: Dispute / Appeal Against Inaccurate AI Audit for Session: \"AWS Cloud Overview & Deployment Setup\" Dear Quality Assurance & Evaluation Team, I am requesting a manual review of the automated AI evaluation generated for my...",
+            "The Scope of Improvement provided by the software is incorrect. For example: At 1:03: I hadn't even started teaching Queue, yet the software has generated feedback related to it. At 15:40: The software claims that I said the...",
+            "You should read problem statements aloud exactly as written. At ((23:58)) you said “statement one is LCM of X and Y is four” when the slide says “HCF of X & Y is 4”. This can confuse students who are cross-referencing the slide....",
+            "I would like to request a review of the QA report generated for my recent session, as I believe the report contains significant inaccuracies that have negatively impacted my score. The report states that I discussed Aadhaar..."
           ]
         }
       ]
@@ -232,7 +241,7 @@
         {
           "id": "G04-S01",
           "name": "Learning Portal Access & Technical Issue",
-          "description": "Any login, access, unlocking, expiry, or general technical problem with either the instructor Teach OS platform or the student Learning Portal -- both route to the same Central Operations team.",
+          "description": "Login, access, unlocking or expiry problems with the instructor Teach OS platform or the student Learning Portal (can't log in, course or content not unlocked, access needed). Other Teach OS failures (recording, QA report, bugs, slowness) go to Instructor Platform (Teach OS).",
           "assigned_team": "Central Operations",
           "poc_primary": "narayana.dubbala@nxtwave.co.in, gompa.mounica@nxtwave.co.in",
           "examples": [
@@ -258,7 +267,8 @@
             "Another instructor was taking lecture (Gesture Tech Session). Due to this I am unable to take that session. (Section- c Time- 1:00 - 1:50)",
             "online Practice session is scheduled for me but at that time some other instructor took it in offline mode and as I have conducted that session recording is not submitted I already discussed with BOA he is also not able to cancel it now need help i it",
             "During my lecture session, I noticed that a few students were writing a competitive programming exam during class hours. When I enquired about it, the students informed me that they had received an exam link and that there was a time limit to complete it. They mentioned that due to the time constraint, they continued attempting the exam during my…",
-            "Topic- Continuity and Discontinuity I had a session scheduled from 10:30 AM to 11:30 AM. However, we were informed to conclude the session within 30 minutes due to the Web Applications Unit Test scheduled at 11:30 AM, requiring us to wrap up by 11:00 AM. Although I was prepared to complete the session within the given time, attendance procedures…"
+            "Topic- Continuity and Discontinuity I had a session scheduled from 10:30 AM to 11:30 AM. However, we were informed to conclude the session within 30 minutes due to the Web Applications Unit Test scheduled at 11:30 AM, requiring us to wrap up by 11:00 AM. Although I was prepared to complete the session within the given time, attendance procedures…",
+            "There was a session on the campus for which students were called due to which I was asked to end my session within 10 mins of its start. thus , the qa report doesn't match. giving lower scores."
           ]
         },
         {
@@ -277,14 +287,14 @@
         {
           "id": "G05-S03",
           "name": "Session Cancelled",
-          "description": "A session has been cancelled, by Ops or by circumstances such as no students, a holiday, a power cut or leave, without a make-up plan or adequate notice. This also covers a cancelled or not-conducted session that still shows in TeachOS and asks for a recording.",
+          "description": "A session was cancelled, or should have been cancelled, by Ops or by circumstances such as no students, a holiday, a power cut or leave, without a make-up plan or adequate notice. This includes a session that went ahead with no students present (e.g. mass bunk) where a QA report was still generated and the instructor asks for it to be excluded, and a cancelled or not-conducted session that still shows in Teach OS and asks for a recording.",
           "assigned_team": "Program operations",
           "poc_primary": "manoj.panchothi@nxtwave.co.in",
           "examples": [
-            "The session was conducted in full as scheduled and continued without any interruption from my end. However, after the session had ended, I was unable to upload the audio recording or mark the session as completed on TeachOS. Later, I came to know that the Ops team had cancelled the session midway, even though I had continued conducting the session…",
             "I took this class on 29th Aug, but the next day it was showing as cancelled. Also, all the ratings were omitted.",
             "On 24-08-2026 from 4:00 PM to 5:00PM I have session and it was cancelled and then morning session is again updated in place of actual scheduled session and i cant upload video again if i do that it gives malpractice.",
-            "Aptitude module quiz was scheduled on 01-04-2026, but it got postponed to some other date due to a university exam being held on the same day. The module quiz is not being conducted even after multiple reminders."
+            "Aptitude module quiz was scheduled on 01-04-2026, but it got postponed to some other date due to a university exam being held on the same day. The module quiz is not being conducted even after multiple reminders.",
+            "On 26 September 2026, Students in NIU were on mass bunk and three classes were fully empty in the second half. I would like to bring to your attention a concern regarding the two sessions shown in the attached screenshot: Testing..."
           ]
         },
         {
@@ -316,7 +326,7 @@
         {
           "id": "G05-S06",
           "name": "Extra Session Required",
-          "description": "The standard schedule doesn't give enough sessions or time to complete the curriculum: a topic is too long for one slot, two topics are packed into one session, or catch-up or exam-preparation sessions are needed. A dispute about a QA score alone doesn't belong here.",
+          "description": "The instructor asks Ops to schedule additional sessions or slots because the standard schedule doesn't give enough time: two topics packed into one session, a topic needing more than one lecture, or catch-up or exam-preparation sessions. If the complaint is that QA coverage dropped because the content was too long, use Content & Curriculum > Learning Hours Discrepancy.",
           "assigned_team": "Program operations",
           "poc_primary": "manoj.panchothi@nxtwave.co.in",
           "examples": [
@@ -329,14 +339,15 @@
         {
           "id": "G05-S07",
           "name": "Schedule Updated but Not Reflected in System",
-          "description": "A schedule change was agreed with Ops/BOA (by email, verbally or in Prod), or the session was delivered correctly, but TeachOS or the calendar still shows the old, missing or wrong session or status.",
+          "description": "A schedule change was agreed with Ops/BOA (by email, verbally or in Prod), or the session was delivered correctly, but Teach OS or the calendar still shows the old, missing or wrong session or status (e.g. session shows cancelled or can't be marked complete after it was taken).",
           "assigned_team": "Program operations",
           "poc_primary": "manoj.panchothi@nxtwave.co.in",
           "examples": [
             "Hi Team, Due to a backend issue with updating the schedule, the BOA team was unable to make the necessary changes. This session is actually a PS session. Thank you for your understanding.",
             "in KKH, i have connected with Snehal(scheduling person) - he mentioned that they are scheduling the DSA sessions as PS, But from my end and from instructors end, the schedule is not being reflected attaching the proof instructor shared me.",
             "The topic “Lists and Keys” was partially completed for my sections 13, 14, 15, and 18, and I updated the PROD yesterday at 12:56 PM marking it as partially completed. However, in my instructor portal, the next topic is still showing as “State and Events.” I have already informed the concerned team on WhatsApp and they acknowledged the message, but…",
-            "The English Practice session was assigned to me; however, it was not scheduled on TeachOS by the Ops team. I would request you to kindly verify the scheduling details and clarify the reason for this discrepancy."
+            "The English Practice session was assigned to me; however, it was not scheduled on TeachOS by the Ops team. I would request you to kindly verify the scheduling details and clarify the reason for this discrepancy.",
+            "The session was conducted in full as scheduled and continued without any interruption from my end. However, after the session had ended, I was unable to upload the audio recording or mark the session as completed on TeachOS. Later, I came to know that the Ops team had cancelled the session midway, even though I had continued conducting the session…"
           ]
         },
         {
@@ -367,14 +378,17 @@
         {
           "id": "G05-S10",
           "name": "Any Issue Leading to Session Disruption",
-          "description": "An active, real-time issue stopped the session or cut it short (power, Wi-Fi, projector or display, outside noise or an event, a student incident), raised during or within 10 minutes of the session start. If the instructor only asks afterwards to cancel or reschedule, use Session Cancelled or Session Rescheduled instead.",
+          "description": "Something during or around a specific session stopped it running normally: late start (prayer, event, display not working), the class was cut short or students were pulled out, outside disturbance or a student incident, mid-session loss of mic, network or power, or students unable to access the portal. Route here whether it was raised live or afterwards, and including when the instructor's ask is for the QA impact of that disruption to be considered (e.g. QA dropped, students said it was off topic, AI misread the help given during the outage). If the instructor only asks afterwards to cancel or reschedule, use Session Cancelled or Session Rescheduled. If the session ran normally and only the recording is missing and needs recovering, use Instructor Platform (Teach OS) > Recording Issue.",
           "assigned_team": "Program operations",
           "poc_primary": "manoj.panchothi@nxtwave.co.in",
           "examples": [
             "The WiFi was not working at all, and there were also frequent power cuts. Due to these issues, I was unable to start the class. Therefore, the class could not be conducted.",
             "Someone has disconnected the Projector, which disrupted the session and caused me to lose approx 20 valuable mins . As a result, I was unable to complete my session as planned.",
             "I had a session at Hall 17 on the topic of \"Level Order Traversal\". But I was unable to conduct the session due to disturbance outside the class due to Ganesh Chaturthi Celebrations. Now my QA is also affected.",
-            "I did not get the chance to teach the students, as i started the session with revision, few students misbehaved with me, so i took them immediately to our campus manager, it consumed 30 min of the session, the moment i return back to resume the session HOD of the campus kept one sudden meeting so i had to end the session."
+            "I did not get the chance to teach the students, as i started the session with revision, few students misbehaved with me, so i took them immediately to our campus manager, it consumed 30 min of the session, the moment i return back to resume the session HOD of the campus kept one sudden meeting so i had to end the session.",
+            "While recording the sessions (3 sessions in a row) Mic was switched off in last class, Therefore it stopped recording the audio. I was not able to connect other mic or go for another option. Hence I stopped recording in the...",
+            "I would like to request a review of my QA score, as the session was affected by Wi-Fi/connectivity issues and learning portal access problems. Several students were unable to access the required portals, and assistance was...",
+            "The session was scheduled from 9:30 am to 10:20 am but becuase of the prayer of the university and tv connecting issues the session was not able to start in alloted time so i have not recorded in teach os i have recorded in the..."
           ]
         }
       ]
@@ -489,7 +503,7 @@
         {
           "id": "G08-S01",
           "name": "Any Facility Related Issue (Wi-Fi / AC / Staffrooms)",
-          "description": "A physical campus infrastructure problem raised by the instructor that isn't network, laptop or microphone: power cuts, AC or ventilation, classroom display/projector/TV/smart board/HDMI, staffroom not allotted or unusable, cleanliness, washrooms, drinking water, charging points, faculty transport. It counts here even when the instructor's main complaint is what it caused (session couldn't be completed, QA dropped), as long as the root cause is one of these. If the result was that the audio/recording was lost, use Audio Not Captured instead.",
+          "description": "A physical campus infrastructure problem that isn't network, laptop or microphone: power cuts, AC or ventilation, classroom display/projector/TV/smart board/HDMI, staffroom not allotted or unusable, cleanliness, washrooms, drinking water, charging points, faculty transport. Use this when the ask is for the facility to be fixed or improved. If a specific session was disrupted and the instructor wants the QA impact considered, use Scheduling > Any Issue Leading to Session Disruption; if a recording was lost and the ask is to recover or accept it, use Instructor Platform (Teach OS) > Recording Issue.",
           "assigned_team": "Program Operations",
           "poc_primary": "Respective Campus COS",
           "examples": [
@@ -502,7 +516,7 @@
         {
           "id": "G08-S02",
           "name": "Campus Network / Wi-Fi Issue",
-          "description": "Campus internet (Wi-Fi, LAN or mobile network) is absent, slow or keeps dropping, in classrooms, staffrooms or exam halls. This includes when the bad network stops something else working: slides won't load, grooming check or AI assessment fails, students can't take a skill assessment, manager connect drops. If the result was that the session audio wasn't recorded or uploaded, use Audio Not Captured instead. A TeachOS bug on a working network isn't Facilities.",
+          "description": "Campus internet (Wi-Fi, LAN or mobile network) is absent, slow or keeps dropping in classrooms, staffrooms or exam halls, and the ask is for it to be fixed. This includes when the bad network stops campus activities working: slides won't load, grooming checks fail, students can't take a skill assessment. Use this when the ask is for the facility to be fixed or improved. If a specific session was disrupted and the instructor wants the QA impact considered, use Scheduling > Any Issue Leading to Session Disruption; if a recording was lost and the ask is to recover or accept it, use Instructor Platform (Teach OS) > Recording Issue. A Teach OS bug on a working network isn't Facilities.",
           "assigned_team": "Program Operations",
           "poc_primary": "Respective Campus COS",
           "examples": [
@@ -515,7 +529,7 @@
         {
           "id": "G08-S03",
           "name": "Laptop / Device Issue",
-          "description": "The instructor's work device is the problem: company laptop not provided yet, or laptop screen, camera, battery, charger, ports or power failing, hanging or needing replacement. If the device failure meant the session audio wasn't recorded, use Audio Not Captured instead.",
+          "description": "The instructor's work device is the problem and they want it provided, repaired or replaced: company laptop not provided yet, or screen, camera, battery, charger, ports or power failing, hanging. If a specific session's recording was lost and the ask is to recover or accept it, use Instructor Platform (Teach OS) > Recording Issue.",
           "assigned_team": "Program Operations",
           "poc_primary": "Respective Campus COS",
           "examples": [
@@ -528,7 +542,7 @@
         {
           "id": "G08-S04",
           "name": "Microphone / Recording Equipment Issue",
-          "description": "Classroom audio or recording equipment is missing, too few, or unreliable, and the instructor is asking for it to be provided or fixed: no mic, shared mics, dead or no spare batteries, mic cutting out, speakers not working. Use this for the ongoing equipment request. If a specific session's audio was lost because of it, use Audio Not Captured instead.",
+          "description": "Classroom audio or recording equipment is missing, too few, or unreliable, and the instructor is asking for it to be provided or fixed: no mic, shared mics, dead or no spare batteries, mic cutting out, speakers not working. Use this for the ongoing equipment request. A lost recording for a specific session -> Teach OS > Recording Issue; a mid-session mic failure with QA impact -> Scheduling > Any Issue Leading to Session Disruption; a request to review scores from the period before a mic was provided -> QA Report > Scorecard / Rubric Discrepancy.",
           "assigned_team": "Program Operations",
           "poc_primary": "Respective Campus COS",
           "examples": [
@@ -554,14 +568,12 @@
         {
           "id": "G08-S06",
           "name": "Audio Not Captured (Equipment / Facility Issue)",
-          "description": "A specific session's audio wasn't recorded, was recorded partly or blank, or couldn't be uploaded or submitted, and the instructor says the cause is a facility or equipment problem: no Wi-Fi or slow internet, power cut, mic not working or no mic, dead battery, laptop failure. Use this whichever category the instructor filed under (TeachOS, QA, Scheduling). The ask is usually to accept a mobile recording or excuse the QA score. If no facility cause is mentioned (app crash, upload bug, malpractice flag), it's a TeachOS platform issue, not Facilities.",
+          "description": "A specific session's audio was lost because equipment or a facility failed, and the instructor is reporting the failure so the campus team can fix or replace it (e.g. the classroom mic is dead and needs replacing before the next session). The ask is directed at Facilities, not at the recording or the QA score. If the ask is to recover, re-upload or accept a recording -> Teach OS > Recording Issue; to excuse QA for a session the outage disrupted -> Scheduling > Any Issue Leading to Session Disruption; to review a period of past scores -> QA Report > Scorecard / Rubric Discrepancy.",
           "assigned_team": "Program Operations",
           "poc_primary": "Respective Campus COS",
           "examples": [
-            "We are unable to record the session due to a power outage and network connectivity issues. Since there is currently no power supply, the Wi-Fi/network connection is also unavailable, which is preventing us from recording the session. We will resume the recording once the power supply and network connection are restored. I will ensure that the…",
-            "The audio was not recorded properly due to a slow internet connection during the session. As a result, the QA evaluation may not accurately reflect my actual performance.",
-            "The laptop is not turning on.So couldn't record.",
-            "The Mic didn't record anything for the entire 50 minutes and this empty audio got 0.0 score as QA Rating"
+            "[Placeholder - replace with a real ticket] The mic in Hall 12 stopped recording halfway through my session today. Please replace it before tomorrow's classes.",
+            "[Placeholder - replace with a real ticket] Recording failed in Room 204 again because the only charging point near the podium isn't working. Please get it repaired."
           ]
         }
       ]
