@@ -194,7 +194,7 @@ webhook tracks them are graded.
 | `MAX_CLARIFICATION_TURNS` | `2` | Caps back-and-forth so the bot doesn't interrogate the user forever; falls back to `needs_human_review`. |
 | `FEWSHOT_K` | `5` | How many retrieved examples get injected as dynamic few-shot context per call. |
 | `FEWSHOT_REPORTER_K` | `2` | Extra few-shot examples pulled from the instructor's picked category (see below). |
-| `REPORTER_OVERRIDE_MIN_CONFIDENCE` | `0.95` | How sure the model must be to override the subcategory the instructor picked. |
+| `REPORTER_OVERRIDE_MIN_CONFIDENCE` | `0.8` | How sure the model must be to override the subcategory the instructor picked. |
 
 Tune `CONFIDENCE_THRESHOLD` down if you're getting too many clarifying questions
 on tickets a human would consider obvious; tune it up if wrong-but-confident
