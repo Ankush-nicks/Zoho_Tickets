@@ -222,11 +222,26 @@ carries intent the issue text leaves out, so the webhook passes it to
 The pre-submit Deluge script must send `sub_category_of_the_issue` for this
 to see the subcategory (see `Claude outputs/zoho_invoke_script_fixed.deluge`).
 
-Each ticket is classified **once**, at pre-submit. The On Add call that
-follows stores that same result (remembered for an hour by issue text, so
-its confidence/reasoning carry over) or, failing that, the category the
-form was saved with - it only calls the model again when the pre-submit
-classification itself failed or the saved subcategory isn't usable.
+Each ticket is classified **once**, at pre-submit. That call stores a
+`draft` row (no Zoho ticket id yet) with the instructor's pick, the model's
+own pick and confidence, and the decision (`agreed`, `kept` or `overrode`).
+The On Add call that follows claims the oldest draft with the same text from
+the last 2 hours - filling in the ticket id instead of creating a new row -
+or, with no draft, stores the category the form was saved with. It only
+calls the model again when the pre-submit classification itself failed or
+the saved subcategory isn't usable.
+
+Drafts nobody claims (abandoned forms, or text edited after the suggestion)
+are never deleted, just hidden from every page, export and count, and the
+background classifier skips them. The same text from the same instructor
+(`ticket_raised_by`) within 7 days is marked as a duplicate.
+
+The **Log** page (`/log`) shows one row per ticket - instructor's pick,
+model's pick and confidence, decision, final category, right or wrong - and,
+from settled tickets, how often each decision was right and which
+`REPORTER_OVERRIDE_MIN_CONFIDENCE` would have routed the most disagreements
+correctly. A ticket counts as wrong when it was corrected in the portal or
+transferred in Zoho.
 
 ### OpenRouter vs Gemini accuracy comparison
 

@@ -18,7 +18,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from openai import RateLimitError
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import auth, config, db, memory, classifier, quality_scorer, poc_queue, zoho_csv, daily_issue
+from . import auth, config, db, memory, classifier, quality_scorer, poc_queue, zoho_csv, daily_issue, routing_log
 from .taxonomy import taxonomy
 from .auth import require_login
 from .models import (
@@ -137,7 +137,7 @@ async def _settle_pending_csv_imports_at_startup():
 
 # App pages - all served by index(). Also the only places login will
 # send you back to, so ?next= can't be used as an open redirect.
-PAGE_PATHS = ("/daily", "/pulse", "/stats", "/taxonomy", "/drill-down")
+PAGE_PATHS = ("/daily", "/pulse", "/stats", "/taxonomy", "/drill-down", "/log")
 
 
 def _login_redirect(next_path: str) -> RedirectResponse:
@@ -152,6 +152,7 @@ def _login_redirect(next_path: str) -> RedirectResponse:
 @app.get("/stats")
 @app.get("/taxonomy")
 @app.get("/drill-down")
+@app.get("/log")
 def index(request: Request):
     """Every page is the same shell (one shared header); index.html
     reads the path to decide which page to show."""
@@ -510,6 +511,27 @@ def list_corrections(date_from: str | None = None, date_to: str | None = None, u
     return db.list_corrections(date_from, date_to)
 
 
+@app.get("/api/routing-log")
+def get_routing_log(date_from: str | None = None, date_to: str | None = None, user: str = Depends(require_login)):
+    """
+    The Log page: one row per ticket (instructor's pick, model's pick and
+    confidence, decision, final category, right or wrong) plus the numbers
+    for tuning the override threshold - see app/routing_log.py. Uploaded
+    history is left out (the model never saw it); drafts already are.
+    [date_from, date_to] are UTC calendar days, as /api/tickets/range.
+    """
+    tickets = [
+        t for t in _filter_tickets_by_date_range(db.list_all_tickets(), date_from, date_to)
+        if not _is_upload_history(t)
+    ]
+    rows = routing_log.build_rows(tickets, db.list_corrections())
+    return {
+        "rows": rows,
+        "summary": routing_log.learn(rows, config.REPORTER_OVERRIDE_MIN_CONFIDENCE),
+        "drafts": db.count_drafts(),
+    }
+
+
 # --- Zoho Creator integration ----------------------------------------------
 
 @app.get("/api/zoho/status")
@@ -598,11 +620,13 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
     - Absent -> suggestion mode: for a "Suggest category" action in Zoho
       that runs BEFORE a record is submitted/saved - i.e. before Zoho has
       generated a Ticket_ID for it. Classifies whatever draft
-      issue_in_detail text is passed in and returns a preview. Nothing is
-      written to the tickets table in this mode (db.get_ticket_by_zoho_id /
-      create_ticket / update_ticket are never called) - there's no stable
-      identity yet to store it under, and this may be called more than once
-      per eventual ticket as the draft text changes while an agent edits it.
+      issue_in_detail text is passed in and returns a preview, and stores
+      it as a 'draft' ticket (no Zoho id) carrying the instructor's pick,
+      the model's pick and the decision for the routing log. The On Add call
+      that follows claims the oldest matching draft from the last 2 hours
+      instead of creating a new row (see _DRAFT_MATCH_WINDOW_SECONDS). Drafts
+      never claimed - abandoned forms, or text edited after the suggestion -
+      stay drafts: never deleted, hidden from every listing and count.
 
     Auth is a shared secret (X-Webhook-Secret, see require_webhook_secret)
     rather than the session login the UI uses, since Deluge can't hold a
@@ -679,10 +703,10 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
             _require_webhook_classify_key()
             result = classifier.classify(issue_text, config.OPENROUTER_API_KEY, reporter_hint=hint)
             category_id = result.category_id
-            _remember_suggestion(issue_text, result)
+            _store_presubmit_draft(issue_text, payload, hint, result)
         except Exception as e:
             logger.error(f"Zoho webhook suggestion-mode classify() failed: {e}")
-            _remember_suggestion(issue_text, None)
+            _store_presubmit_draft(issue_text, payload, hint, None, failure=str(e))
             echo = _reporter_pick_echo(payload)
             if echo:
                 return {"ok": True, **echo, "needs_review": True}
@@ -754,15 +778,27 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
             "needs_review": used_fallback,
         }
 
-    ticket_id = db.create_ticket(
-        issue_text,
+    draft = db.claim_draft(
+        issue_text, time.time() - _DRAFT_MATCH_WINDOW_SECONDS,
         zoho_ticket_id=zoho_ticket_id,
         zoho_category=zoho_category,
         zoho_subcategory=zoho_subcategory,
         raw_payload=payload,
+        status="pending",
     )
+    if draft:
+        ticket_id = draft["id"]
+    else:
+        ticket_id = db.create_ticket(
+            issue_text,
+            zoho_ticket_id=zoho_ticket_id,
+            zoho_category=zoho_category,
+            zoho_subcategory=zoho_subcategory,
+            raw_payload=payload,
+        )
+    _mark_if_duplicate(ticket_id, issue_text, payload)
 
-    adopted = _adopt_presubmit_classification(ticket_id, issue_text, zoho_subcategory)
+    adopted = _adopt_presubmit_classification(ticket_id, draft, zoho_subcategory)
     if adopted:
         leaf = taxonomy.get(adopted)
         return {
@@ -772,7 +808,13 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
             "needs_review": False,
         }
 
-    hint = _reporter_hint_from(zoho_category, zoho_subcategory)
+    # The instructor's real pick: from the draft when there is one - by now
+    # the form's own category fields hold the pre-submit suggestion instead.
+    if draft:
+        hint = _reporter_hint_from(draft.get("reporter_category"), draft.get("reporter_subcategory"))
+    else:
+        hint = _reporter_hint_from(zoho_category, zoho_subcategory)
+        db.update_ticket(ticket_id, **_reporter_fields(zoho_category, zoho_subcategory, hint))
     classify_failed_reason = None
     try:
         _require_webhook_classify_key()
@@ -817,65 +859,111 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
     }
 
 
-# Pre-submit (suggestion-mode) results, keyed by issue text, so the On Add
-# call that follows a moment later can store that same classification
-# instead of paying for a second identical model call. In-process and
-# short-lived on purpose: a miss (restart, or the text was edited after the
-# suggestion) just falls back to the Zoho fields - see
-# _adopt_presubmit_classification.
-_SUGGESTION_TTL_SECONDS = 3600
-_SUGGESTION_MAX_ENTRIES = 1000
-_suggestion_cache: dict[str, tuple[float, ClassificationResult | None]] = {}
-_suggestion_lock = threading.Lock()
+# How old a pre-submit draft can be and still be claimed by an On Add call
+# with the same text - long enough for an instructor to finish the form,
+# short enough that an old abandoned draft never attaches to a new ticket.
+_DRAFT_MATCH_WINDOW_SECONDS = 2 * 3600
+# Same text from the same instructor within this long = a duplicate ticket.
+_DUPLICATE_WINDOW_SECONDS = 7 * 24 * 3600
 
 
-def _suggestion_key(issue_text: str) -> str:
-    import hashlib
-    return hashlib.sha256(issue_text.strip().encode("utf-8")).hexdigest()
+def _reporter_fields(category, subcategory, hint: classifier.ReporterHint | None) -> dict:
+    """The instructor's own pick, for the routing log."""
+    return {
+        "reporter_category": str(category or "").strip() or None,
+        "reporter_subcategory": str(subcategory or "").strip() or None,
+        "reporter_leaf_id": hint.leaf_id if hint else None,
+    }
 
 
-def _remember_suggestion(issue_text: str, result: ClassificationResult | None) -> None:
-    """result=None records that the pre-submit classification FAILED."""
-    now = time.time()
-    with _suggestion_lock:
-        for k in [k for k, (at, _) in _suggestion_cache.items() if now - at > _SUGGESTION_TTL_SECONDS]:
-            del _suggestion_cache[k]
-        if len(_suggestion_cache) >= _SUGGESTION_MAX_ENTRIES:
-            del _suggestion_cache[min(_suggestion_cache, key=lambda k: _suggestion_cache[k][0])]
-        _suggestion_cache[_suggestion_key(issue_text)] = (now, result)
+def _decision_fields(result: ClassificationResult) -> dict:
+    """The model's own pick and the agreed/kept/overrode decision, for the
+    routing log. With no subcategory picked by the instructor there's
+    nothing to weigh, so the model's pick is the result itself and the
+    decision is 'none' (NULL is left for tickets from before the log)."""
+    if result.decision is None:
+        return {"model_category_id": result.category_id, "model_confidence": result.confidence, "decision": "none"}
+    return {
+        "model_category_id": result.model_category_id,
+        "model_confidence": result.model_confidence,
+        "decision": result.decision,
+    }
 
 
-def _pop_suggestion(issue_text: str) -> tuple[bool, ClassificationResult | None]:
-    """(found, result) - result is None when the pre-submit call failed."""
-    with _suggestion_lock:
-        entry = _suggestion_cache.pop(_suggestion_key(issue_text), None)
-    if entry is None or time.time() - entry[0] > _SUGGESTION_TTL_SECONDS:
-        return False, None
-    return True, entry[1]
-
-
-def _adopt_presubmit_classification(ticket_id: str, issue_text: str, zoho_subcategory: str | None) -> str | None:
+def _store_presubmit_draft(issue_text: str, payload: dict, hint, result: ClassificationResult | None,
+                           failure: str | None = None) -> None:
     """
-    The pre-submit Deluge script already classified this ticket and wrote
-    the result into the form's category fields before it was saved, so the
-    On Add call must not classify it a second time. Stores that
-    classification on the new ticket and returns its leaf id, or returns
-    None (caller classifies as before) when there's nothing trustworthy to
-    adopt:
+    Pre-submit call -> a 'draft' ticket for the On Add call to claim (see
+    _adopt_presubmit_classification). A draft with no category_id records
+    that the pre-submit classification failed. Never raises: the
+    instructor's form must get its suggestion even if the database is down.
+    """
+    fields = _reporter_fields(payload.get("category_of_the_issue"), payload.get("sub_category_of_the_issue"), hint)
+    if result is not None:
+        fields.update(category_id=result.category_id, confidence=result.confidence,
+                      reasoning=result.reasoning, **_decision_fields(result))
+    else:
+        fields.update(reasoning=f"Pre-submit classification failed: {failure}"[:500])
+    try:
+        db.create_draft(issue_text, payload, **fields)
+    except Exception as e:
+        logger.error(f"storing the pre-submit draft failed: {e}")
 
-    - the pre-submit classification failed (its fields then hold the
-      instructor's own pick or the fallback leaf, not a model answer) - so
-      this is the first real classification, not a repeat;
+
+def _instructor_key(payload: dict | None) -> str | None:
+    payload = payload or {}
+    who = str(payload.get("ticket_raised_by") or payload.get("instructor_id") or "").strip().lower()
+    return who or None
+
+
+def _same_text_key(text: str | None) -> str:
+    return " ".join(str(text or "").lower().split())
+
+
+def _mark_if_duplicate(ticket_id: str, issue_text: str, payload: dict) -> None:
+    """
+    Same text from the same instructor (ticket_raised_by) within the last
+    7 days -> duplicate_of points at the first such ticket, so the routing
+    log counts the issue once. Never raises - On Add must still store the
+    ticket.
+    """
+    who = _instructor_key(payload)
+    if not who:
+        return
+    try:
+        same = _same_text_key(issue_text)
+        for t in db.list_tickets_since(time.time() - _DUPLICATE_WINDOW_SECONDS):
+            if t["id"] != ticket_id and _instructor_key(t.get("raw_payload")) == who \
+                    and _same_text_key(t.get("original_text")) == same:
+                db.update_ticket(ticket_id, duplicate_of=t.get("duplicate_of") or t["id"])
+                return
+    except Exception as e:
+        logger.error(f"duplicate check failed for ticket {ticket_id}: {e}")
+
+
+def _adopt_presubmit_classification(ticket_id: str, draft: dict | None, zoho_subcategory: str | None) -> str | None:
+    """
+    The pre-submit Deluge script already classified this ticket (stored as
+    the draft this On Add call just claimed) and wrote the result into the
+    form's category fields before it was saved, so the On Add call must not
+    classify it a second time. Stores that classification on the ticket and
+    returns its leaf id, or returns None (caller classifies as before) when
+    there's nothing trustworthy to adopt:
+
+    - the pre-submit classification failed (the draft has no category; the
+      form's fields then hold the instructor's own pick or the fallback
+      leaf, not a model answer) - so this is the first real
+      classification, not a repeat;
     - the Zoho subcategory doesn't resolve to a taxonomy leaf;
-    - no remembered suggestion AND the subcategory is the catch-all
-      fallback leaf (most likely a forced fallback, not a model answer).
+    - no draft AND the subcategory is the catch-all fallback leaf (most
+      likely a forced fallback, not a model answer).
 
-    A remembered suggestion for the same leaf keeps its confidence and
-    reasoning. A different leaf means someone changed the field on the form
-    after our suggestion - the form wins.
+    A draft for the same leaf keeps its confidence and reasoning. A
+    different leaf means someone changed the field on the form after our
+    suggestion - the form wins.
     """
-    found, suggestion = _pop_suggestion(issue_text)
-    if found and suggestion is None:
+    found = draft is not None
+    if found and not draft.get("category_id"):
         return None
     leaf_id = _resolve_taxonomy_leaf_by_name(zoho_subcategory)
     if leaf_id is None:
@@ -883,12 +971,12 @@ def _adopt_presubmit_classification(ticket_id: str, issue_text: str, zoho_subcat
     if not found and leaf_id == config.ZOHO_FALLBACK_CATEGORY_ID:
         return None
 
-    if suggestion is not None and suggestion.category_id == leaf_id:
-        confidence, reasoning = suggestion.confidence, suggestion.reasoning
-    elif suggestion is not None:
+    if found and draft["category_id"] == leaf_id:
+        confidence, reasoning = draft.get("confidence"), draft.get("reasoning")
+    elif found:
         confidence = None
         reasoning = (
-            f"Category changed on the Zoho form after our suggestion ({suggestion.category_id}) - "
+            f"Category changed on the Zoho form after our suggestion ({draft['category_id']}) - "
             "kept the form's value."
         )
     else:
@@ -1212,6 +1300,7 @@ def _run_classification_and_persist(
                 confidence=result.confidence,
                 reasoning=result.reasoning,
                 full_context=context_text,
+                **_decision_fields(result),
             )
         else:
             db.update_ticket(
@@ -1221,6 +1310,7 @@ def _run_classification_and_persist(
                 confidence=result.confidence,
                 reasoning=result.reasoning,
                 full_context=context_text,
+                **_decision_fields(result),
             )
     else:
         db.update_ticket(
@@ -1231,6 +1321,7 @@ def _run_classification_and_persist(
             category_id=result.category_id,
             confidence=result.confidence,
             reasoning=result.reasoning,
+            **_decision_fields(result),
         )
         db.append_turn(ticket_id, "system_question", result.clarifying_question or "Could you provide more detail?")
 
@@ -1270,8 +1361,9 @@ def _classify_pending_batch(limit: int, api_key: str) -> dict:
         context_text = (t.get("full_context") or t.get("original_text") or "").strip()
         if not context_text:
             continue
+        hint = _reporter_hint_for_ticket(t)
         try:
-            result = classifier.classify(context_text, api_key, reporter_hint=_reporter_hint_for_ticket(t))
+            result = classifier.classify(context_text, api_key, reporter_hint=hint)
         except RateLimitError as e:
             stopped_early = True
             error = str(e)
@@ -1287,6 +1379,9 @@ def _classify_pending_batch(limit: int, api_key: str) -> dict:
             category_id=result.category_id,
             confidence=result.confidence,
             reasoning=result.reasoning,
+            **_decision_fields(result),
+            **({} if t.get("reporter_category") or t.get("reporter_subcategory")
+               else _reporter_fields(t.get("zoho_category"), t.get("zoho_subcategory"), hint)),
         )
         classified_count += 1
 

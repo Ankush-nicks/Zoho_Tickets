@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS tickets (
     original_text TEXT NOT NULL,
     full_context TEXT NOT NULL,       -- original text + appended Q&A, what we classify against
     status TEXT NOT NULL,             -- 'awaiting_clarification' | 'classified' | 'needs_human_review' | 'corrected'
+                                      -- | 'pending' | 'draft' (pre-submit row with no Zoho ticket yet - hidden everywhere)
     category_id TEXT,
     confidence REAL,
     reasoning TEXT,
@@ -52,7 +53,21 @@ CREATE TABLE IF NOT EXISTS tickets (
                                         -- (classify() itself failed, or category_id was orphaned by a
                                         -- later taxonomy edit) - NULL for a normal classification, including
                                         -- when the model itself legitimately picks the same catch-all leaf
+    -- Routing log (see app/routing_log.py) - added by _migrate_columns() on
+    -- databases that predate them:
+    , reporter_category TEXT           -- what the instructor picked on the Zoho form, as sent,
+    , reporter_subcategory TEXT        -- before our classifier overwrote those fields
+    , reporter_leaf_id TEXT            -- reporter_subcategory resolved to a taxonomy leaf, if it did
+    , model_category_id TEXT           -- the model's own pick and confidence, before the
+    , model_confidence REAL            -- instructor's pick was weighed (classifier.apply_reporter_prior)
+    , decision TEXT                    -- 'agreed' | 'kept' | 'overrode' | 'none' (no subcategory picked)
+                                       -- - NULL for tickets classified before the routing log existed
+    , duplicate_of TEXT                -- id of an earlier ticket with the same text from the same
+                                       -- instructor within 7 days - counted once in accuracy
 );
+
+CREATE INDEX IF NOT EXISTS idx_tickets_status_created ON tickets(status, created_at);
+CREATE INDEX IF NOT EXISTS idx_tickets_created ON tickets(created_at);
 
 CREATE TABLE IF NOT EXISTS turns (
     id TEXT PRIMARY KEY,
@@ -143,11 +158,38 @@ def new_id() -> str:
     return uuid.uuid4().hex[:12]
 
 
+# Columns added after the tickets table first shipped. CREATE TABLE IF NOT
+# EXISTS is a no-op on an existing table - including the production Turso
+# one - so these are added explicitly wherever they're missing.
+_ADDED_COLUMNS = {
+    "reporter_category": "TEXT",
+    "reporter_subcategory": "TEXT",
+    "reporter_leaf_id": "TEXT",
+    "model_category_id": "TEXT",
+    "model_confidence": "REAL",
+    "decision": "TEXT",
+    "duplicate_of": "TEXT",
+}
+
+
+def _migrate_columns(conn):
+    have = {r["name"] for r in _fetchall(conn, "SELECT name FROM pragma_table_info('tickets')")}
+    for col, kind in _ADDED_COLUMNS.items():
+        if col not in have:
+            conn.execute(f"ALTER TABLE tickets ADD COLUMN {col} {kind}")
+
+
 def init_db():
     with _conn() as conn:
-        for statement in SCHEMA.strip().split(";"):
-            statement = statement.strip()
-            if statement:
+        # The tickets table must exist (and have the routing-log columns)
+        # before the indexes in SCHEMA are created.
+        statements = [s.strip() for s in SCHEMA.strip().split(";") if s.strip()]
+        for statement in statements:
+            if not statement.startswith("CREATE INDEX"):
+                conn.execute(statement)
+        _migrate_columns(conn)
+        for statement in statements:
+            if statement.startswith("CREATE INDEX"):
                 conn.execute(statement)
         if not USE_TURSO:
             # Older local SQLite DB files predate these columns - add them if
@@ -199,7 +241,8 @@ def create_ticket(
     return ticket_id
 
 
-def _insert_ticket(conn, original_text, zoho_ticket_id, zoho_category, zoho_subcategory, raw_payload, created_at) -> str:
+def _insert_ticket(conn, original_text, zoho_ticket_id, zoho_category, zoho_subcategory, raw_payload, created_at,
+                   status: str = "pending") -> str:
     ticket_id = new_id()
     now = created_at if created_at is not None else time.time()
     _exec(
@@ -207,11 +250,77 @@ def _insert_ticket(conn, original_text, zoho_ticket_id, zoho_category, zoho_subc
         """INSERT INTO tickets
            (id, original_text, full_context, status, clarification_turns,
             zoho_ticket_id, zoho_category, zoho_subcategory, raw_payload, created_at, updated_at)
-           VALUES (?, ?, ?, 'pending', 0, ?, ?, ?, ?, ?, ?)""",
-        (ticket_id, original_text, original_text, zoho_ticket_id, zoho_category,
+           VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?)""",
+        (ticket_id, original_text, original_text, status, zoho_ticket_id, zoho_category,
          zoho_subcategory, _dump_raw_payload(raw_payload), now, now),
     )
     return ticket_id
+
+
+# ---- drafts: the pre-submit call's row, before Zoho has a ticket id ----------
+
+def create_draft(original_text: str, raw_payload: dict | None, **fields) -> str:
+    """
+    Stores the pre-submit classification as a 'draft' ticket (no Zoho
+    ticket id yet) - see main.webhook_new_zoho_ticket. The On Add call that
+    follows claims it (claim_draft); a draft that's never claimed (the
+    instructor abandoned the form, or edited the text first) just stays a
+    draft, hidden from every listing.
+    """
+    with _conn() as conn:
+        ticket_id = _insert_ticket(conn, original_text, None, None, None, raw_payload, None, status="draft")
+    if fields:
+        update_ticket(ticket_id, **fields)
+    return ticket_id
+
+
+def claim_draft(original_text: str, since: float, **fields) -> dict | None:
+    """
+    The oldest unclaimed draft with exactly this text created at or after
+    `since`, turned into a real ticket: `fields` (which must include a
+    status other than 'draft' and the zoho_ticket_id) are written onto it.
+    None when there's no such draft. Two On Add calls racing for the same
+    draft can't both get it - the update only applies while the row is
+    still a draft, and the winner is checked by reading it back.
+    """
+    assert fields.get("status") not in (None, "draft") and fields.get("zoho_ticket_id")
+    fields["updated_at"] = time.time()
+    if "raw_payload" in fields:
+        fields["raw_payload"] = _dump_raw_payload(fields["raw_payload"])
+    cols = ", ".join(f"{k} = ?" for k in fields)
+    with _conn() as conn:
+        candidates = _fetchall(
+            conn,
+            "SELECT id FROM tickets WHERE status = 'draft' AND created_at >= ? AND original_text = ? "
+            "ORDER BY created_at ASC LIMIT 5",
+            (since, original_text),
+        )
+        for c in candidates:
+            _exec(conn, f"UPDATE tickets SET {cols} WHERE id = ? AND status = 'draft'", [*fields.values(), c["id"]])
+            row = _fetchone(conn, "SELECT * FROM tickets WHERE id = ?", (c["id"],))
+            if row and row.get("zoho_ticket_id") == fields["zoho_ticket_id"]:
+                _invalidate_list_all_cache()
+                return _load_raw_payload(row)
+    return None
+
+
+def list_tickets_since(since: float) -> list[dict]:
+    """Every non-draft ticket created at or after `since` (epoch seconds),
+    oldest first - indexed, so its cost scales with the window, not history."""
+    with _conn() as conn:
+        rows = _fetchall(
+            conn,
+            "SELECT * FROM tickets WHERE created_at >= ? AND status != 'draft' ORDER BY created_at ASC",
+            (since,),
+        )
+        return [_load_raw_payload(r) for r in rows]
+
+
+def count_drafts() -> int:
+    """Pre-submit rows never claimed by an On Add call - roughly, how often
+    instructors abandon a ticket (or edit its text) after the suggestion."""
+    with _conn() as conn:
+        return _fetchone(conn, "SELECT COUNT(*) AS n FROM tickets WHERE status = 'draft'")["n"]
 
 
 BULK_IMPORT_CHUNK_SIZE = 25
@@ -389,7 +498,7 @@ def _invalidate_list_all_cache():
 
 def list_all_tickets() -> list[dict]:
     """
-    Every ticket ever stored, oldest first - backs the full CSV export, the
+    Every ticket ever stored (drafts excluded), oldest first - backs the full CSV export, the
     Pulse/Insights dashboards, and the date-range views. Cached briefly and
     invalidated on every write since a single page load can fire several of
     these back-to-back. Prefer list_pending_tickets(), count_pending_
@@ -402,7 +511,7 @@ def list_all_tickets() -> list[dict]:
         return _list_all_cache["data"]
 
     with _conn() as conn:
-        rows = _fetchall(conn, "SELECT * FROM tickets ORDER BY created_at ASC")
+        rows = _fetchall(conn, "SELECT * FROM tickets WHERE status != 'draft' ORDER BY created_at ASC")
         result = [_load_raw_payload(r) for r in rows]
 
     _list_all_cache["data"] = result
@@ -439,7 +548,8 @@ def list_tickets_by_raw_status(statuses: list[str]) -> list[dict]:
     with _conn() as conn:
         rows = _fetchall(
             conn,
-            f"SELECT * FROM tickets WHERE json_extract(raw_payload, '$.ticket_status') IN ({placeholders})",
+            f"SELECT * FROM tickets WHERE json_extract(raw_payload, '$.ticket_status') IN ({placeholders}) "
+            "AND status != 'draft'",
             statuses,
         )
         return [_load_raw_payload(r) for r in rows]
@@ -454,7 +564,8 @@ def list_tickets_for_date(date_str: str) -> list[dict]:
     with _conn() as conn:
         rows = _fetchall(
             conn,
-            "SELECT * FROM tickets WHERE created_at >= ? AND created_at < ? ORDER BY created_at DESC",
+            "SELECT * FROM tickets WHERE created_at >= ? AND created_at < ? AND status != 'draft' "
+            "ORDER BY created_at DESC",
             (start_ts, end_ts),
         )
         return [_load_raw_payload(r) for r in rows]

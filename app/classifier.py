@@ -198,15 +198,18 @@ def apply_reporter_prior(result: ClassificationResult, hint: ReporterHint | None
     """
     if hint is None or not hint.leaf_id or taxonomy.get(hint.leaf_id) is None:
         return result
+    model_pick = {"model_category_id": result.category_id, "model_confidence": result.confidence}
     if result.category_id == hint.leaf_id:
         return result.model_copy(update={
             "confidence": max(result.confidence, config.CONFIDENCE_THRESHOLD),
             "needs_clarification": False,
             "clarifying_question": None,
+            **model_pick, "decision": "agreed",
         })
     if not result.needs_clarification and result.confidence >= config.REPORTER_OVERRIDE_MIN_CONFIDENCE:
         return result.model_copy(update={
             "reasoning": f"Overrode the instructor's pick ({hint.leaf_id}). {result.reasoning}",
+            **model_pick, "decision": "overrode",
         })
     return ClassificationResult(
         category_id=hint.leaf_id,
@@ -218,6 +221,7 @@ def apply_reporter_prior(result: ClassificationResult, hint: ReporterHint | None
         ),
         needs_clarification=False,
         clarifying_question=None,
+        **model_pick, decision="kept",
     )
 
 
