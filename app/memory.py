@@ -54,6 +54,20 @@ def seed_if_empty(seed_examples: list[dict], api_key: str):
     _collection.add(ids=ids, embeddings=embeddings, documents=texts, metadatas=metadatas)
 
 
+def seeds_match(seed_examples: list[dict]) -> bool:
+    """
+    Whether the stored seed examples are exactly the taxonomy's (same texts
+    under the same category ids, duplicates counted) - so a sync can skip
+    the embeddings call when only definitions changed. An empty store with
+    no seed examples to add also counts as matching.
+    """
+    from collections import Counter
+    stored = _collection.get(where={"source": "seed"}, include=["documents", "metadatas"])
+    have = Counter(zip(stored["documents"], (m.get("category_id") for m in stored["metadatas"])))
+    want = Counter((e["text"], e["category_id"]) for e in seed_examples)
+    return have == want
+
+
 def reseed(seed_examples: list[dict], api_key: str) -> tuple[int, int]:
     """
     Replace every seed example with the current taxonomy.json ones, leaving

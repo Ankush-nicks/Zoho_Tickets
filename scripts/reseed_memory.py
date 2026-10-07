@@ -1,11 +1,11 @@
 """
 Refresh the vector memory's seed examples from the current taxonomy.json.
 
-app/memory.py's seed_if_empty() only seeds an empty store, so after editing
-examples in taxonomy.json (by hand or via the Taxonomy tab) the running
-service keeps retrieving the OLD seed examples. This replaces just the
-seed entries (source="seed") and leaves every real correction in place -
-unlike deleting app/data/chroma, which would lose them all.
+The service now does this by itself - at startup and after every save on
+the Taxonomy tab (main._sync_seed_examples) - so this is only needed to
+force it by hand. It replaces just the seed entries (source="seed") and
+leaves every real correction in place - unlike deleting app/data/chroma,
+which would lose them all.
 
 Must run where the service's Chroma store lives (config.CHROMA_PATH), i.e.
 on the deployed instance, not a local checkout. One embeddings call for

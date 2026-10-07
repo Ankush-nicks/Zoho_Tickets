@@ -2849,7 +2849,11 @@ async function taxoSave() {
     if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
     taxoState = { version: data.version, categories: data.categories };
     taxoDirty = false;
-    taxoSetStatus('All changes saved', 'saved');
+    // Examples reach the classifier through its vector memory, refreshed
+    // in the background after each save (see _sync_seed_examples).
+    taxoSetStatus(data.examples_sync === 'skipped'
+      ? 'All changes saved - examples not sent to the classifier (OPENAI_API_KEY not set on the server)'
+      : 'All changes saved - the classifier picks up new examples in a minute', 'saved');
     taxoRender();
   } catch (err) {
     if (String(err.message).toLowerCase().includes('locked')) taxoRelock();

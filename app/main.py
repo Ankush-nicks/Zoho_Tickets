@@ -118,9 +118,9 @@ def get_my_subcategory_heat(poc_email: str = Depends(require_poc_token)):
 @app.on_event("startup")
 async def startup():
     db.init_db()
-    # Vector memory needs an OpenAI key to embed the seed examples, which we
-    # don't have until a request carries one - seeding happens lazily on the
-    # first classify() call instead (see classifier.classify).
+    # Bring the vector memory's taxonomy examples in line with taxonomy.json
+    # (a deploy may have changed them) - see _sync_seed_examples.
+    asyncio.create_task(asyncio.to_thread(_sync_seed_examples, "startup"))
     asyncio.create_task(_settle_pending_csv_imports_at_startup())
     asyncio.create_task(_auto_classify_loop())
     asyncio.create_task(_auto_score_loop())
@@ -321,7 +321,48 @@ def update_taxonomy(
         taxonomy.save(payload)
     except ValueError as e:
         raise HTTPException(400, str(e))
-    return {"version": taxonomy.version, "categories": taxonomy.groups}
+    # The classifier reads definitions straight from taxonomy.json, but its
+    # few-shot examples come from the vector memory - refresh those too.
+    return {"version": taxonomy.version, "categories": taxonomy.groups,
+            "examples_sync": _start_seed_sync("taxonomy save")}
+
+
+# One sync at a time: each run re-reads the current taxonomy, so a save made
+# while another sync is running is picked up by the next run, and two runs
+# can never interleave their delete/add of the seed entries.
+_seed_sync_lock = threading.Lock()
+
+
+def _sync_seed_examples(reason: str) -> None:
+    """
+    Makes the vector memory's seed examples (the taxonomy's examples, which
+    the classifier retrieves as few-shot context) match taxonomy.json:
+    replaces them via memory.reseed() - every learned correction stays -
+    and skips the embeddings call when they already match. Never raises.
+    """
+    if not config.OPENAI_API_KEY:
+        logger.warning("taxonomy examples not synced to memory (%s): OPENAI_API_KEY is not set", reason)
+        return
+    with _seed_sync_lock:
+        try:
+            seeds = taxonomy.seed_examples()
+            if memory.seeds_match(seeds):
+                return
+            removed, added = memory.reseed(seeds, config.OPENAI_API_KEY)
+            logger.info("taxonomy examples synced to memory (%s): removed %d, added %d", reason, removed, added)
+        except Exception as e:
+            logger.error(f"syncing taxonomy examples to memory failed ({reason}): {e}")
+
+
+def _start_seed_sync(reason: str) -> str:
+    """Runs _sync_seed_examples in the background (a reseed embeds every
+    example - too slow to hold the save request open). Returns 'started',
+    or 'skipped' when there's no OPENAI_API_KEY to embed with."""
+    if not config.OPENAI_API_KEY:
+        logger.warning("taxonomy examples not synced to memory (%s): OPENAI_API_KEY is not set", reason)
+        return "skipped"
+    threading.Thread(target=_sync_seed_examples, args=(reason,), daemon=True).start()
+    return "started"
 
 
 @app.get("/api/taxonomy/export.csv")
