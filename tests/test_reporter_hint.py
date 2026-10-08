@@ -57,12 +57,32 @@ def test_other_unclear_pick_gives_no_hint():
 
 # --- prompt ------------------------------------------------------------------
 
-def test_user_message_includes_reporter_pick_only_when_given():
-    assert "REPORTER-SELECTED" not in classifier._build_user_message("text", None)
-    msg = classifier._build_user_message("text", ReporterHint(group_id=GROUP, leaf_id=LEAF))
-    assert "REPORTER-SELECTED" in msg and LEAF in msg and LEAF_NAME in msg
-    group_msg = classifier._build_user_message("text", ReporterHint(group_id=GROUP))
-    assert GROUP in group_msg and "no subcategory picked" in group_msg
+def test_model_never_sees_the_reporter_pick(monkeypatch):
+    """classify() sends only the issue text; the pick is applied afterwards."""
+    sent = {}
+
+    class FakeCompletions:
+        def create(self, model, messages, **kwargs):
+            sent["messages"] = messages
+            content = '{"category_id": "%s", "confidence": 0.6, "reasoning": "r", ' \
+                      '"needs_clarification": false, "clarifying_question": null}' % OTHER_LEAF
+            msg = type("M", (), {"content": content})
+            return type("R", (), {"choices": [type("C", (), {"message": msg})]})
+
+    class FakeOpenAI:
+        def __init__(self, **kwargs):
+            self.chat = type("Chat", (), {"completions": FakeCompletions()})
+
+    monkeypatch.setattr(classifier, "OpenAI", FakeOpenAI)
+    monkeypatch.setattr(classifier, "_retrieve_fewshot", lambda text, key: [])
+    out = classifier.classify("not helpful", "sk-or-test", embed_api_key="x",
+                              reporter_hint=ReporterHint(group_id=GROUP, leaf_id=LEAF))
+
+    prompt = "\n".join(m["content"] for m in sent["messages"])
+    assert "REPORTER-SELECTED" not in prompt and LEAF_NAME not in sent["messages"][1]["content"]
+    assert sent["messages"][1]["content"] == "Ticket:\nnot helpful"
+    # ...and the threshold still decides: 0.6 < override threshold -> instructor's pick kept
+    assert (out.category_id, out.decision, out.model_category_id) == (LEAF, "kept", OTHER_LEAF)
 
 
 # --- apply_reporter_prior ----------------------------------------------------

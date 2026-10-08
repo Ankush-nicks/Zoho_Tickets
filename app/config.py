@@ -82,9 +82,9 @@ FEWSHOT_MIN_SIMILARITY = float(_env("FEWSHOT_MIN_SIMILARITY", "0.15"))
 # (app/daily_issue.py) - separate from classification so either can change
 # without the other.
 DAILY_ISSUE_MODEL = _env("OPENROUTER_DAILY_ISSUE_MODEL", "openai/gpt-4o-mini")
-# Extra few-shot examples pulled from the reporter's own subcategory (and
-# its siblings) when the Zoho form came with one - see memory.retrieve_
-# similar's also_from_categories.
+# Default number of extra examples memory.retrieve_similar adds when asked
+# for also_from_categories. The classifier no longer asks (it never sees the
+# instructor's pick), so this only matters to other callers.
 FEWSHOT_REPORTER_K = int(_env("FEWSHOT_REPORTER_K", "2"))
 # How sure the model must be before it overrides the subcategory the
 # instructor picked on the Zoho form - see classifier.apply_reporter_prior.
@@ -92,7 +92,7 @@ FEWSHOT_REPORTER_K = int(_env("FEWSHOT_REPORTER_K", "2"))
 # a weak hunch was the main source of misrouting (short/vague issue text,
 # where the reporter's own pick carries intent the text doesn't). Not a
 # calibrated value - tune it once enough overrides have been reviewed.
-REPORTER_OVERRIDE_MIN_CONFIDENCE = float(_env("REPORTER_OVERRIDE_MIN_CONFIDENCE", "0.8"))
+REPORTER_OVERRIDE_MIN_CONFIDENCE = float(_env("REPORTER_OVERRIDE_MIN_CONFIDENCE", "0.9"))
 
 DATA_DIR = Path(_env("DATA_DIR", str(BASE_DIR / "data")))
 DATA_DIR.mkdir(parents=True, exist_ok=True)

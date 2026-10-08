@@ -15,10 +15,12 @@ class ReporterHint:
     What the instructor picked on the Zoho form (Category_Of_The_Issue /
     the optional Sub_Category_Of_The_Issue) before our classifier ran,
     already resolved to taxonomy ids (see main.py's _reporter_hint_from).
-    Zoho's form uses this same taxonomy, and the pick often carries intent
-    the free text leaves out - a bare "not working" filed under Recording
-    Issue is a recording issue - so it's fed to the model as a strong prior
-    and backed up by apply_reporter_prior() rather than silently overwritten.
+
+    Never shown to the model: it classifies from the issue text alone, so
+    its pick and confidence are its own. The instructor's pick only comes in
+    afterwards, in apply_reporter_prior(), where
+    config.REPORTER_OVERRIDE_MIN_CONFIDENCE decides between the two - the
+    one knob to tune (see the Log page's threshold table).
 
     leaf_id is None when only a category group was picked; group_id is
     always set (the leaf's parent when a subcategory was picked).
@@ -26,26 +28,9 @@ class ReporterHint:
     group_id: str
     leaf_id: str | None = None
 
-    def candidate_leaf_ids(self) -> list[str]:
-        """The reporter's leaf plus its siblings - the extra few-shot pool."""
-        return [
-            leaf_id for leaf_id in taxonomy.category_ids
-            if taxonomy.get(leaf_id)["parent_id"] == self.group_id
-        ]
 
-
-def _build_user_message(ticket_text: str, hint: ReporterHint | None) -> str:
-    msg = f"Ticket:\n{ticket_text}"
-    if hint is None:
-        return msg
-    leaf = taxonomy.get(hint.leaf_id) if hint.leaf_id else None
-    if leaf:
-        picked = f"subcategory {hint.leaf_id} ({leaf['parent_name']} > {leaf['name']})"
-    else:
-        group = next((g for g in taxonomy.groups if g["id"] == hint.group_id), None)
-        group_name = group["name"] if group else hint.group_id
-        picked = f"category group {hint.group_id} ({group_name}) - no subcategory picked"
-    return f"{msg}\n\nREPORTER-SELECTED CATEGORY (chosen by the instructor who raised this ticket): {picked}"
+def _build_user_message(ticket_text: str) -> str:
+    return f"Ticket:\n{ticket_text}"
 
 
 def _response_schema() -> dict:
@@ -113,13 +98,6 @@ RULES:
    needs_clarification=false rather than guessing a specific category or asking a question.
 4. confidence should reflect your true certainty, not be inflated. Use the full 0-1 range.
 5. reasoning should be concise (1-2 sentences), referencing what in the text drove the decision.
-6. If the ticket includes a REPORTER-SELECTED CATEGORY line, the instructor who raised it
-   picked that from this same taxonomy, and it often carries intent the free text leaves out.
-   Treat it as a strong prior: keep it unless the ticket text clearly and specifically
-   describes a different subcategory's issue. If only a category group was picked, prefer a
-   subcategory inside that group. If you do pick something else, say in reasoning what in
-   the text contradicts the reporter's choice. Agreeing with the reporter's pick is never
-   by itself a reason to ask a clarifying question.
 """
 
 
@@ -147,12 +125,12 @@ def classify(
     own limit resets. Re-raises as before when Cloudflare isn't set up.
 
     reporter_hint (what the instructor picked on the Zoho form, if anything)
-    is shown to the model, widens few-shot retrieval to the reporter's
-    category, and then gates the final answer via apply_reporter_prior().
+    never reaches the model - it classifies from the issue text alone - and
+    only gates the final answer via apply_reporter_prior()'s threshold.
     """
     embed_api_key = embed_api_key or config.OPENAI_API_KEY
-    fewshot = _retrieve_fewshot(ticket_text, embed_api_key, reporter_hint)
-    user_message = _build_user_message(ticket_text, reporter_hint)
+    fewshot = _retrieve_fewshot(ticket_text, embed_api_key)
+    user_message = _build_user_message(ticket_text)
 
     client = OpenAI(api_key=api_key, base_url=config.OPENROUTER_BASE_URL)
     try:
@@ -173,19 +151,18 @@ def classify(
     return apply_reporter_prior(ClassificationResult(**raw), reporter_hint)
 
 
-def _retrieve_fewshot(ticket_text: str, embed_api_key: str, hint: ReporterHint | None) -> list[dict]:
+def _retrieve_fewshot(ticket_text: str, embed_api_key: str) -> list[dict]:
     memory.seed_if_empty(taxonomy.seed_examples(), embed_api_key)
-    return memory.retrieve_similar(
-        ticket_text, embed_api_key, k=config.FEWSHOT_K,
-        also_from_categories=hint.candidate_leaf_ids() if hint else None,
-    )
+    return memory.retrieve_similar(ticket_text, embed_api_key, k=config.FEWSHOT_K)
 
 
 def apply_reporter_prior(result: ClassificationResult, hint: ReporterHint | None) -> ClassificationResult:
     """
-    Code-level backstop for prompt rule 6. Only applies when the instructor
-    picked a specific subcategory - a group-only pick is left to the prompt,
-    since there's no single leaf to fall back to:
+    The only place the instructor's pick counts: the model has already
+    classified from the issue text alone, and this decides between its pick
+    and the instructor's. Only applies when the instructor picked a specific
+    subcategory - with a group-only pick there's no single leaf to fall back
+    to, so the model's pick stands:
 
     - Model agrees with the reporter: two independent signals agree, so
       don't ask a clarifying question, and lift confidence to at least
@@ -341,12 +318,12 @@ def classify_gemini(
     from google import genai
     from google.genai import types
 
-    fewshot = _retrieve_fewshot(ticket_text, embed_api_key, reporter_hint)
+    fewshot = _retrieve_fewshot(ticket_text, embed_api_key)
 
     client = genai.Client(api_key=gemini_api_key)
     response = client.models.generate_content(
         model=config.GEMINI_CLASSIFY_MODEL,
-        contents=_build_user_message(ticket_text, reporter_hint),
+        contents=_build_user_message(ticket_text),
         config=types.GenerateContentConfig(
             system_instruction=_build_system_prompt(fewshot),
             response_mime_type="application/json",
