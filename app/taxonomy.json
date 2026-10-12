@@ -1,5 +1,5 @@
 {
-  "version": 5,
+  "version": 6,
   "categories": [
     {
       "id": "G01",
@@ -220,7 +220,7 @@
         {
           "id": "G03-S05",
           "name": "AI / Automated Evaluation Accuracy Error",
-          "description": "The main complaint is that the AI report states something that didn't happen: it mis-transcribed specific words (e.g. heard 'LCM' when the instructor said 'HCF'), attributed statements, phone calls, topics or language switches that never occurred, or cites timestamps that don't match what was happening. The instructor usually quotes the report's claim and the timestamp and asks for a manual review. NOT this: coverage or rubric scored low, the rubric doesn't fit the session type, or the uploaded audio isn't being evaluated -> Scorecard / Rubric Discrepancy; the session was disrupted and the AI penalised how it was handled -> Any Issue Leading to Session Disruption; the report never generated -> Instructor Scorecard Issues.",
+          "description": "Anything about an AI assessment also routes here: an AI assessment that's missing or not available for a topic, can't be started or submitted, doesn't load, or gives a wrong result. Otherwise, the main complaint is that the AI report states something that didn't happen: it mis-transcribed specific words (e.g. heard 'LCM' when the instructor said 'HCF'), attributed statements, phone calls, topics or language switches that never occurred, or cites timestamps that don't match what was happening. The instructor usually quotes the report's claim and the timestamp and asks for a manual review. NOT this: coverage or rubric scored low, the rubric doesn't fit the session type, or the uploaded audio isn't being evaluated -> Scorecard / Rubric Discrepancy; the session was disrupted and the AI penalised how it was handled -> Any Issue Leading to Session Disruption; the report never generated -> Instructor Scorecard Issues.",
           "assigned_team": "Product Team",
           "poc_primary": "catherine.joannamathews@nxtwave.co.in, gauthami.chandil@nxtwave.co.in, ankon.nandi@nxtwave.co.in",
           "examples": [
@@ -229,7 +229,8 @@
             "The Scope of Improvement provided by the software is incorrect. For example: At 1:03: I hadn't even started teaching Queue, yet the software has generated feedback related to it. At 15:40: The software claims that I said the...",
             "You should read problem statements aloud exactly as written. At ((23:58)) you said “statement one is LCM of X and Y is four” when the slide says “HCF of X & Y is 4”. This can confuse students who are cross-referencing the slide....",
             "I would like to request a review of the QA report generated for my recent session, as I believe the report contains significant inaccuracies that have negatively impacted my score. The report states that I discussed Aadhaar...",
-            "Subject: Formal Request for Manual Audit: Correction of System Errors in QA Report for Session To: Academic Quality Assurance Team Trainer Name: Mounika Chiluka Session Topic: Integrating Ollama with AI Coding Agents Dear Quality..."
+            "Subject: Formal Request for Manual Audit: Correction of System Errors in QA Report for Session To: Academic Quality Assurance Team Trainer Name: Mounika Chiluka Session Topic: Integrating Ollama with AI Coding Agents Dear Quality...",
+            "There is no AI assessment available for the MCQ practice of Company specific Numbers from Quantitative Aptitude topic so due to this I am unable to take the Assessment."
           ]
         }
       ]
@@ -471,7 +472,7 @@
         {
           "id": "G07-S02",
           "name": "Any Issue Related to Upskilling",
-          "description": "General issues with skill development programmes, assessments, or learning access.",
+          "description": "General issues with skill development programmes, assessments, or learning access. NOT this: anything about an AI assessment -> Instructor Platform (Teach OS) > AI / Automated Evaluation Accuracy Error.",
           "assigned_team": "Capability Managers",
           "poc_primary": "Respective Capability Manager",
           "examples": [
@@ -684,7 +685,6 @@
           "poc_primary": "Respective Capability Manager",
           "examples": [
             "I am following up regarding my retention bonus and earned leave. Earlier, I had raised this concern and was informed that it would be processed. However, I have still not received the bonus or leave e...",
-            "total mcq's are 15 , but the score is calculated for out of 25--one of my student reported this.",
             "Hi, I would like some clarification regarding my earned leave balance. Previously, I could see a total of 30 earned leaves, with 15 carried forward from the previous year and 15 accrued for the curren...",
             "I am currently working with NxtWave, though I am enrolled under the university payroll system. As per the terms mentioned in my offer letter and NxtWave's policy, employees who complete one year of se..."
           ]
@@ -759,14 +759,15 @@
         {
           "id": "G11-S04",
           "name": "Academic Assessments / Skill Assessment",
-          "description": "Issues with assessment scheduling, content accuracy, or grading disputes.",
+          "description": "Academic assessments or skill assessments: scheduling, content accuracy, or grading disputes. NOT this: anything about an AI assessment -> Instructor Platform (Teach OS) > AI / Automated Evaluation Accuracy Error.",
           "assigned_team": "L&O",
           "poc_primary": "saisuchal.sadula@nxtwave.co.in",
           "examples": [
             "There are 15 questions in MCQs. Even after solving all of them correctly it's showing fail.",
             "Hi team, There is a mistake in one of the questions in data arrangements assessment . Please change \"B is next to the left of F\" to \"B is second to the left of F.\" \"Next to the left\" means B must be i...",
             "Module Quiz and Classroom Quiz scores were planned as part of the final assessment to encourage participation, as many students were skipping these assessments during the first semester. However, sinc...",
-            "I am currently handling both English and EVS subjects. For EVS, there is no dedicated content team, and the University has asked us to submit a question bank consisting of 15 questions per topic, alon..."
+            "I am currently handling both English and EVS subjects. For EVS, there is no dedicated content team, and the University has asked us to submit a question bank consisting of 15 questions per topic, alon...",
+            "total mcq's are 15 , but the score is calculated for out of 25--one of my student reported this."
           ]
         },
         {
