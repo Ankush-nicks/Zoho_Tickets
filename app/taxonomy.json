@@ -1,5 +1,5 @@
 {
-  "version": 6,
+  "version": 7,
   "categories": [
     {
       "id": "G01",
@@ -167,12 +167,14 @@
         {
           "id": "G03-S01",
           "name": "Platform Bug / Other Technical Issue",
-          "description": "A Teach OS feature, button or workflow doesn't work as expected (attendance page, portal reloading, malpractice flag on a genuine upload) and it doesn't fit a more specific Teach OS sub-category. Feature requests go to Instructor Feedback & Initiatives; a wrong PPT shown for the session goes to Content & Curriculum.",
+          "description": "A Teach OS feature, button or workflow doesn't work as expected (attendance page, portal reloading, malpractice flag on a genuine upload) and it doesn't fit a more specific Teach OS sub-category. Feature requests go to Instructor Feedback & Initiatives; a wrong PPT shown for the session goes to Content & Curriculum. This includes a Teach OS button or option the instructor can't access or use (e.g. Start Session), and live classroom activities or quizzes launched from Teach OS whose student joins or responses don't show on the instructor's portal. Not Learning Portal Access.",
           "assigned_team": "Product Team",
           "poc_primary": "catherine.joannamathews@nxtwave.co.in, gauthami.chandil@nxtwave.co.in, ankon.nandi@nxtwave.co.in",
           "examples": [
             "whenever i start recording session after session it shows like not recorded but it got saved in downloads after 4 hrs and when i go to teach os for uploading audio it says suspected malpractice",
-            "While marking the attendance, portal got reloaded automatically whitout my presence, due to which my entire cllass recording got refreshed and started recording again in the end. \"Hall 4 July 18th Com..."
+            "While marking the attendance, portal got reloaded automatically whitout my presence, due to which my entire cllass recording got refreshed and started recording again in the end. \"Hall 4 July 18th Com...",
+            "Unable to access the Start Session button.",
+            "When I launched the Classroom Writing Activity and students joined the quiz with the given code, the no. of students joining was not getting reflected on my portal which was creating problems as I couldn't check how many students were actually joining the quiz. This issue was not faced before and started quiet recently from the end of last week."
           ]
         },
         {
@@ -242,7 +244,7 @@
         {
           "id": "G04-S01",
           "name": "Learning Portal Access & Technical Issue",
-          "description": "Login, access, unlocking or expiry problems with the instructor Teach OS platform or the student Learning Portal (can't log in, course or content not unlocked, access needed). Other Teach OS failures (recording, QA report, bugs, slowness) go to Instructor Platform (Teach OS).",
+          "description": "Login, access, unlocking or expiry problems with the instructor Teach OS platform or the student Learning Portal (can't log in, course or content not unlocked, access needed). Other Teach OS failures (recording, QA report, bugs, slowness) go to Instructor Platform (Teach OS). NOT this: attendance, clock-in / clock-out or Darwinbox requests -> Leave / WFH Approvals > Leave Approval; Microsoft Teams, Outlook or official email account access -> Staffing & HR Lifecycle > Other_staffing & Hr Lifecycle; a Teach OS button or live classroom activity not working -> Instructor Platform (Teach OS) > Platform Bug / Other Technical Issue; the session's reading material not made available -> Scheduling & Session Delivery > Session Mismatch; a student-portal course showing \"Content Coming Soon\" -> Scheduling & Session Delivery > Schedule Updated but Not Reflected in System.",
           "assigned_team": "Central Operations",
           "poc_primary": "narayana.dubbala@nxtwave.co.in, gompa.mounica@nxtwave.co.in",
           "examples": [
@@ -301,14 +303,15 @@
         {
           "id": "G05-S04",
           "name": "Session Mismatch",
-          "description": "The session assigned doesn't match the instructor's subject expertise (not their subject, course, department or campus) or the agreed curriculum (wrong or already-covered topic, or lecture and practice mixed up). A wrong PPT attached to a correctly named topic is a Content issue, not a mismatch.",
+          "description": "The session assigned doesn't match the instructor's subject expertise (not their subject, course, department or campus) or the agreed curriculum (wrong or already-covered topic, or lecture and practice mixed up). A wrong PPT attached to a correctly named topic is a Content issue, not a mismatch. Also when the reading material for the session wasn't made available - neither students nor the instructor got access to it - so the session (and its QA report) didn't match what was planned.",
           "assigned_team": "Program operations",
           "poc_primary": "manoj.panchothi@nxtwave.co.in",
           "examples": [
             "Scheduled lecture is not the part of my course \"AI in Finance\". May be by mistake someone scheduled it on my name instead of someone's else name.",
             "the BOA teach has scheduled a class for pratice session for the subject of PROBABILITY and that is not my subject I come from the backend team, so I have informed that please cancel the Probability class from me and reschedule the Math code implementation for Probability because the Probability and math code implementation is NOT same but they are…",
             "I'm dealing with tech subject, even though it was reflecting EVS (environmental Studies) for practice session in the tech subjects. Kindly look into it.",
-            "Issue Description: For Hall 19, today’s scheduled topic was “Level Order Traversal”, but the session was incorrectly assigned as “Post Order Traversal.” I started the class based on the topic displayed in the portal. However, the students informed me that Post Order Traversal had already been completed. Since the assigned topic was incorrect and…"
+            "Issue Description: For Hall 19, today’s scheduled topic was “Level Order Traversal”, but the session was incorrectly assigned as “Post Order Traversal.” I started the class based on the topic displayed in the portal. However, the students informed me that Post Order Traversal had already been completed. Since the assigned topic was incorrect and…",
+            "Didn't get the access for reading material for both students and instructors due to that the QA report got less ."
           ]
         },
         {
@@ -340,7 +343,7 @@
         {
           "id": "G05-S07",
           "name": "Schedule Updated but Not Reflected in System",
-          "description": "A schedule change was agreed with Ops/BOA (by email, verbally or in Prod), or the session was delivered correctly, but Teach OS or the calendar still shows the old, missing or wrong session or status (e.g. session shows cancelled or can't be marked complete after it was taken).",
+          "description": "A schedule change was agreed with Ops/BOA (by email, verbally or in Prod), or the session was delivered correctly, but Teach OS or the calendar still shows the old, missing or wrong session or status (e.g. session shows cancelled or can't be marked complete after it was taken). Also when the student portal still shows a course or section as \"Content Coming Soon\" or not yet available although it should be live by now.",
           "assigned_team": "Program operations",
           "poc_primary": "manoj.panchothi@nxtwave.co.in",
           "examples": [
@@ -348,7 +351,8 @@
             "in KKH, i have connected with Snehal(scheduling person) - he mentioned that they are scheduling the DSA sessions as PS, But from my end and from instructors end, the schedule is not being reflected attaching the proof instructor shared me.",
             "The topic “Lists and Keys” was partially completed for my sections 13, 14, 15, and 18, and I updated the PROD yesterday at 12:56 PM marking it as partially completed. However, in my instructor portal, the next topic is still showing as “State and Events.” I have already informed the concerned team on WhatsApp and they acknowledged the message, but…",
             "The English Practice session was assigned to me; however, it was not scheduled on TeachOS by the Ops team. I would request you to kindly verify the scheduling details and clarify the reason for this discrepancy.",
-            "The session was conducted in full as scheduled and continued without any interruption from my end. However, after the session had ended, I was unable to upload the audio recording or mark the session as completed on TeachOS. Later, I came to know that the Ops team had cancelled the session midway, even though I had continued conducting the session…"
+            "The session was conducted in full as scheduled and continued without any interruption from my end. However, after the session had ended, I was unable to upload the audio recording or mark the session as completed on TeachOS. Later, I came to know that the Ops team had cancelled the session midway, even though I had continued conducting the session…",
+            "**Subject: Unable to Access Courses on the Student Portal** I am unable to access courses through the CRIT University student portal. When I navigate to the AI Courses section, the page displays a \"Content Coming Soon\" message instead of the available courses. Could you please look into this issue and clarify when the course content will be accessible? I would appreciate your assistance in resolving this at the earliest. I have attached a screenshot for your reference. Thank you."
           ]
         },
         {
@@ -401,14 +405,15 @@
         {
           "id": "G06-S01",
           "name": "Leave Approval",
-          "description": "Request for planned leave (CL / SL / EL) requiring manager acknowledgement.",
+          "description": "Request for planned leave (CL / SL / EL) requiring manager acknowledgement. Also attendance that needs approving: the instructor was marked absent or can't clock in / clock out (e.g. a geo-location restriction) and an attendance or leave request raised in Darwinbox is waiting for approval.",
           "assigned_team": "Program Operations",
           "poc_primary": "Respective COS's > If chose 'Back up required' > arunkumar.naram@nxtwave.co.in",
           "examples": [
             "I ll be on leave on 3rd 5th of august and half day leave on 7th and 11th august as there is my m.tech exams",
             "Requesting one day leave",
             "Hello, I would like to request leave from 10th August to 14th August as I need to travel to my hometown, Patna, to attend an important family function. Kindly grant me leave for the above-mentioned pe...",
-            "Requesting Casual leave (CL) for 20th July"
+            "Requesting Casual leave (CL) for 20th July",
+            "Greetings of the day, I'm chinnapaka Kaveri. I was marked as absent for 8th and 10th date of this month (October). I can't be able to clockIN and clockOut due to geo location restriction. So, I was raised request in Darwinbox still not approved. consider my request and approve"
           ]
         },
         {
@@ -877,6 +882,16 @@
             "Hi, good evening. When I discussed the hike process with my RP after completing 1 year and 3 months at NxtWave, I was informed that hikes would be considered only after deployment to a university. Acc...",
             "This is regarding receiving employment offer from University. Post university deployment and transitioning to university payroll I was relieved from Nxtwave for compliance reasons. My last working day...",
             "Hello, I would like to inform you that I have been deployed to NIU (Noida International University), and my payroll was transitioned from NxtWave to NIU since October 1, 2025. It has now been over 8 m..."
+          ]
+        },
+        {
+          "id": "G12-S07",
+          "name": "Other_staffing & Hr Lifecycle",
+          "description": "Staffing and HR lifecycle issues not covered by the other Staffing & HR subcategories, including the instructor's official work accounts and tools: Microsoft Teams, Outlook or the official email account not working or access lost. Not Learning Portal Access.",
+          "assigned_team": "Central Managers",
+          "poc_primary": "Respective Capability Managers",
+          "examples": [
+            "I am currently unable to access/use Microsoft Teams again with my official account g.satyaaparna@nxtwave.co.in. This issue is affecting my ability to communicate and coordinate for ongoing hackathons, including discussions, updates, and collaboration with the concerned teams. I have faced Microsoft account/Teams access issues previously as well, so I request you to please check the issue on priority and restore my Teams access at the earliest. Official Email ID: g.satyaaparna@nxtwave.co.in"
           ]
         }
       ]

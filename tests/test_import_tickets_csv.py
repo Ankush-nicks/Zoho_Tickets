@@ -228,13 +228,13 @@ def test_bulk_failure_keeps_committed_chunks_and_reports_progress(isolated_db):
 # --- no classifier credits for uploaded data ------------------------------------
 
 def test_unmatched_zoho_subcategory_goes_to_review_uncategorised(client, isolated_db):
-    odd = ["T-5", "Yet To Pick", "Staffing & HR Lifecycle", "Other_staffing & Hr Lifecycle",
+    odd = ["T-5", "Yet To Pick", "Staffing & HR Lifecycle", "Payslip_query (Zoho only)",
            "Payslip query", "01/09/2026 10:00:00", ""]
     body = _upload(client, _csv([odd])).json()
     assert body["created_unmatched"] == 1
     t = isolated_db.get_ticket_by_zoho_id("T-5")
     assert (t["status"], t["category_id"]) == ("needs_human_review", None)
-    assert "Other_staffing" in t["reasoning"]
+    assert "Payslip_query" in t["reasoning"]
 
 
 def test_classify_batch_settles_earlier_csv_uploads_without_the_model(client, isolated_db, monkeypatch):
