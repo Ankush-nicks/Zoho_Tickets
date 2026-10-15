@@ -1,5 +1,5 @@
 {
-  "version": 8,
+  "version": 9,
   "categories": [
     {
       "id": "G01",
@@ -28,7 +28,8 @@
             "1. There is an issue with updating the prompts in prod, as mentioned by Ranjith. The math prompts have not been updated in the prod, which is limiting our ability to evaluate instructors preparing for...",
             "For the Intensive Offline Campus instructors, they need to teach the classes in Telugu & English. This is affecting their QA Report. Kindly update the prompt for these instructors",
             "Hi Team, I wanted to flag a delay on our end that needs immediate prioritisation. The QA evaluation prompts, covering English, Math, Aptitude, Tech, Practice, Invigilation, and related session types, ...",
-            "1. \"Ghar se aate ho? Ghar se kahan se?\", \"Aap Sixth home mein kya karte ho?\", I did not ask these things, students asked to me out of curiosity and I did not engage into this informal talk after basic response. 2. \"First lecture se shuru kar rahe ho?\" i said this because I am already done with all of the lectures, practices, and coding practice and this is the revision of the subject and one or few students even has not completed the first 1-2 lectures and content, isn't it surprising? 3. It is the revision of the course, so if students do not have doubts, then how I can force them to ask questions, even though I make sure to engage them by inviting them for the discussion and all."
+            "1. \"Ghar se aate ho? Ghar se kahan se?\", \"Aap Sixth home mein kya karte ho?\", I did not ask these things, students asked to me out of curiosity and I did not engage into this informal talk after basic response. 2. \"First lecture se shuru kar rahe ho?\" i said this because I am already done with all of the lectures, practices, and coding practice and this is the revision of the subject and one or few students even has not completed the first 1-2 lectures and content, isn't it surprising? 3. It is the revision of the course, so if students do not have doubts, then how I can force them to ask questions, even though I make sure to engage them by inviting them for the discussion and all.",
+            "my feedback has \"\"\"\"At ((11:51)), you transitioned into a personal conversation about the NxtWave CCBP 4.0 program, offered to send fee details on WhatsApp, and asked the student to call you. This is ..."
           ]
         },
         {
@@ -746,9 +747,8 @@
           "assigned_team": "L&O",
           "poc_primary": "bandichandana.laxmi@nxtwave.co.in",
           "examples": [
-            "Hi Team, I have noticed a discrepancy between the Student Learning Portal and my dashboard. When I check the Student Learning Portal, it shows that several students have successfully completed **100% ...",
-            "my feedback has \"\"\"\"At ((11:51)), you transitioned into a personal conversation about the NxtWave CCBP 4.0 program, offered to send fee details on WhatsApp, and asked the student to call you. This is ...",
-            "There is NO POWER HERE IN CDU SINCE MORNING.",
+            "Hi Team, One of the student reached me out mentioning they want to build startup, and support is required in regard to it",
+            "Hi Team, One of the student reached me out mentioning they want to build personal project, and support is required in regard to it",
             "Hello Team, This observation and request came from the students. They are requesting classes on Computer Science Fundamentals and Server Building subjects, as they feel these topics would be beneficia..."
           ]
         },
