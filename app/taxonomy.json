@@ -1,5 +1,5 @@
 {
-  "version": 7,
+  "version": 8,
   "categories": [
     {
       "id": "G01",
@@ -21,19 +21,20 @@
         {
           "id": "G01-S02",
           "name": "QA Evaluation Prompt Update Request",
-          "description": "Instructor or internal team flags that the underlying QA evaluation prompt/rubric configuration itself needs to be corrected, updated, or deployed to production -- e.g. a subject's prompt was never updated in prod, a prompt doesn't account for bilingual (Telugu/English) teaching, or prompt/rubric changes are stuck in staging and delaying QA reports.",
+          "description": "Instructor or internal team flags that the underlying QA evaluation prompt/rubric configuration itself needs to be corrected, updated, or deployed to production -- e.g. a subject's prompt was never updated in prod, a prompt doesn't account for bilingual (Telugu/English) teaching, or prompt/rubric changes are stuck in staging and delaying QA reports. This also covers an instructor answering the QA report's remarks point by point and explaining context the evaluation should allow for - e.g. students asked personal or informal questions out of curiosity and the instructor only gave a basic reply, a remark was taken out of context, or it was a revision session where students had no doubts so few questions were asked. The report quotes what was said correctly; the instructor says the evaluation shouldn't penalise it, so the prompt / rubric needs to account for it.",
           "assigned_team": "IAS/SET",
           "poc_primary": "ranjith.kumar@nxtwave.co.in",
           "examples": [
             "1. There is an issue with updating the prompts in prod, as mentioned by Ranjith. The math prompts have not been updated in the prod, which is limiting our ability to evaluate instructors preparing for...",
             "For the Intensive Offline Campus instructors, they need to teach the classes in Telugu & English. This is affecting their QA Report. Kindly update the prompt for these instructors",
-            "Hi Team, I wanted to flag a delay on our end that needs immediate prioritisation. The QA evaluation prompts, covering English, Math, Aptitude, Tech, Practice, Invigilation, and related session types, ..."
+            "Hi Team, I wanted to flag a delay on our end that needs immediate prioritisation. The QA evaluation prompts, covering English, Math, Aptitude, Tech, Practice, Invigilation, and related session types, ...",
+            "1. \"Ghar se aate ho? Ghar se kahan se?\", \"Aap Sixth home mein kya karte ho?\", I did not ask these things, students asked to me out of curiosity and I did not engage into this informal talk after basic response. 2. \"First lecture se shuru kar rahe ho?\" i said this because I am already done with all of the lectures, practices, and coding practice and this is the revision of the subject and one or few students even has not completed the first 1-2 lectures and content, isn't it surprising? 3. It is the revision of the course, so if students do not have doubts, then how I can force them to ask questions, even though I make sure to engage them by inviting them for the discussion and all."
           ]
         },
         {
           "id": "G01-S03",
           "name": "Scorecard / Rubric Discrepancy",
-          "description": "The QA report WAS generated and the instructor disputes the score because the evaluation judged the session the wrong way. This includes: the rubric doesn't fit the session type (student practicals or presentations where students speak, invigilation where other people's speech is recorded, activity-based sessions); the PPT/material was already in Teach OS but the report says it was missing or scores coverage near zero; the report expects topics outside the session's PROD scope (e.g. a recap topic that wasn't taught yet); a recurring zero score because the uploaded audio isn't being evaluated properly; or a request to review a period of past scores affected by a now-resolved constraint (e.g. before a mic was provided). Route here even if the ticket also mentions a mis-transcription, as long as the main complaint is coverage, rubric fit or the overall score. NOT this: report never generated or failed -> Instructor Scorecard Issues; the main complaint is the AI inventing or mishearing specific statements at timestamps -> AI / Automated Evaluation Accuracy Error; the session itself was disrupted (late start, cut short, no students, mid-session outage) -> Any Issue Leading to Session Disruption; the content is wrong, missing or too long for the slot -> Content & Curriculum.",
+          "description": "The QA report WAS generated and the instructor disputes the score because the evaluation judged the session the wrong way. This includes: the rubric doesn't fit the session type (student practicals or presentations where students speak, invigilation where other people's speech is recorded, activity-based sessions); the PPT/material was already in Teach OS but the report says it was missing or scores coverage near zero; the report expects topics outside the session's PROD scope (e.g. a recap topic that wasn't taught yet); a recurring zero score because the uploaded audio isn't being evaluated properly; or a request to review a period of past scores affected by a now-resolved constraint (e.g. before a mic was provided). Route here even if the ticket also mentions a mis-transcription, as long as the main complaint is coverage, rubric fit or the overall score. NOT this: report never generated or failed -> Instructor Scorecard Issues; the main complaint is the AI inventing or mishearing specific statements at timestamps -> AI / Automated Evaluation Accuracy Error; the session itself was disrupted (late start, cut short, no students, mid-session outage) -> Any Issue Leading to Session Disruption; the content is wrong, missing or too long for the slot -> Content & Curriculum. NOT this either: the instructor rebuts individual report remarks by explaining the context (students' curiosity questions, a revision session, no doubts to ask) -> QA Evaluation Prompt Update Request.",
           "assigned_team": "IAS/SET",
           "poc_primary": "ranjith.kumar@nxtwave.co.in",
           "examples": [
@@ -206,7 +207,7 @@
         {
           "id": "G03-S04",
           "name": "Recording Issue (Platform / Software)",
-          "description": "A specific session's recording is missing, stuck, not uploaded, not detected, or contaminated (e.g. another instructor's voice in the mic), and the ask is about the recording itself: recover it, re-process it, accept a re-upload or mobile recording. Route here whatever the cause, including a power cut, network issue or device problem. NOT this: the instructor says the session itself was disrupted or cut short and wants the QA impact considered -> Any Issue Leading to Session Disruption; the instructor is asking for the equipment to be provided or fixed -> Facilities & Equipment.",
+          "description": "A specific session's recording is missing, stuck, not uploaded, not detected, or contaminated (e.g. another instructor's voice in the mic), and the ask is about the recording itself: recover it, re-process it, accept a re-upload or mobile recording. Route here whatever the cause, including a power cut (even one during the session) or device problem - the only exception is the internet / network. NOT this: the instructor says the session itself was disrupted or cut short and wants the QA impact considered -> Any Issue Leading to Session Disruption; the instructor is asking for the equipment to be provided or fixed -> Facilities & Equipment. If the instructor says the internet / network caused the recording or upload to fail, even when they ask to recover or accept the recording -> Facilities & Equipment > Campus Network / Wi-Fi Issue.",
           "assigned_team": "Capability Manager (first) -> Central Team / Product (escalation)",
           "poc_primary": "Respective Capability Manager; escalate to catherine.joannamathews@nxtwave.co.in, gauthami.chandil@nxtwave.co.in, ankon.nandi@nxtwave.co.in",
           "examples": [
@@ -222,7 +223,7 @@
         {
           "id": "G03-S05",
           "name": "AI / Automated Evaluation Accuracy Error",
-          "description": "Anything about an AI assessment also routes here: an AI assessment that's missing or not available for a topic, can't be started or submitted, doesn't load, or gives a wrong result. Otherwise, the main complaint is that the AI report states something that didn't happen: it mis-transcribed specific words (e.g. heard 'LCM' when the instructor said 'HCF'), attributed statements, phone calls, topics or language switches that never occurred, or cites timestamps that don't match what was happening. The instructor usually quotes the report's claim and the timestamp and asks for a manual review. NOT this: coverage or rubric scored low, the rubric doesn't fit the session type, or the uploaded audio isn't being evaluated -> Scorecard / Rubric Discrepancy; the session was disrupted and the AI penalised how it was handled -> Any Issue Leading to Session Disruption; the report never generated -> Instructor Scorecard Issues.",
+          "description": "Anything about an AI assessment also routes here: an AI assessment that's missing or not available for a topic, can't be started or submitted, doesn't load, or gives a wrong result. Otherwise, the main complaint is that the AI report states something that didn't happen: it mis-transcribed specific words (e.g. heard 'LCM' when the instructor said 'HCF'), attributed statements, phone calls, topics or language switches that never occurred, or cites timestamps that don't match what was happening. The instructor usually quotes the report's claim and the timestamp and asks for a manual review. NOT this: coverage or rubric scored low, the rubric doesn't fit the session type, or the uploaded audio isn't being evaluated -> Scorecard / Rubric Discrepancy; the session was disrupted and the AI penalised how it was handled -> Any Issue Leading to Session Disruption; the report never generated -> Instructor Scorecard Issues. If the quoted words were really said (by the instructor or the students) and the instructor explains the context the evaluation should allow for -> QA Report / Instructor Evaluation > QA Evaluation Prompt Update Request.",
           "assigned_team": "Product Team",
           "poc_primary": "catherine.joannamathews@nxtwave.co.in, gauthami.chandil@nxtwave.co.in, ankon.nandi@nxtwave.co.in",
           "examples": [
@@ -383,7 +384,7 @@
         {
           "id": "G05-S10",
           "name": "Any Issue Leading to Session Disruption",
-          "description": "Something during or around a specific session stopped it running normally: late start (prayer, event, display not working), the class was cut short or students were pulled out, outside disturbance or a student incident, mid-session loss of mic, network or power, or students unable to access the portal. Route here whether it was raised live or afterwards, and including when the instructor's ask is for the QA impact of that disruption to be considered (e.g. QA dropped, students said it was off topic, AI misread the help given during the outage). If the instructor only asks afterwards to cancel or reschedule, use Session Cancelled or Session Rescheduled. If the session ran normally and only the recording is missing and needs recovering, use Instructor Platform (Teach OS) > Recording Issue.",
+          "description": "Something during or around a specific session stopped it running normally: late start (prayer, event, display not working), the class was cut short or students were pulled out, outside disturbance or a student incident, mid-session loss of mic, network or power, or students unable to access the portal. Route here whether it was raised live or afterwards, and including when the instructor's ask is for the QA impact of that disruption to be considered (e.g. QA dropped, students said it was off topic, AI misread the help given during the outage). If the instructor only asks afterwards to cancel or reschedule, use Session Cancelled or Session Rescheduled. If the session ran normally and only the recording is missing and needs recovering, use Instructor Platform (Teach OS) > Recording Issue. A problem that only stopped the recording or upload, not the class itself, isn't a disruption: internet / network -> Facilities & Equipment > Campus Network / Wi-Fi Issue; a power cut or anything else -> Instructor Platform (Teach OS) > Recording Issue.",
           "assigned_team": "Program operations",
           "poc_primary": "manoj.panchothi@nxtwave.co.in",
           "examples": [
@@ -522,14 +523,15 @@
         {
           "id": "G08-S02",
           "name": "Campus Network / Wi-Fi Issue",
-          "description": "Campus internet (Wi-Fi, LAN or mobile network) is absent, slow or keeps dropping in classrooms, staffrooms or exam halls, and the ask is for it to be fixed. This includes when the bad network stops campus activities working: slides won't load, grooming checks fail, students can't take a skill assessment. Use this when the ask is for the facility to be fixed or improved. If a specific session was disrupted and the instructor wants the QA impact considered, use Scheduling > Any Issue Leading to Session Disruption; if a recording was lost and the ask is to recover or accept it, use Instructor Platform (Teach OS) > Recording Issue. A Teach OS bug on a working network isn't Facilities.",
+          "description": "Campus internet (Wi-Fi, LAN or mobile network) is absent, slow or keeps dropping in classrooms, staffrooms or exam halls, and the ask is for it to be fixed. This includes when the bad network stops campus activities working: slides won't load, grooming checks fail, students can't take a skill assessment. Use this when the ask is for the facility to be fixed or improved. If a specific session was disrupted and the instructor wants the QA impact considered, use Scheduling > Any Issue Leading to Session Disruption; if a recording was lost for a reason other than the network and the ask is to recover or accept it, use Instructor Platform (Teach OS) > Recording Issue. A Teach OS bug on a working network isn't Facilities. Also route here when the instructor says the internet / network problem is why a session's recording failed, wasn't uploaded or is missing, or why they got a low or zero QA score - the network is the root cause - even if they ask for the recording to be recovered, re-processed or a re-upload accepted. Only if they say the class itself was disrupted or cut short is it Session Disruption.",
           "assigned_team": "Program Operations",
           "poc_primary": "Respective Campus COS",
           "examples": [
             "Hi, I would like to highlight a recurring campus network issue during lecture hours. The Wi-Fi frequently gets disconnected in between sessions, and we have to contact the Wi-Fi team repeatedly to get it resolved. This is also affecting students’ learning outcomes. For example, today, while students were attempting a module quiz, some students…",
             "From 1 week college is having wi-fi issues we are facing problems while grooming checks and also while loading our slides",
             "Wifi's are not working in 2nd Floor Staff Room - CDU Campus. All instructors are turning ON their personal hotspot but the 1GB or 2GB data is being exhausted within half an hour itself. We are unable to upskill and do some conceptual research. And success coaches are working with their personal hotspot itself.",
-            "Dear Team, I would like to bring to your attention an issue faced by students during the Skill Assessments conducted on 23rd September at the university. Due to network connectivity issues, students were unable to complete the assessments smoothly. Out of the 6 subjects scheduled for assessment, most students were able to attempt only around 3…"
+            "Dear Team, I would like to bring to your attention an issue faced by students during the Skill Assessments conducted on 23rd September at the university. Due to network connectivity issues, students were unable to complete the assessments smoothly. Out of the 6 subjects scheduled for assessment, most students were able to attempt only around 3…",
+            "Due to internet issue i am not able to record the session so i got like 0/10"
           ]
         },
         {
@@ -740,7 +742,7 @@
         {
           "id": "G11-S02",
           "name": "Other / Common Student Issues",
-          "description": "General student welfare or academic progress concerns needing Learning Outcomes team attention.",
+          "description": "General student welfare or academic progress concerns, project concerns needing Learning Outcomes team attention. NOT this: an instructor disputing or explaining remarks in their QA report - even when the remarks are about students' questions, engagement or informal talk -> QA Report / Instructor Evaluation.",
           "assigned_team": "L&O",
           "poc_primary": "bandichandana.laxmi@nxtwave.co.in",
           "examples": [
@@ -764,7 +766,7 @@
         {
           "id": "G11-S04",
           "name": "Academic Assessments / Skill Assessment",
-          "description": "Academic assessments or skill assessments: scheduling, content accuracy, or grading disputes. NOT this: anything about an AI assessment -> Instructor Platform (Teach OS) > AI / Automated Evaluation Accuracy Error.",
+          "description": "Cases where a skill or academic assessment result does not accurately reflect the student’s actual learning outcome, such as incorrect Skill Debt/eligibility status, inaccurate skill scores, or incorrectly reflected recovery/retake outcomes. NOT this: anything about an AI assessment -> Instructor Platform (Teach OS) > AI / Automated Evaluation Accuracy Error.",
           "assigned_team": "L&O",
           "poc_primary": "saisuchal.sadula@nxtwave.co.in",
           "examples": [
