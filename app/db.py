@@ -36,17 +36,15 @@ CREATE TABLE IF NOT EXISTS tickets (
     raw_payload TEXT,                  -- full JSON body Zoho's webhook sent (serialized - see _dump_raw_payload/_load_raw_payload)
     created_at REAL NOT NULL,
     updated_at REAL NOT NULL,
-    resolution_score REAL,             -- sum of the 5 weighted criteria below (out of 10), set by app/quality_scorer.py once a ticket is closed
+    resolution_score REAL,             -- resolution_* columns: kept for existing data - resolution grading was removed
     resolution_ack REAL,               -- Acknowledgement within 4 hours, max 2
     resolution_investigation REAL,     -- Investigation Done, max 1.5
     resolution_root_cause REAL,        -- Root Cause Fix, max 2.5
     resolution_sla REAL,               -- SLA, max 2
     resolution_detail REAL,            -- Resolution (detail), max 2
-    resolution_evidence TEXT,          -- one-sentence AI critique quote, shown in the Insights tab
+    resolution_evidence TEXT,          -- one-sentence AI critique quote
     resolution_scored_at REAL,         -- unset means not graded yet (or not closed yet)
-    acknowledged_at REAL,              -- set when a POC acknowledges a ticket in Zoho - nullable,
-                                        -- unpopulated until a future write path exists - see
-                                        -- docs/superpowers/specs/2026-09-09-poc-ticket-queue-extension-design.md
+    acknowledged_at REAL,              -- when a POC acknowledged a ticket in Zoho - nullable, nothing writes it yet
     fallback_reason TEXT               -- set ONLY when the Zoho webhook had to force
                                         -- config.ZOHO_FALLBACK_CATEGORY_ID onto category_of_the_issue/
                                         -- sub_category_of_the_issue instead of a real classification
@@ -88,15 +86,8 @@ CREATE TABLE IF NOT EXISTS corrections (
     FOREIGN KEY(ticket_id) REFERENCES tickets(id)
 );
 
--- Small shared JSON documents, versioned for optimistic concurrency - e.g.
--- the Daily Issue Check tab's groups/remarks (see put_shared_state).
-CREATE TABLE IF NOT EXISTS shared_state (
-    key TEXT PRIMARY KEY,
-    value TEXT NOT NULL,
-    version INTEGER NOT NULL,
-    updated_at REAL NOT NULL,
-    updated_by TEXT
-);
+-- The removed Drill down page kept its groups/remarks here.
+DROP TABLE IF EXISTS shared_state;
 """
 
 
@@ -438,11 +429,6 @@ def append_turn(ticket_id: str, role: str, content: str):
         )
 
 
-def get_turns(ticket_id: str) -> list[dict]:
-    with _conn() as conn:
-        return _fetchall(
-            conn, "SELECT * FROM turns WHERE ticket_id = ? ORDER BY created_at ASC", (ticket_id,)
-        )
 
 
 def log_correction(ticket_id: str, predicted_category_id: str | None, corrected_category_id: str, corrected_by: str | None):
@@ -498,13 +484,11 @@ def _invalidate_list_all_cache():
 
 def list_all_tickets() -> list[dict]:
     """
-    Every ticket ever stored (drafts excluded), oldest first - backs the full CSV export, the
-    Pulse/Insights dashboards, and the date-range views. Cached briefly and
-    invalidated on every write since a single page load can fire several of
-    these back-to-back. Prefer list_pending_tickets(), count_pending_
-    tickets(), or list_tickets_by_raw_status() instead of this for anything
-    that only needs a subset - those filter server-side on Turso too, so
-    their read cost scales with the matching subset, not total history.
+    Every ticket ever stored (drafts excluded), oldest first - backs the Log
+    page and the CSV upload's match by Ticket ID. Cached briefly and
+    invalidated on every write. Prefer list_pending_tickets() or
+    list_tickets_since() for anything that only needs a subset - those
+    filter server-side on Turso too.
     """
     now = time.time()
     if _list_all_cache["data"] is not None and now - _list_all_cache["at"] < _LIST_ALL_CACHE_TTL_SECONDS:
@@ -527,86 +511,3 @@ def list_pending_tickets() -> list[dict]:
             conn, "SELECT * FROM tickets WHERE status = 'pending' ORDER BY created_at ASC"
         )
         return [_load_raw_payload(r) for r in rows]
-
-
-def count_pending_tickets() -> int:
-    """Cheap count of status == 'pending' tickets - powers the "Classify Now" banner."""
-    with _conn() as conn:
-        row = _fetchone(conn, "SELECT COUNT(*) AS n FROM tickets WHERE status = 'pending'")
-        return row["n"]
-
-
-def list_tickets_by_raw_status(statuses: list[str]) -> list[dict]:
-    """
-    Tickets whose raw_payload.ticket_status (the Zoho status string) is one
-    of `statuses` - used to find closed tickets for resolution grading
-    without reading the entire ticket history. Still needs a Python pass
-    afterward to check resolution_scored_at, since "field is absent" isn't
-    something json_extract can filter on directly.
-    """
-    placeholders = ", ".join("?" for _ in statuses)
-    with _conn() as conn:
-        rows = _fetchall(
-            conn,
-            f"SELECT * FROM tickets WHERE json_extract(raw_payload, '$.ticket_status') IN ({placeholders}) "
-            "AND status != 'draft'",
-            statuses,
-        )
-        return [_load_raw_payload(r) for r in rows]
-
-
-def list_tickets_for_date(date_str: str) -> list[dict]:
-    """Tickets created on the given UTC calendar date (YYYY-MM-DD), newest first."""
-    day_start = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-    start_ts = day_start.timestamp()
-    end_ts = (day_start + timedelta(days=1)).timestamp()
-
-    with _conn() as conn:
-        rows = _fetchall(
-            conn,
-            "SELECT * FROM tickets WHERE created_at >= ? AND created_at < ? AND status != 'draft' "
-            "ORDER BY created_at DESC",
-            (start_ts, end_ts),
-        )
-        return [_load_raw_payload(r) for r in rows]
-
-
-def get_shared_state(key: str) -> dict:
-    """{"value": <parsed JSON or None>, "version": int, "updated_at", "updated_by"} -
-    version 0 / value None when nothing has been saved under `key` yet."""
-    with _conn() as conn:
-        row = _fetchone(conn, "SELECT * FROM shared_state WHERE key = ?", (key,))
-    if not row:
-        return {"value": None, "version": 0, "updated_at": None, "updated_by": None}
-    return {"value": json.loads(row["value"]), "version": row["version"],
-            "updated_at": row["updated_at"], "updated_by": row["updated_by"]}
-
-
-def put_shared_state(key: str, value, expected_version: int, updated_by: str | None) -> tuple[bool, dict]:
-    """
-    Saves `value` only if the stored version is still `expected_version`
-    (0 = nothing saved yet), as one conditional statement - two people
-    saving at once can't silently overwrite each other; the loser gets
-    (False, <current state>) and can reload it. Returns (True, <new state>)
-    on success.
-    """
-    now = time.time()
-    data = json.dumps(value, separators=(",", ":"))
-    with _conn() as conn:
-        if expected_version == 0:
-            cur = _exec(
-                conn,
-                """INSERT INTO shared_state (key, value, version, updated_at, updated_by)
-                   SELECT ?, ?, 1, ?, ? WHERE NOT EXISTS (SELECT 1 FROM shared_state WHERE key = ?)""",
-                (key, data, now, updated_by, key),
-            )
-        else:
-            cur = _exec(
-                conn,
-                """UPDATE shared_state SET value = ?, version = version + 1, updated_at = ?, updated_by = ?
-                   WHERE key = ? AND version = ?""",
-                (data, now, updated_by, key, expected_version),
-            )
-        ok = cur.rowcount == 1
-    state = get_shared_state(key)
-    return ok, state

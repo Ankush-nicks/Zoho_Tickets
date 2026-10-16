@@ -164,11 +164,8 @@ def test_on_add_reclassifies_when_presubmit_failed_using_the_instructors_pick(is
 def test_drafts_are_hidden_everywhere(isolated_db, monkeypatch):
     _model_says(monkeypatch, LEAF, 0.9)
     _presubmit()
-    today = time.strftime("%Y-%m-%d", time.gmtime())
     assert isolated_db.list_all_tickets() == []
-    assert isolated_db.list_tickets_for_date(today) == []
     assert isolated_db.list_pending_tickets() == []          # the 30-minute job's queue
-    assert isolated_db.count_pending_tickets() == 0
     assert isolated_db.list_tickets_since(0) == []
     assert isolated_db.count_drafts() == 1
 

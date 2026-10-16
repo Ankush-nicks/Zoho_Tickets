@@ -15,7 +15,7 @@ def _env(name: str, default: str = "") -> str:
     (http.client raises ValueError: Invalid header value on a literal \\n)."""
     return os.getenv(name, default).strip()
 
-# Classification and resolution-grading both go through OpenRouter now, not
+# Classification goes through OpenRouter now, not
 # OpenAI directly - one key with access to many models/providers and its own
 # (usually more forgiving) rate limits, instead of being pinned to a single
 # OpenAI key's per-account limit. Model id needs OpenRouter's "provider/model"
@@ -28,7 +28,7 @@ OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 
 # OpenAI is kept ONLY for embeddings now (memory.py's few-shot retrieval) -
 # OpenRouter has no embeddings endpoint of its own. This key is never used
-# for classification or resolution grading anymore.
+# for classification anymore.
 OPENAI_API_KEY = _env("OPENAI_API_KEY")
 EMBED_MODEL = _env("OPENAI_EMBED_MODEL", "text-embedding-3-small")
 
@@ -43,16 +43,16 @@ GEMINI_CLASSIFY_MODEL = _env("GEMINI_CLASSIFY_MODEL", "gemini-2.5-flash")
 # When both are set, OpenAI embedding calls (memory.py) route through this
 # Cloudflare AI Gateway instead of hitting OpenAI directly - same OpenAI key,
 # same model, but Cloudflare caches repeated identical requests and logs
-# usage at gateway.ai.cloudflare.com. Does NOT apply to classify()/
-# grade_resolution() anymore now that those call OpenRouter, not OpenAI.
+# usage at gateway.ai.cloudflare.com. Does NOT apply to classify()
+# anymore now that it calls OpenRouter, not OpenAI.
 CLOUDFLARE_ACCOUNT_ID = _env("CLOUDFLARE_ACCOUNT_ID")
 CLOUDFLARE_AI_GATEWAY_ID = _env("CLOUDFLARE_AI_GATEWAY_ID")
 
-# Automatic classify()/grade_resolution() fallback when OpenRouter hits a
+# Automatic classify() fallback when OpenRouter hits a
 # rate limit - a real Cloudflare API token with "Workers AI" permission
 # (separate from AI Gateway's own permission group above). Few-shot
 # retrieval still goes through OpenAI embeddings first (unaffected by
-# OpenRouter's own limits) - only the final classification/grading call
+# OpenRouter's own limits) - only the final classification call
 # itself moves to Cloudflare. Unset means these calls raise on rate limit
 # same as before.
 CLOUDFLARE_API_TOKEN = _env("CLOUDFLARE_API_TOKEN")
@@ -78,10 +78,6 @@ FEWSHOT_K = int(_env("FEWSHOT_K", "5"))
 # `similarity` values retrieve_similar() returns for known-good vs.
 # known-bad matches once enough correction history exists.
 FEWSHOT_MIN_SIMILARITY = float(_env("FEWSHOT_MIN_SIMILARITY", "0.15"))
-# Model behind the Daily Issue Check tab's summaries / grouping / questions
-# (app/daily_issue.py) - separate from classification so either can change
-# without the other.
-DAILY_ISSUE_MODEL = _env("OPENROUTER_DAILY_ISSUE_MODEL", "openai/gpt-4o-mini")
 # Default number of extra examples memory.retrieve_similar adds when asked
 # for also_from_categories. The classifier no longer asks (it never sees the
 # instructor's pick), so this only matters to other callers.
@@ -134,40 +130,10 @@ else:
     SESSION_SECRET = secrets.token_hex(32)
     _SESSION_SECRET_PATH.write_text(SESSION_SECRET)
 
-# --- Zoho Creator integration ---------------------------------------------
-# All of this is a SAMPLE/placeholder pending real Zoho details - every value
-# is a single env var so going live is an .env edit, never a code change.
-#
-# ZOHO_INVOKE_URL: must contain the literal "{ticket_id}" placeholder, which
-# gets replaced with the requested ticket id before the request is made.
-# Only used by the pull-direction lookup (/api/zoho/tickets/{id}, the portal's
-# "Look up" box) - the push webhook (/api/webhooks/zoho/tickets) doesn't need
-# this at all since Zoho sends ticket data directly. Unset/placeholder until
-# the real Zoho Creator Custom API from zoho-invoke-url-setup.md is set up -
-# until then, pull-direction lookups will fail with a clear connection/404
-# error rather than silently returning fake data.
-ZOHO_INVOKE_URL = _env(
-    "ZOHO_INVOKE_URL", "https://REPLACE_WITH_REAL_ZOHO_CUSTOM_API/get-ticket?ticket_id={ticket_id}"
-)
-# Sent as a request header named ZOHO_AUTH_HEADER_NAME with this value.
-# Not sure yet whether Zoho expects this as a header at all (vs. baked into
-# the URL as the custom-API name) - swap ZOHO_AUTH_HEADER_NAME/ZOHO_API_KEY
-# once confirmed, no code change needed either way.
-ZOHO_AUTH_HEADER_NAME = _env("ZOHO_AUTH_HEADER_NAME", "Ticket_Classification_version_0")
-ZOHO_API_KEY = _env("ZOHO_API_KEY", "sample-zoho-key")
-
-# Field names as they appear (at any depth) in the JSON Zoho returns. These
-# are guesses at Zoho's usual "spaces become underscores" convention - see
-# zoho-invoke-url-setup.md section 4 for how to confirm/correct these
-# against a real response.
-ZOHO_FIELD_TICKET_ID = _env("ZOHO_FIELD_TICKET_ID", "Ticket_ID")
-ZOHO_FIELD_ISSUE_DETAIL = _env("ZOHO_FIELD_ISSUE_DETAIL", "Issue_in_Detail")
-
 # Shared secret Zoho Creator's Deluge "On Add" workflow sends back as the
 # X-Webhook-Secret header when it PUSHes a brand-new ticket to
-# POST /api/webhooks/zoho/tickets (see main.py). This is separate from
-# ZOHO_API_KEY above (which authenticates *this app* to Zoho when it PULLs a
-# ticket) - this one authenticates Zoho to *this app* for the push direction.
+# POST /api/webhooks/zoho/tickets (see main.py) - authenticates Zoho to
+# *this app*.
 # Empty by default so the webhook endpoint is refused (fails closed) until
 # you set a real value in .env.
 ZOHO_WEBHOOK_SECRET = _env("ZOHO_WEBHOOK_SECRET")
@@ -181,35 +147,3 @@ ZOHO_WEBHOOK_SECRET = _env("ZOHO_WEBHOOK_SECRET")
 # "Insufficient Information / No Routing Required" leaf, already what the
 # classifier's own prompt rules use for a genuinely un-classifiable ticket.
 ZOHO_FALLBACK_CATEGORY_ID = _env("ZOHO_FALLBACK_CATEGORY_ID", "G14-S01")
-
-# --- POC ticket-queue extension (read-only queue popup) -------------------
-# One small Chrome extension per POC (see docs/superpowers/specs/
-# 2026-09-09-poc-ticket-queue-extension-design.md) authenticates with a
-# single per-POC bearer token instead of the session-cookie login the main
-# UI uses - matches ADMIN_USERNAME/PASSWORD and ZOHO_WEBHOOK_SECRET's
-# existing "secret lives in one env var" pattern. Add one more _env() line
-# here (and a matching env var) for each future POC extension.
-POC_TOKENS: dict[str, str] = {
-    "ranjith.kumar@nxtwave.co.in": _env("POC_TOKEN_RANJITH_KUMAR"),
-}
-
-# How long a POC has to acknowledge a new ticket before it counts as missed.
-ACK_WINDOW_HOURS = 4.0
-# Inside the last this-many minutes of an still-open ack window, the UI
-# flags it "urgent" rather than just "due".
-ACK_URGENT_MINUTES = 15.0
-# Inside the last this fraction of the SLA window, the UI flags "at risk"
-# rather than "on track".
-SLA_AT_RISK_FRACTION = 0.15
-
-# SLA hours per top-level taxonomy group code. Zoho never sends its own SLA
-# deadline (only a categorical sla_breach_status string), so this table is
-# the only source of the SLA countdown shown in a POC queue extension. Only
-# G01 is populated today since it's the only group
-# ranjith.kumar@nxtwave.co.in (the only POC extension built so far) is
-# routed to - add more rows here as more POC extensions are built for other
-# taxonomy groups.
-CATEGORY_SLA_HOURS: dict[str, float] = {
-    "G01": 24.0,
-}
-CATEGORY_SLA_HOURS_DEFAULT = 48.0

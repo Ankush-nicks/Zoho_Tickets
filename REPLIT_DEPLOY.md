@@ -20,13 +20,11 @@ every time it scales to zero, so don't use it for this app.
 - **Storage stays on Turso.** Turso already survives redeploys/restarts
   regardless of which host runs the app, so there's no reason to migrate
   off it just because the host changed. `app/db.py` and `app/main.py`
-  calling `list_all_tickets()` (a full table read) from two background
-  loops every 30 minutes regardless of traffic, plus several page-load
-  endpoints, was fixed independently of the host move - that's now
-  `list_pending_tickets()` / `count_pending_tickets()` /
-  `list_tickets_by_raw_status()` instead, all server-side filtered queries
-  whose read cost scales with how many tickets are actually pending/closed,
-  not with total ticket history.
+  calling `list_all_tickets()` (a full table read) from background loops
+  every 30 minutes regardless of traffic was fixed independently of the
+  host move - the auto-classify loop now uses `list_pending_tickets()`, a
+  server-side filtered query whose read cost scales with how many tickets
+  are actually pending, not with total ticket history.
 - **Not fixed by this**: the Chroma vector store (`app/data/chroma`) still
   lives on local disk and was already flagged in `persistent-storage-setup.md`
   as not covered by the Turso migration - it resets on Render spin-down
@@ -42,13 +40,13 @@ every time it scales to zero, so don't use it for this app.
 2. **Add Secrets** (Replit's equivalent of Render's Environment tab - the
    padlock icon in the workspace sidebar, or the Deploy dialog's own Secrets
    section):
-   - `OPENROUTER_API_KEY` (classification/resolution grading)
+   - `OPENROUTER_API_KEY` (classification)
    - `OPENAI_API_KEY` (embeddings only - few-shot memory retrieval)
    - `TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN` (same values you're using on
      Render today - see `persistent-storage-setup.md`)
    - `ADMIN_USERNAME` / `ADMIN_PASSWORD`
-   - `ZOHO_WEBHOOK_SECRET`, `ZOHO_INVOKE_URL`, `ZOHO_API_KEY` etc. from your
-     current Render environment - copy every var Render has today
+   - `ZOHO_WEBHOOK_SECRET` and the rest of your current Render environment -
+     copy every var Render has today
 3. **Verify the workspace preview works first.** Hit the Run button - `.replit`
    is already configured to run `uvicorn app.main:app --host 0.0.0.0 --port
    8000`. Log in and push a test ticket through before deploying.
@@ -59,9 +57,9 @@ every time it scales to zero, so don't use it for this app.
    `deploymentTarget` gets written into `.replit` - that's deliberate, see
    the comment at the top of that file.
 5. **Point Zoho at the new URL.** Once deployed, Replit gives you a stable
-   `https://<your-app>.replit.app` URL - update `ZOHO_INVOKE_URL` (if used)
-   and the webhook URL configured in Zoho Creator's "On Add" workflow to
-   point here instead of the old Render URL.
+   `https://<your-app>.replit.app` URL - update the webhook URL configured
+   in Zoho Creator's "On Add" workflow to point here instead of the old
+   Render URL.
 6. **Retire the Render service** once you've confirmed a real ticket flows
    through end-to-end on Replit.
 

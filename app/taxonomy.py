@@ -78,7 +78,7 @@ class Taxonomy:
         sends its whole working copy back on Save, not a per-field patch).
         Raises ValueError on structural problems (missing ids/names,
         duplicate ids) before ever touching disk. Reloads immediately after
-        writing so classify()/grade_resolution() pick up the change without
+        writing so classify() picks up the change without
         a restart.
         """
         if not isinstance(data.get("categories"), list) or not data["categories"]:

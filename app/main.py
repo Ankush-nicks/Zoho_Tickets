@@ -1,6 +1,5 @@
 import asyncio
 import csv
-import gzip
 import io
 import json
 import secrets
@@ -14,19 +13,15 @@ import logging
 from fastapi import Depends, FastAPI, File, Header, HTTPException, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from openai import RateLimitError
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import auth, config, db, memory, classifier, quality_scorer, poc_queue, zoho_csv, daily_issue, routing_log
+from . import auth, config, db, memory, classifier, zoho_csv, routing_log
 from .taxonomy import taxonomy
 from .auth import require_login
 from .models import (
     LoginRequest,
-    NewTicketRequest,
-    ClarificationResponse,
-    CorrectionRequest,
-    TicketStateResponse,
     TaxonomyUnlockRequest,
     ClassificationResult,
 )
@@ -61,20 +56,6 @@ async def zoho_webhook_debug_handler(request: Request, exc: RequestValidationErr
     return JSONResponse(status_code=422, content={"detail": exc.errors()})
 
 
-def require_api_key(x_openrouter_api_key: str | None = Header(default=None, alias="X-OpenRouter-Api-Key")) -> str:
-    """
-    The OpenRouter key (used for classify()/grade_resolution()) comes from
-    the server's OPENROUTER_API_KEY env var - the UI doesn't collect or send
-    one. X-OpenRouter-Api-Key is still accepted as an override (takes
-    precedence when present) in case a per-request key is ever needed
-    again, but nothing in the current UI sets it.
-    """
-    key = x_openrouter_api_key or config.OPENROUTER_API_KEY
-    if not key:
-        raise HTTPException(401, "OpenRouter API key required - set OPENROUTER_API_KEY in the server's environment.")
-    return key
-
-
 def require_webhook_secret(x_webhook_secret: str | None = Header(default=None, alias="X-Webhook-Secret")) -> None:
     """
     Authenticates Zoho Creator's Deluge "On Add" workflow for the push
@@ -89,32 +70,6 @@ def require_webhook_secret(x_webhook_secret: str | None = Header(default=None, a
         raise HTTPException(401, "Missing or invalid X-Webhook-Secret header.")
 
 
-def require_poc_token(x_poc_token: str | None = Header(default=None, alias="X-POC-Token")) -> str:
-    """
-    Authenticates a single POC's Chrome extension (see
-    docs/superpowers/specs/2026-09-09-poc-ticket-queue-extension-design.md) -
-    a per-POC bearer token, not the session-cookie login the main UI uses,
-    since the extension has no login flow of its own. 401s on a missing or
-    unrecognized token.
-    """
-    email = poc_queue.resolve_poc_email(x_poc_token)
-    if not email:
-        raise HTTPException(401, "Missing or invalid X-POC-Token header.")
-    return email
-
-
-@app.get("/api/extension/my-tickets")
-def get_my_tickets(poc_email: str = Depends(require_poc_token)):
-    """Read-only ticket queue for one POC's Chrome extension. Never writes anything."""
-    return poc_queue.build_poc_queue(poc_email)
-
-
-@app.get("/api/extension/my-subcategory-heat")
-def get_my_subcategory_heat(poc_email: str = Depends(require_poc_token)):
-    """Open-ticket counts per subcategory for one POC's Chrome extension. Never writes anything."""
-    return poc_queue.build_subcategory_heat(poc_email)
-
-
 @app.on_event("startup")
 async def startup():
     db.init_db()
@@ -123,7 +78,6 @@ async def startup():
     asyncio.create_task(asyncio.to_thread(_sync_seed_examples, "startup"))
     asyncio.create_task(_settle_pending_csv_imports_at_startup())
     asyncio.create_task(_auto_classify_loop())
-    asyncio.create_task(_auto_score_loop())
 
 
 async def _settle_pending_csv_imports_at_startup():
@@ -137,7 +91,7 @@ async def _settle_pending_csv_imports_at_startup():
 
 # App pages - all served by index(). Also the only places login will
 # send you back to, so ?next= can't be used as an open redirect.
-PAGE_PATHS = ("/daily", "/pulse", "/stats", "/taxonomy", "/drill-down", "/log")
+PAGE_PATHS = ("/log", "/taxonomy")
 
 
 def _login_redirect(next_path: str) -> RedirectResponse:
@@ -147,11 +101,7 @@ def _login_redirect(next_path: str) -> RedirectResponse:
 
 
 @app.get("/")
-@app.get("/daily")
-@app.get("/pulse")
-@app.get("/stats")
 @app.get("/taxonomy")
-@app.get("/drill-down")
 @app.get("/log")
 def index(request: Request):
     """Every page is the same shell (one shared header); index.html
@@ -161,99 +111,23 @@ def index(request: Request):
     return FileResponse(str(STATIC_DIR / "index.html"))
 
 
+# Pages that were removed (Daily report, Pulse, Stats, Drill down) - keep
+# old links and bookmarks working by sending them to the Log.
+@app.get("/daily")
+@app.get("/pulse")
+@app.get("/stats")
+@app.get("/drill-down")
 @app.get("/tickets")
-def old_tickets_page():
-    """The Tickets page was replaced by Daily report; keep old links working."""
-    return RedirectResponse("/daily")
-
-
 @app.get("/daily-issue")
-def old_daily_issue_page():
-    """Daily Issue Check was renamed Drill down; keep old links working."""
-    return RedirectResponse("/drill-down")
-
-
 @app.get("/daily-issue-check")
-def daily_issue_page(request: Request):
-    """The Drill down page (formerly Daily Issue Check) - shown in an iframe
-    inside the main app, so its own styles can't collide with index.html's.
-    With ?all=1 it is the Daily report page (every category's daily check)."""
-    if not request.session.get("user"):
-        return _login_redirect("/daily" if "all" in request.query_params else "/drill-down")
-    return FileResponse(str(STATIC_DIR / "daily-issue-check.html"))
-
-
-@app.get("/api/daily-issue/tickets")
-def daily_issue_tickets(request: Request, user: str = Depends(require_login)):
-    """Every Zoho ticket in the Daily Issue Check page's row shape (see
-    app/daily_issue.py). Several MB as JSON, so gzipped when the browser
-    accepts it."""
-    body = json.dumps({
-        "rows": daily_issue.build_rows(db.list_all_tickets()),
-        "ai": daily_issue.ai_enabled(),
-        "model": config.DAILY_ISSUE_MODEL,
-    }, separators=(",", ":")).encode("utf-8")
-    headers = {"Cache-Control": "no-store"}
-    if "gzip" in request.headers.get("accept-encoding", ""):
-        body = gzip.compress(body, compresslevel=5)
-        headers["Content-Encoding"] = "gzip"
-        headers["Vary"] = "Accept-Encoding"
-    return Response(content=body, media_type="application/json", headers=headers)
-
-
-_DAILY_ISSUE_STATE_KEY = "daily_issue_tree"
-_DAILY_ISSUE_STATE_MAX_BYTES = 5 * 1024 * 1024
-
-
-@app.get("/api/daily-issue/state")
-def get_daily_issue_state(user: str = Depends(require_login)):
-    """The Daily Issue Check page's groups / descriptions / remarks / daily-check
-    sorting - one shared copy for the whole team (was per-browser)."""
-    return db.get_shared_state(_DAILY_ISSUE_STATE_KEY)
-
-
-@app.put("/api/daily-issue/state")
-def put_daily_issue_state(payload: dict, user: str = Depends(require_login)):
-    """
-    Body: {"value": <the page's tree>, "version": <version it was based on>}.
-    409 with the current state when someone else saved in between - the
-    page reloads that instead of overwriting their work.
-    """
-    value = payload.get("value")
-    if not isinstance(value, dict) or not isinstance(value.get("nodes"), dict):
-        raise HTTPException(400, "value must be an object with a 'nodes' object")
-    if len(json.dumps(value, separators=(",", ":"))) > _DAILY_ISSUE_STATE_MAX_BYTES:
-        raise HTTPException(413, "Groups data is too large to save.")
-    try:
-        expected = int(payload.get("version") or 0)
-    except (TypeError, ValueError):
-        raise HTTPException(400, "version must be an integer")
-    ok, state = db.put_shared_state(_DAILY_ISSUE_STATE_KEY, value, expected, user)
-    if not ok:
-        return JSONResponse(status_code=409, content=state)
-    return state
-
-
-@app.post("/api/daily-issue/ai/text")
-def daily_issue_ai_text(payload: dict, user: str = Depends(require_login)):
-    """Streamed plain-text answer (summaries, new-issue spotting, questions)."""
-    return StreamingResponse(
-        daily_issue.stream_text(payload.get("prompt")),
-        media_type="text/plain; charset=utf-8",
-        headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
-    )
-
-
-@app.post("/api/daily-issue/ai/json")
-def daily_issue_ai_json(payload: dict, user: str = Depends(require_login)):
-    """JSON-mode answer (defining groups, sorting tickets into them, issue descriptions)."""
-    return daily_issue.complete_json(payload.get("prompt"))
+def removed_page():
+    return RedirectResponse("/log")
 
 
 @app.get("/login")
 def login_page(request: Request, next: str = ""):
     if request.session.get("user"):
-        return RedirectResponse(next if next in PAGE_PATHS else "/")
+        return RedirectResponse(next if next in PAGE_PATHS else "/log")
     return FileResponse(str(STATIC_DIR / "login.html"))
 
 
@@ -309,7 +183,7 @@ def update_taxonomy(
     rather than patching individual fields. Rejects structurally invalid
     data (missing ids/names, duplicate ids) with a 400 before writing
     anything; a valid payload is written to taxonomy.json and hot-reloaded,
-    so classify()/grade_resolution() see it immediately, no restart needed.
+    so classify() sees it immediately, no restart needed.
 
     Requires the taxonomy-edit password on every call (X-Taxonomy-Password
     header), not just at "Unlock to edit" time - the browser holds it in
@@ -519,39 +393,6 @@ def _filter_tickets_by_date_range(tickets: list[dict], date_from: str | None, da
     return tickets
 
 
-@app.get("/api/tickets/range")
-def list_tickets_range(date_from: str | None = None, date_to: str | None = None, user: str = Depends(require_login)):
-    """
-    Every ticket (full state, including raw_payload) created within
-    [date_from, date_to] (UTC calendar days, inclusive of both ends), or
-    all-time when either/both are omitted.
-
-    Powers the Stats tab's faceted filtering (University, SLA status,
-    Category, Priority, Team, etc.) entirely client-side: rather than the
-    server pre-aggregating a fixed set of breakdowns, the UI fetches the
-    raw ticket set once per date range and does all filtering/grouping in
-    the browser, so any combination of filters recomputes instantly with
-    no extra request per combination. Fine at today's ticket volume; would
-    need to move back to server-side aggregation (or pagination) if volume
-    grows enough that shipping full raw_payload per ticket gets heavy.
-    """
-    tickets = _filter_tickets_by_date_range(db.list_all_tickets(), date_from, date_to)
-    return [_to_state_response(t) for t in tickets]
-
-
-@app.get("/api/corrections")
-def list_corrections(date_from: str | None = None, date_to: str | None = None, user: str = Depends(require_login)):
-    """
-    Every human correction (predicted -> corrected category) within
-    [date_from, date_to], or all-time when omitted. Powers the Stats tab's
-    "Routing accuracy" confusion matrix and correction-rate trend, computed
-    client-side the same way /api/tickets/range's data is - see
-    db.list_corrections for why this can't be derived from /api/tickets/range
-    alone (a ticket's predicted category is gone once it's corrected).
-    """
-    return db.list_corrections(date_from, date_to)
-
-
 @app.get("/api/routing-log")
 def get_routing_log(date_from: str | None = None, date_to: str | None = None, user: str = Depends(require_login)):
     """
@@ -570,38 +411,6 @@ def get_routing_log(date_from: str | None = None, date_to: str | None = None, us
         "rows": rows,
         "summary": routing_log.learn(rows, config.REPORTER_OVERRIDE_MIN_CONFIDENCE),
         "drafts": db.count_drafts(),
-    }
-
-
-# --- Zoho Creator integration ----------------------------------------------
-
-@app.get("/api/zoho/status")
-def get_zoho_status(user: str = Depends(require_login)):
-    """
-    Whether the pull-direction (ZOHO_INVOKE_URL) is still an unset placeholder
-    rather than a real Zoho Custom API - never returns the actual URL or key
-    value, just enough to render a status indicator in the UI. Irrelevant to
-    the push webhook (/api/webhooks/zoho/tickets), which doesn't use these.
-    """
-    return {
-        "invoke_url_is_sample": "REPLACE_WITH_REAL_ZOHO_CUSTOM_API" in config.ZOHO_INVOKE_URL,
-        "api_key_is_sample": config.ZOHO_API_KEY == "sample-zoho-key",
-    }
-
-
-@app.get("/api/debug/db-info")
-def get_db_info(user: str = Depends(require_login)):
-    """
-    Non-secret diagnostic: whether this deployment picked up Turso config at
-    all (vs. silently falling back to empty local SQLite), and how many
-    tickets it can actually see - to tell apart "env vars didn't take
-    effect" from "wrong database" from "date filter hid real data" when the
-    portal appears empty.
-    """
-    tickets = db.list_all_tickets()
-    return {
-        "use_turso": db.USE_TURSO,
-        "ticket_count": len(tickets),
     }
 
 
@@ -643,13 +452,11 @@ def _resolve_leaf_for_zoho(category_id: str | None) -> tuple[dict, bool]:
 @app.post("/api/webhooks/zoho/tickets")
 def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_secret)):
     """
-    PUSH counterpart to the pull-based /api/zoho endpoints above: Zoho
-    Creator's "On Add/Edit" workflow calls this directly with the record's
+    Zoho Creator's "On Add/Edit" workflow calls this directly with the record's
     fields (see zoho-invoke-url-setup.md for the Deluge script) - a new
     ticket gets classified the moment it's created in Zoho, and every
     subsequent edit (status change, POC acknowledgment, worklog, etc.)
-    refreshes the stored data - no polling, no round trip back through
-    ZOHO_INVOKE_URL.
+    refreshes the stored data - no polling.
 
     zoho_ticket_id is OPTIONAL, which puts this endpoint in one of two
     modes:
@@ -708,7 +515,7 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
     marks exactly those cases so Zoho-side automation (or a human) can tell
     a forced fallback apart from a genuine classification; the affected
     ticket also gets fallback_reason set (see db.py's tickets.fallback_reason)
-    so it surfaces in the Pulse tab's action items for reclassification.
+    so it can be found and reclassified.
 
     Upserts by zoho_ticket_id: the first time a ticket id is seen, it's
     created and classified as before. Every call after that (an edit, or a
@@ -1201,13 +1008,6 @@ def _is_upload_history(ticket: dict) -> bool:
     return _UPLOAD_REASONING_MARK in (ticket.get("reasoning") or "") and _is_csv_imported(ticket)
 
 
-def _needs_resolution_grade(ticket: dict) -> bool:
-    """Closed-ticket grading queue filter: not graded yet, and not uploaded
-    history - grading those would only spend credits on tickets Zoho closed
-    before this app ever saw them."""
-    return not ticket.get("resolution_scored_at") and not _is_upload_history(ticket)
-
-
 def _settle_pending_csv_imports() -> int:
     """
     Gives every still-pending CSV-imported ticket its Zoho category instead
@@ -1271,57 +1071,6 @@ def _detect_zoho_transfer(existing: dict, new_subcategory: str | None) -> str | 
     return resolved
 
 
-def _to_state_response(ticket: dict) -> TicketStateResponse:
-    leaf = taxonomy.get(ticket["category_id"]) if ticket.get("category_id") else None
-    conversation = []
-    # get_turns() is a real (network) query on Turso - clarification_turns
-    # is incremented every time append_turn() is, so ==0 reliably means no
-    # turns exist and this call can be skipped. Matters a lot in aggregate:
-    # this function runs per-ticket for potentially hundreds of tickets at
-    # once (day/range listings), and most tickets never have any turns.
-    if ticket.get("clarification_turns"):
-        for t in db.get_turns(ticket["id"]):
-            conversation.append({"role": t["role"], "content": t["content"]})
-    category_name = leaf["name"] if leaf else None
-    category_group_name = leaf["parent_name"] if leaf else None
-    zoho_category = ticket.get("zoho_category")
-    zoho_subcategory = ticket.get("zoho_subcategory")
-    zoho_agrees = _labels_loosely_match(category_name, zoho_subcategory)
-    if zoho_agrees is None:
-        zoho_agrees = _labels_loosely_match(category_group_name, zoho_category)
-    raw_payload = ticket.get("raw_payload")
-    return TicketStateResponse(
-        ticket_id=ticket["id"],
-        status=ticket["status"],
-        created_at=ticket["created_at"],
-        category_id=ticket.get("category_id"),
-        category_name=category_name,
-        category_group_id=leaf["parent_id"] if leaf else None,
-        category_group_name=category_group_name,
-        assigned_team=leaf.get("assigned_team") if leaf else None,
-        poc_primary=leaf.get("poc_primary") if leaf else None,
-        confidence=ticket.get("confidence"),
-        reasoning=ticket.get("reasoning"),
-        clarifying_question=ticket.get("clarifying_question"),
-        conversation=conversation,
-        zoho_ticket_id=ticket.get("zoho_ticket_id"),
-        issue_in_detail=ticket.get("original_text"),
-        zoho_category=zoho_category,
-        zoho_subcategory=zoho_subcategory,
-        zoho_agrees=zoho_agrees,
-        raw_payload=raw_payload,
-        resolution_score=ticket.get("resolution_score"),
-        resolution_ack=ticket.get("resolution_ack"),
-        resolution_investigation=ticket.get("resolution_investigation"),
-        resolution_root_cause=ticket.get("resolution_root_cause"),
-        resolution_sla=ticket.get("resolution_sla"),
-        resolution_detail=ticket.get("resolution_detail"),
-        resolution_evidence=ticket.get("resolution_evidence"),
-        resolution_scored_at=ticket.get("resolution_scored_at"),
-        fallback_reason=ticket.get("fallback_reason"),
-    )
-
-
 def _run_classification_and_persist(
     ticket_id: str,
     context_text: str,
@@ -1379,8 +1128,7 @@ def _classify_pending_batch(limit: int, api_key: str) -> dict:
 
     Stops the batch immediately on a RateLimitError (further calls would
     just fail the same way) but keeps going past other per-ticket errors.
-    Used by both the manual "Classify Now" button and the background
-    auto-classify loop below.
+    Used by the background auto-classify loop below.
 
     Queries only status='pending' tickets (db.list_pending_tickets()) rather
     than reading the whole ticket history - this used to matter for
@@ -1437,10 +1185,9 @@ _AUTO_CLASSIFY_BATCH_SIZE = 10
 async def _auto_classify_loop():
     """
     Background retry for pending tickets - picks up automatically once
-    OPENROUTER_API_KEY's rate limit (or whatever else caused a stall) clears,
-    with no need for anyone to click "Classify Now". Small batch size and
-    a long interval so a persistent outage just quietly no-ops each cycle
-    instead of hammering a dead API.
+    OPENROUTER_API_KEY's rate limit (or whatever else caused a stall) clears.
+    Small batch size and a long interval so a persistent outage just quietly
+    no-ops each cycle instead of hammering a dead API.
     """
     while True:
         await asyncio.sleep(_AUTO_CLASSIFY_INTERVAL_SECONDS)
@@ -1455,248 +1202,3 @@ async def _auto_classify_loop():
                 )
         except Exception as e:
             logger.error("auto-classify loop error: %s", e)
-
-
-def _score_pending_resolutions_batch(limit: int, api_key: str) -> dict:
-    """
-    Grades up to `limit` closed-but-ungraded tickets - same stop-on-
-    RateLimitError, keep-going-on-other-errors shape as _classify_pending_
-    batch above. Used by both the manual "Score Now" trigger and the
-    background auto-score loop below.
-
-    Queries only tickets whose raw_payload.ticket_status is closed
-    (db.list_tickets_by_raw_status) rather than reading the whole ticket
-    history - a server-side filter on that one field (json_extract), so
-    read cost scales with how many tickets are actually closed, not with
-    total ticket count. The resolution_scored_at check still has to happen
-    in Python ("field is absent" isn't something json_extract filters on
-    directly), but that's now filtering a small closed-tickets subset
-    instead of everything ever stored. Derives "remaining" from that same
-    snapshot rather than re-querying to recount.
-    """
-    closed = db.list_tickets_by_raw_status(list(quality_scorer.CLOSED_STATUSES))
-    pending_all = [t for t in closed if _needs_resolution_grade(t)]
-    pending = pending_all[:limit]
-    scored_count = 0
-    stopped_early = False
-    error = None
-
-    for t in pending:
-        try:
-            result = quality_scorer.score_ticket(t, api_key)
-        except RateLimitError as e:
-            stopped_early = True
-            error = str(e)
-            break
-        except Exception as e:
-            error = str(e)
-            continue
-        db.update_ticket(t["id"], **result)
-        scored_count += 1
-
-    remaining = len(pending_all) - scored_count
-    return {"scored": scored_count, "remaining": remaining, "stopped_early": stopped_early, "error": error}
-
-
-_AUTO_SCORE_INTERVAL_SECONDS = 1800  # 30 min
-_AUTO_SCORE_BATCH_SIZE = 5
-
-
-async def _auto_score_loop():
-    """Same self-healing shape as _auto_classify_loop, for resolution grading."""
-    while True:
-        await asyncio.sleep(_AUTO_SCORE_INTERVAL_SECONDS)
-        if not config.OPENROUTER_API_KEY:
-            continue
-        try:
-            result = _score_pending_resolutions_batch(_AUTO_SCORE_BATCH_SIZE, config.OPENROUTER_API_KEY)
-            if result["scored"]:
-                logger.info(
-                    "auto-score: graded %d resolution(s), %d remaining",
-                    result["scored"], result["remaining"],
-                )
-        except Exception as e:
-            logger.error("auto-score loop error: %s", e)
-
-
-@app.post("/api/tickets", response_model=TicketStateResponse)
-def create_ticket(req: NewTicketRequest, api_key: str = Depends(require_api_key), user: str = Depends(require_login)):
-    if not req.text.strip():
-        raise HTTPException(400, "text is required")
-    ticket_id = db.create_ticket(req.text.strip())
-    _run_classification_and_persist(ticket_id, req.text.strip(), clarification_turns=0, api_key=api_key)
-    ticket = db.get_ticket(ticket_id)
-
-    resp = _to_state_response(ticket)
-    if ticket["status"] == "awaiting_clarification":
-        last_q = db.get_turns(ticket_id)[-1]["content"]
-        resp.clarifying_question = last_q
-    return resp
-
-
-@app.post("/api/tickets/{ticket_id}/respond", response_model=TicketStateResponse)
-def respond_to_clarification(
-    ticket_id: str, req: ClarificationResponse, api_key: str = Depends(require_api_key), user: str = Depends(require_login)
-):
-    ticket = db.get_ticket(ticket_id)
-    if not ticket:
-        raise HTTPException(404, "ticket not found")
-    if ticket["status"] != "awaiting_clarification":
-        raise HTTPException(400, f"ticket is not awaiting clarification (status={ticket['status']})")
-
-    db.append_turn(ticket_id, "user_answer", req.answer.strip())
-    new_context = ticket["full_context"] + f"\n\nAdditional info: {req.answer.strip()}"
-
-    _run_classification_and_persist(
-        ticket_id, new_context, clarification_turns=ticket["clarification_turns"], api_key=api_key,
-        reporter_hint=_reporter_hint_for_ticket(ticket),
-    )
-    updated = db.get_ticket(ticket_id)
-
-    resp = _to_state_response(updated)
-    if updated["status"] == "awaiting_clarification":
-        last_q = db.get_turns(ticket_id)[-1]["content"]
-        resp.clarifying_question = last_q
-    return resp
-
-
-@app.get("/api/tickets")
-def list_daily_tickets(date: str | None = None, user: str = Depends(require_login)):
-    """
-    Day-wise dashboard feed: every ticket created on `date` (YYYY-MM-DD,
-    UTC calendar day), defaulting to today, newest first. This is what lets
-    the portal show "today's tickets so far" on open/reload without anyone
-    having to look each one up manually.
-    """
-    date = date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    tickets = db.list_tickets_for_date(date)
-    return [_to_state_response(t) for t in tickets]
-
-
-@app.get("/api/tickets/export.csv")
-def export_tickets_csv(date: str | None = None, user: str = Depends(require_login)):
-    """
-    CSV export for offline/analytical use: ticket text, our predicted
-    category/sub-category and confidence, and whatever category Zoho already
-    had on the record for comparison. Exports every ticket ever stored when
-    `date` is omitted, or just one UTC calendar day when given.
-    """
-    tickets = db.list_tickets_for_date(date) if date else db.list_all_tickets()
-    tickets = sorted(tickets, key=lambda t: t["created_at"])
-
-    buf = io.StringIO()
-    writer = csv.writer(buf)
-    writer.writerow([
-        "ticket_id", "zoho_ticket_id", "created_at_utc", "status",
-        "issue_in_detail", "app_category_group", "app_subcategory", "confidence",
-        "reasoning", "zoho_category", "zoho_subcategory", "matches_zoho_tag",
-    ])
-    for t in tickets:
-        resp = _to_state_response(t)
-        writer.writerow([
-            resp.ticket_id,
-            resp.zoho_ticket_id or "",
-            datetime.fromtimestamp(t["created_at"], tz=timezone.utc).isoformat(),
-            resp.status,
-            resp.issue_in_detail or "",
-            resp.category_group_name or "",
-            resp.category_name or "",
-            resp.confidence if resp.confidence is not None else "",
-            resp.reasoning or "",
-            resp.zoho_category or "",
-            resp.zoho_subcategory or "",
-            "" if resp.zoho_agrees is None else ("yes" if resp.zoho_agrees else "no"),
-        ])
-
-    filename = f"tickets_{date}.csv" if date else "tickets_all.csv"
-    return Response(
-        content=buf.getvalue(),
-        media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename={filename}"},
-    )
-
-
-@app.get("/api/tickets/pending-count")
-def get_pending_count(user: str = Depends(require_login)):
-    """How many tickets are sitting in status='pending' - e.g. from a
-    --no-classify historical import - powers the portal's "Classify Now"
-    banner. Uses count_pending_tickets() (a SQL COUNT(*), not a full-table
-    read) rather than listing every ticket to count."""
-    count = db.count_pending_tickets()
-    return {"count": count}
-
-
-@app.post("/api/tickets/classify-pending")
-def classify_pending_tickets(limit: int = 20, user: str = Depends(require_login)):
-    """Manually trigger classification for up to `limit` pending tickets - see
-    _classify_pending_batch. The background auto-classify loop does this too,
-    on its own schedule; this is for "I don't want to wait for the next cycle"."""
-    if not config.OPENROUTER_API_KEY:
-        raise HTTPException(500, "OPENROUTER_API_KEY is not set in the server's environment.")
-    return _classify_pending_batch(limit, config.OPENROUTER_API_KEY)
-
-
-@app.get("/api/resolutions/pending-count")
-def get_resolution_pending_count(user: str = Depends(require_login)):
-    """How many closed tickets haven't been quality-graded yet - powers the
-    Weekly Resolution Insights view's "Score Now" banner. Queries only
-    closed-status tickets (db.list_tickets_by_raw_status) instead of the
-    whole ticket history before checking resolution_scored_at in Python."""
-    closed = db.list_tickets_by_raw_status(list(quality_scorer.CLOSED_STATUSES))
-    count = sum(1 for t in closed if _needs_resolution_grade(t))
-    return {"count": count}
-
-
-@app.post("/api/resolutions/score-pending")
-def score_pending_resolutions(limit: int = 10, user: str = Depends(require_login)):
-    """Manually trigger resolution grading for up to `limit` closed-but-
-    ungraded tickets - see _score_pending_resolutions_batch. The background
-    auto-score loop does this too, on its own schedule."""
-    if not config.OPENROUTER_API_KEY:
-        raise HTTPException(500, "OPENROUTER_API_KEY is not set in the server's environment.")
-    return _score_pending_resolutions_batch(limit, config.OPENROUTER_API_KEY)
-
-
-@app.get("/api/tickets/{ticket_id}", response_model=TicketStateResponse)
-def get_ticket(ticket_id: str, user: str = Depends(require_login)):
-    ticket = db.get_ticket(ticket_id)
-    if not ticket:
-        raise HTTPException(404, "ticket not found")
-    return _to_state_response(ticket)
-
-
-@app.post("/api/tickets/{ticket_id}/correct", response_model=TicketStateResponse)
-def correct_ticket(
-    ticket_id: str, req: CorrectionRequest, user: str = Depends(require_login)
-):
-    """
-    Human-in-the-loop correction. This is the endpoint that makes the
-    system 'dynamic': the corrected (text -> category) pair is embedded
-    and written into vector memory immediately, so the very next similar
-    ticket benefits from it without any retraining or redeploy.
-
-    Uses OPENAI_API_KEY directly (not require_api_key/OPENROUTER_API_KEY) -
-    this only embeds text for memory, it never calls the classify model.
-    """
-    ticket = db.get_ticket(ticket_id)
-    if not ticket:
-        raise HTTPException(404, "ticket not found")
-    if req.corrected_category_id not in taxonomy.category_ids:
-        raise HTTPException(400, f"unknown category_id '{req.corrected_category_id}'")
-
-    db.log_correction(ticket_id, ticket.get("category_id"), req.corrected_category_id, req.corrected_by)
-    memory.add_example(
-        ticket["full_context"], req.corrected_category_id, config.OPENAI_API_KEY,
-        source="correction", ticket_id=ticket_id,
-    )
-
-    db.update_ticket(
-        ticket_id,
-        status="corrected",
-        category_id=req.corrected_category_id,
-        confidence=1.0,
-        reasoning="Corrected by human reviewer.",
-        fallback_reason=None,  # a human just supplied a real, valid category id - clears any prior fallback flag
-    )
-    updated = db.get_ticket(ticket_id)
-    return _to_state_response(updated)

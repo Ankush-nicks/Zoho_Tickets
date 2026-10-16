@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from app import config, db, classifier, memory
+from app import config, db, classifier
 from app.main import app
 from app.models import ClassificationResult
 
@@ -117,18 +117,3 @@ def test_existing_ticket_never_classified_falls_back(isolated_db, monkeypatch):
 
     ticket = db.get_ticket(ticket_id)
     assert ticket["fallback_reason"] == "never_classified"
-
-
-def test_correct_endpoint_clears_fallback_reason(isolated_db, monkeypatch):
-    _patch_common(monkeypatch)
-    monkeypatch.setattr(memory, "add_example", lambda *a, **k: None)
-    ticket_id = db.create_ticket("original text", zoho_ticket_id="Z-5")
-    db.update_ticket(ticket_id, status="needs_human_review", fallback_reason="never_classified")
-    client = TestClient(app)
-    client.post("/api/login", json={"username": "admin", "password": "admin"})
-
-    response = client.post(f"/api/tickets/{ticket_id}/correct", json={"corrected_category_id": "G01-S01"})
-
-    assert response.status_code == 200
-    ticket = db.get_ticket(ticket_id)
-    assert ticket["fallback_reason"] is None

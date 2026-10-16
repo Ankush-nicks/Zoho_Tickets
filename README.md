@@ -31,9 +31,9 @@ confident & unambiguous? ──No──► ask ONE clarifying question ──►
 route ticket + store category/confidence/reasoning
      │
      ▼
-agent disagrees? ──► POST /correct ──► embed (text → correct category)
-                                        into vector memory immediately
-                                        = next similar ticket gets it right
+ticket transferred in Zoho? ──► webhook sees the new subcategory ──► embed
+                                   (text → correct category) into vector memory
+                                   immediately = next similar ticket gets it right
 ```
 
 This is "dynamic" in the practical sense that matters for a classifier running on
@@ -45,14 +45,14 @@ with no deploy step.
 
 ```
 app/
-  main.py          FastAPI routes — the classify/clarify/correct orchestration
+  main.py          FastAPI routes — Zoho webhook, Log and Taxonomy pages
   classifier.py    Builds the dynamic prompt, calls OpenRouter, decides finalize vs clarify
   memory.py        Chroma vector store — the "context memory" (seed + corrections)
   taxonomy.py      Loads taxonomy.json, exposes it to the prompt + JSON schema
   taxonomy.json    <-- your real taxonomy (14 categories / 68 routed subcategories)
   db.py            SQLite (local) / Turso (prod) — ticket/session state, conversation turns, correction log
   models.py        Pydantic request/response + structured-output schema
-  static/index.html  Test console UI
+  static/index.html  The Log and Taxonomy pages (one shell, shared header)
 ```
 
 ## Setup
@@ -69,7 +69,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 server bound to `127.0.0.1`. See `REPLIT_DEPLOY.md` for deploying this as an always-on
 Reserved VM instead of running it locally.
 
-Set `OPENROUTER_API_KEY` (classification/grading) and `OPENAI_API_KEY` (embeddings
+Set `OPENROUTER_API_KEY` (classification) and `OPENAI_API_KEY` (embeddings
 only, see below) in `.env` before starting the server - there's no in-browser key
 input, both are server-side only. Open http://localhost:8000, log in, then type a
 ticket and watch it get classified (or asked a clarifying question), and use
@@ -117,8 +117,6 @@ this file at startup. To update it, re-export the same 2-level shape:
 - `assigned_team` / `poc_primary` are optional — omit either and the API/UI
   just won't show that field. They're **not** included in the classification
   prompt (irrelevant to intent), only surfaced in responses for routing.
-  `poc_primary` also drives the POC queue — a subcategory without it won't
-  show up in any POC's queue.
 - `examples` are not put in the classification prompt directly - they
   bootstrap the vector memory on first run (`memory.seed_if_empty`), and the
   most similar ones are retrieved into the prompt as few-shot context, so
@@ -136,9 +134,9 @@ this file at startup. To update it, re-export the same 2-level shape:
   consider two-stage classification (pick the category group first, then the
   subcategory within it) to keep each individual prompt smaller and more precise.
 
-### Uploading ticket data (Taxonomy tab)
+### Uploading ticket data (Taxonomy page)
 
-Once the Taxonomy tab is unlocked (same `TAXONOMY_EDIT_PASSWORD`), **Upload
+Once the Taxonomy page is unlocked (same `TAXONOMY_EDIT_PASSWORD`), **Upload
 tickets CSV** takes a Zoho "Instructors Ticketing System" export and upserts
 it by `Ticket ID` (`POST /api/tickets/import-csv`). It previews the counts
 first and writes only after you confirm.
@@ -162,33 +160,21 @@ first and writes only after you confirm.
   shown, so the live webhook isn't blocked. If an import is interrupted,
   re-upload the same file: it only writes what's missing, never duplicates.
 
-### Daily Issue Check tab
+### Pages
 
-Drill down tickets by category → subcategory → AI-made groups, spot problem
-patterns, and run a daily check of new tickets against known problems.
-`app/static/daily-issue-check.html` is shown in a frame inside the app and
-loads every Zoho ticket from the database (`GET /api/daily-issue/tickets`).
-Its AI features (summarise, split into groups, spot new issues, ask a
-question, describe issues, sort new tickets) call OpenRouter through the
-server (`/api/daily-issue/ai/text` streamed, `/api/daily-issue/ai/json`),
-with the model set by `OPENROUTER_DAILY_ISSUE_MODEL` (default
-`openai/gpt-4o-mini`). They only run when someone clicks them. Groups,
-descriptions, remarks and daily-check sorting are one shared copy for the
-whole team (`/api/daily-issue/state`, table `shared_state`), versioned so
-two people saving at once can't overwrite each other - the later save gets
-the latest copy back instead. Groups a browser saved before sharing existed
-are moved to the shared copy the first time that browser opens the tab.
-
-Resolution grading skips uploaded history (tickets created by a CSV upload
-whose data still comes from it) - only tickets that close while the live
-webhook tracks them are graded.
+The app has two pages, **Log** (`/log`, the default) and **Taxonomy**
+(`/taxonomy`). The old Daily report, Pulse, Stats and Drill down pages were
+removed, along with the POC Chrome extension, resolution grading and the
+ticket/correction APIs behind them; old page addresses redirect to the Log.
+The Drill down page's saved groups (`shared_state` table) are dropped on
+startup.
 
 ## Key config (`.env`)
 
 | Var | Default | Effect |
 |---|---|---|
-| `OPENROUTER_API_KEY` | (required) | Key for classify()/grade_resolution() - get one at openrouter.ai/keys. |
-| `OPENROUTER_CLASSIFY_MODEL` | `openai/gpt-4o-mini` | Model used for classification + resolution grading, in OpenRouter's `provider/model` form. |
+| `OPENROUTER_API_KEY` | (required) | Key for classify() - get one at openrouter.ai/keys. |
+| `OPENROUTER_CLASSIFY_MODEL` | `openai/gpt-4o-mini` | Model used for classification, in OpenRouter's `provider/model` form. |
 | `OPENAI_API_KEY` | (required) | Used ONLY for embeddings now (few-shot memory) - OpenRouter has no embeddings endpoint. |
 | `CONFIDENCE_THRESHOLD` | `0.65` | Below this, the ticket needs clarification or human review rather than auto-routing. |
 | `MAX_CLARIFICATION_TURNS` | `2` | Caps back-and-forth so the bot doesn't interrogate the user forever; falls back to `needs_human_review`. |
@@ -268,16 +254,15 @@ Set `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_AI_GATEWAY_ID` (see `.env.example`)
 to route OpenAI embedding calls (memory.py) through a Cloudflare AI Gateway
 instead of hitting OpenAI directly - same `OPENAI_API_KEY`, same model, but
 Cloudflare caches repeated identical requests and gives a usage dashboard at
-`dash.cloudflare.com -> AI -> AI Gateway`. Does **not** apply to classify()/
-grade_resolution() (those go to OpenRouter, not OpenAI). Unset means
+`dash.cloudflare.com -> AI -> AI Gateway`. Does **not** apply to classify() (it goes to OpenRouter, not OpenAI). Unset means
 embedding calls go straight to OpenAI, unchanged from before this existed.
 
 Separately, set `CLOUDFLARE_API_TOKEN` (a token with **Workers AI** permission
-specifically, not AI Gateway's) and `classify()`/`grade_resolution()`
+specifically, not AI Gateway's) and `classify()`
 automatically fall back to Cloudflare Workers AI (`CLOUDFLARE_WORKERS_AI_MODEL`,
 default `@cf/meta/llama-3.1-8b-instruct`) whenever OpenRouter raises a
 rate-limit error - a completely separate quota from OpenRouter's, so
-classification/grading keeps working instead of stalling until OpenRouter's
+classification keeps working instead of stalling until OpenRouter's
 own limit resets. Same taxonomy/prompt/few-shot pipeline either way; only the
 final model call moves. Unset means these calls behave exactly as before
 (raise on rate limit).
@@ -288,12 +273,13 @@ All routes below (and the UI itself) require an admin session — log in at
 `/login` first (`POST /api/login` `{username, password}` sets the session
 cookie; `POST /api/logout` clears it).
 
-- `POST /api/tickets` `{text}` → classify a new ticket; may return a clarifying question.
-- `POST /api/tickets/{id}/respond` `{answer}` → answer a clarifying question, re-classify.
-- `POST /api/tickets/{id}/correct` `{corrected_category_id, corrected_by?}` → human correction; **this is what teaches the system**.
-- `GET /api/tickets/{id}` → current state + full conversation.
-- `GET /api/taxonomy` → current taxonomy (drives the UI's category dropdown).
-- `GET /api/tickets/range?date_from=&date_to=` → every ticket (full state incl. `raw_payload`) in an optional UTC date range (all-time if omitted) — the Stats tab fetches this once per range and does all faceted filtering/grouping (by category, university, SLA status, priority, team, etc.) client-side.
+- `GET /api/routing-log?date_from=&date_to=` → the Log page: one row per ticket plus the threshold numbers.
+- `GET /api/taxonomy` → current taxonomy; `PUT /api/taxonomy` saves it (needs the `X-Taxonomy-Password` header, see `POST /api/taxonomy/unlock`).
+- `GET /api/taxonomy/export.csv` → the whole taxonomy as CSV, examples included.
+- `POST /api/tickets/import-csv` (+ `GET /api/tickets/import-csv/status`) → upload a Zoho ticket export (Taxonomy page, same password).
+
+The one route outside the login is `POST /api/webhooks/zoho/tickets`, which
+Zoho calls with the `X-Webhook-Secret` header (see `zoho-invoke-url-setup.md`).
 
 ## Production notes / next steps
 
@@ -301,16 +287,16 @@ cookie; `POST /api/logout` clears it).
   `TURSO_DATABASE_URL`/`TURSO_AUTH_TOKEN` - see `persistent-storage-
   setup.md`). Turso speaks the same SQL as SQLite, so `db.py` runs
   unchanged against either. Reads are server-side filtered
-  (`db.list_pending_tickets`, `db.count_pending_tickets`,
-  `db.list_tickets_by_raw_status`) rather than reading the whole ticket
-  history, cheaper than a full table scan on every background-loop cycle.
+  (`db.list_pending_tickets`, `db.list_tickets_since`) rather than reading
+  the whole ticket history, cheaper than a full table scan on every
+  background-loop cycle.
   Chroma is still local-only; for multi-instance production point it at a
   hosted instance (or swap to Pinecone/Weaviate) — `memory.py` is the only
   file that would need to change.
 - **Hosting**: see `REPLIT_DEPLOY.md` for running this as an always-on
   Replit Reserved VM instead of Render's free plan — no cold starts, and the
-  two background loops (auto-classify, auto-score) keep running between
-  requests, which an autoscale-to-zero host would kill.
+  background auto-classify loop keeps running between requests, which an
+  autoscale-to-zero host would kill.
 - **Auth**: a single admin login (session cookie, set via `ADMIN_USERNAME`/
   `ADMIN_PASSWORD` in `.env`, defaulting insecurely to `admin`/`admin` if unset)
   gates the UI and every `/api/*` route. This is fine for one trusted operator;
@@ -323,9 +309,9 @@ cookie; `POST /api/logout` clears it).
   verified agents, and probably a review queue for corrections that contradict
   a high volume of prior seed examples, to guard against bad corrections
   degrading the retrieval bank over time.
-- **Analytics**: the Stats tab / `GET /api/tickets/range` is a starting point. For real accuracy tracking
+- **Analytics**: the Log page is a starting point. For real accuracy tracking
   you'll want to periodically sample `classified` tickets for agent QA (not just
-  rely on the `correct` endpoint, which only captures cases someone bothered to fix).
+  rely on Zoho transfers, which only capture cases someone bothered to fix).
 - **Observability**: log every `classify()` call's retrieved few-shot set
   alongside the decision — when accuracy dips on a category, you want to see
   exactly what context the model was given, not just the output.

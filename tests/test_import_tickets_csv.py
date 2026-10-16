@@ -254,7 +254,7 @@ def test_classify_batch_settles_earlier_csv_uploads_without_the_model(client, is
 
     monkeypatch.setattr(main_module.classifier, "classify", fake_classify)
     monkeypatch.setattr(config, "OPENROUTER_API_KEY", "sk-or-test")
-    result = client.post("/api/tickets/classify-pending").json()
+    result = main_module._classify_pending_batch(20, "sk-or-test")
 
     assert classified_texts == ["Wifi down"]
     assert result["classified"] == 1
