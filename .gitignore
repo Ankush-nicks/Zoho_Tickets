@@ -42,3 +42,6 @@ extensions/*/config.js
 # export (PII). The app serves app/static/daily-issue-check.html instead,
 # which loads tickets from the database.
 /daily-issue-check.html
+
+# Superpowers brainstorming mockups and plan workspaces
+.superpowers/
