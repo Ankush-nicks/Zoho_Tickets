@@ -86,6 +86,19 @@ CREATE TABLE IF NOT EXISTS corrections (
     FOREIGN KEY(ticket_id) REFERENCES tickets(id)
 );
 
+-- One row per Zoho call or error on a ticket, shown on the Log page.
+CREATE TABLE IF NOT EXISTS ticket_events (
+    id TEXT PRIMARY KEY,
+    ticket_id TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    summary TEXT NOT NULL,
+    error TEXT,
+    duration_ms INTEGER,
+    created_at REAL NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_events_ticket ON ticket_events(ticket_id, created_at);
+
 -- The live taxonomy: one row, key 'live', value is the taxonomy JSON.
 CREATE TABLE IF NOT EXISTS taxonomy_store (
     key TEXT PRIMARY KEY,
@@ -319,6 +332,46 @@ def count_drafts() -> int:
     instructors abandon a ticket (or edit its text) after the suggestion."""
     with _conn() as conn:
         return _fetchone(conn, "SELECT COUNT(*) AS n FROM tickets WHERE status = 'draft'")["n"]
+
+
+def list_drafts() -> list[dict]:
+    """Every pre-submit draft row, newest first."""
+    with _conn() as conn:
+        rows = _fetchall(conn, "SELECT * FROM tickets WHERE status = 'draft' ORDER BY created_at DESC")
+        return [_load_raw_payload(r) for r in rows]
+
+
+def add_event(ticket_id: str, kind: str, summary: str, error: str | None = None, duration_ms: int | None = None) -> None:
+    with _conn() as conn:
+        _exec(
+            conn,
+            "INSERT INTO ticket_events (id, ticket_id, kind, summary, error, duration_ms, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (new_id(), ticket_id, kind, summary, error, duration_ms, time.time()),
+        )
+
+
+def list_events(ticket_id: str) -> list[dict]:
+    """A ticket's events, oldest first."""
+    with _conn() as conn:
+        return _fetchall(
+            conn,
+            "SELECT kind, summary, error, duration_ms, created_at FROM ticket_events "
+            "WHERE ticket_id = ? ORDER BY created_at ASC, rowid ASC",
+            (ticket_id,),
+        )
+
+
+def event_flags() -> dict[str, dict]:
+    """ticket_id -> {"events": n, "errors": n}, in one query."""
+    with _conn() as conn:
+        rows = _fetchall(
+            conn,
+            "SELECT ticket_id, COUNT(*) AS events, "
+            "SUM(CASE WHEN kind = 'error' THEN 1 ELSE 0 END) AS errors "
+            "FROM ticket_events GROUP BY ticket_id",
+        )
+    return {r["ticket_id"]: {"events": int(r["events"]), "errors": int(r["errors"] or 0)} for r in rows}
 
 
 BULK_IMPORT_CHUNK_SIZE = 25
