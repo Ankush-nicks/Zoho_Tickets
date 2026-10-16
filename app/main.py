@@ -15,6 +15,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from openai import RateLimitError
+from pydantic import BaseModel
 from starlette.middleware.sessions import SessionMiddleware
 
 from . import auth, config, db, memory, classifier, zoho_csv, routing_log, ticket_events
@@ -92,7 +93,7 @@ async def _settle_pending_csv_imports_at_startup():
 
 # App pages - all served by index(). Also the only places login will
 # send you back to, so ?next= can't be used as an open redirect.
-PAGE_PATHS = ("/log", "/taxonomy")
+PAGE_PATHS = ("/log", "/classify", "/taxonomy")
 
 
 def _login_redirect(next_path: str) -> RedirectResponse:
@@ -103,6 +104,7 @@ def _login_redirect(next_path: str) -> RedirectResponse:
 
 @app.get("/")
 @app.get("/taxonomy")
+@app.get("/classify")
 @app.get("/log")
 def index(request: Request):
     """Every page is the same shell (one shared header); index.html
@@ -238,6 +240,88 @@ def _start_seed_sync(reason: str) -> str:
         return "skipped"
     threading.Thread(target=_sync_seed_examples, args=(reason,), daemon=True).start()
     return "started"
+
+
+# ---------------------------------------------------------------------------
+# Classify page: suggest a category for pasted text, learn from corrections.
+# ---------------------------------------------------------------------------
+
+def _label(leaf_id: str) -> dict:
+    """{category_id, category, subcategory} for a leaf id (names fall back
+    to the id when it is no longer in the taxonomy)."""
+    leaf = taxonomy.get(leaf_id) or {}
+    return {
+        "category_id": leaf_id,
+        "category": leaf.get("parent_name") or "",
+        "subcategory": leaf.get("name") or leaf_id,
+    }
+
+
+class ClassifyRequest(BaseModel):
+    text: str
+
+
+class ClassifyCorrectRequest(BaseModel):
+    text: str
+    category_id: str
+
+
+def _classify_text(text: str):
+    if not config.OPENROUTER_API_KEY:
+        raise HTTPException(503, "Classification isn't available: OPENROUTER_API_KEY is not set on the server.")
+    try:
+        return classifier.classify(text, config.OPENROUTER_API_KEY)
+    except Exception as e:
+        raise HTTPException(502, f"Couldn't get a suggestion: {str(e)[:300]}")
+
+
+@app.post("/api/classify")
+def classify_text(req: ClassifyRequest, user: str = Depends(require_login)):
+    """Suggests a category for the text. Writes nothing."""
+    text = req.text.strip()
+    if not text:
+        raise HTTPException(400, "Enter the issue text first.")
+    result = _classify_text(text)
+    return {**_label(result.category_id), "confidence": result.confidence, "reasoning": result.reasoning}
+
+
+@app.post("/api/classify/correct")
+def classify_correct(
+    req: ClassifyCorrectRequest,
+    user: str = Depends(require_login),
+    x_taxonomy_password: str | None = Header(None),
+):
+    """Adds the text as an example of the chosen subcategory (unless it is
+    already one), syncs memory, then re-runs the classifier on the text."""
+    _require_taxonomy_password(x_taxonomy_password)
+    text = req.text.strip()
+    if not text:
+        raise HTTPException(400, "Enter the issue text first.")
+    if not taxonomy.get(req.category_id):
+        raise HTTPException(400, f"Unknown category_id: {req.category_id}")
+    if not config.OPENROUTER_API_KEY:
+        raise HTTPException(503, "Classification isn't available: OPENROUTER_API_KEY is not set on the server.")
+
+    def norm(t: str) -> str:
+        return " ".join(t.lower().split())
+
+    data = taxonomy.as_dict()
+    sub = next(s for g in data["categories"] for s in g.get("subcategories", []) if s["id"] == req.category_id)
+    examples = sub.setdefault("examples", [])
+    added = norm(text) not in {norm(e) for e in examples}
+    if added:
+        examples.append(" ".join(text.split()))
+        try:
+            taxonomy.save(data)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        _sync_seed_examples("classify correction")
+    result = _classify_text(text)
+    return {
+        "added": added,
+        "recheck": {**_label(result.category_id), "confidence": result.confidence,
+                    "correct": result.category_id == req.category_id},
+    }
 
 
 @app.get("/api/taxonomy/export.csv")

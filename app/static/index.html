@@ -142,7 +142,7 @@
   /* ---------- Log + Taxonomy pages (scoped so rules never leak to/from the rest of the app; shared token set) ---------- */
   /* Set on each page's own container: the two are siblings, and custom
      properties don't cascade to siblings. */
-  #taxonomyView, #logView{
+  #taxonomyView, #logView, #classifyView{
     --p-surface-1: var(--panel);
     --p-surface-2: var(--panel-2);
     --p-surface-3: #EFE3D8;
@@ -216,6 +216,31 @@
   .app-shell.content-narrow #logView .range-summary{ margin-left:0; width:100%; }
 
   /* ---------- Taxonomy tab - dense, directly-editable table ---------- */
+
+  #classifyView .p-eyebrow{ font-family:var(--mono); font-size:var(--fs-xs); font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--p-accent); margin:0 0 6px; }
+  #classifyView h1{ font-size:var(--fs-3xl); font-weight:700; letter-spacing:-.01em; margin:0; color:var(--p-text-primary); }
+  #classifyView .p-subtitle{ color:var(--p-text-secondary); font-size:var(--fs-md); margin:6px 0 14px; max-width:72ch; }
+  #classifyView textarea, #classifyView select, #classifyView input[type=password]{
+    width:100%; box-sizing:border-box; font:inherit; font-size:var(--fs-md); color:var(--p-text-primary);
+    background:var(--p-surface-1); border:1px solid var(--p-border); border-radius:8px; padding:8px 10px;
+  }
+  #classifyView textarea{ min-height:140px; resize:vertical; }
+  #classifyView .cls-row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:10px; }
+  #classifyView .cls-row > select, #classifyView .cls-row > input{ flex:1 1 200px; width:auto; }
+  #classifyView .cls-btn{
+    font:inherit; font-size:var(--fs-md); padding:7px 14px; border-radius:8px; cursor:pointer;
+    border:1px solid var(--p-border); background:var(--p-surface-1); color:var(--p-text-primary);
+  }
+  #classifyView .cls-btn:hover{ border-color:var(--p-accent); color:var(--p-accent); }
+  #classifyView .cls-btn.primary{ background:var(--p-accent); border-color:var(--p-accent); color:var(--p-accent-ink); }
+  #classifyView .cls-btn:disabled{ opacity:.4; cursor:default; }
+  #classifyView .cls-card{ margin-top:16px; padding:14px 16px; border:1px solid var(--p-border); border-radius:10px; background:var(--p-surface-1); }
+  #classifyView .cls-label{ font-size:var(--fs-lg); font-weight:700; color:var(--p-text-primary); }
+  #classifyView .cls-conf{ font-family:var(--mono); font-size:var(--fs-sm); color:var(--p-text-muted); margin-left:8px; }
+  #classifyView .cls-reason{ margin-top:8px; color:var(--p-text-secondary); font-size:var(--fs-md); white-space:pre-wrap; }
+  #classifyView .cls-msg{ margin-top:10px; font-size:var(--fs-md); color:var(--p-text-muted); }
+  #classifyView .cls-msg.error{ color:var(--p-critical-text); }
+  #classifyView .cls-msg.good{ color:var(--p-good-text); }
   #taxonomyView .p-header{ display:flex; justify-content:space-between; align-items:flex-start; gap:24px; flex-wrap:wrap; margin-bottom:14px; }
   #taxonomyView .p-eyebrow{ font-family:var(--mono); font-size:var(--fs-xs); font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--p-accent); margin:0 0 6px; }
   #taxonomyView h1{ font-size:var(--fs-3xl); font-weight:700; letter-spacing:-.01em; margin:0; color:var(--p-text-primary); }
@@ -325,6 +350,12 @@
         </span>
         <span class="nav-label">Log</span>
       </a>
+      <a class="nav-item" id="navBtn-classify" href="/classify" onclick="navClick(event, 'classify')" title="Classify">
+        <span class="nav-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4l-7.2 7.2a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><path d="M7.5 7.5h.01"/></svg>
+        </span>
+        <span class="nav-label">Classify</span>
+      </a>
       <a class="nav-item" id="navBtn-taxonomy" href="/taxonomy" onclick="navClick(event, 'taxonomy')" title="Taxonomy">
         <span class="nav-icon">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/></svg>
@@ -388,6 +419,15 @@
             </div>
           </section>
         </div>
+      </div>
+
+      <div id="classifyView" style="display:none;">
+        <p class="p-eyebrow">Instructors Ticketing System</p>
+        <h1>Classify an issue</h1>
+        <p class="p-subtitle">Paste an issue to see which subcategory the classifier picks. Nothing is saved unless you correct it.</p>
+        <textarea id="clsText" placeholder="Describe the issue&hellip;"></textarea>
+        <div class="cls-row"><button class="cls-btn primary" id="clsSuggestBtn" onclick="clsSuggest()">Suggest</button></div>
+        <div id="clsResult"></div>
       </div>
 
       <div id="taxonomyView" style="display:none;">
@@ -505,6 +545,7 @@ function insertLoader(root = document) {
 // back/forward move between them. The header is shared by every page. ----
 const PAGES = {
   log:        { path: '/log',         title: 'Log' },
+  classify:   { path: '/classify',     title: 'Classify' },
   taxonomy:   { path: '/taxonomy',    title: 'Taxonomy' },
 };
 
@@ -532,6 +573,8 @@ function switchTab(tab) {
     if (t === tab) link.setAttribute('aria-current', 'page');
     else link.removeAttribute('aria-current');
   });
+  document.getElementById('classifyView').style.display = tab === 'classify' ? '' : 'none';
+  document.getElementById('navBtn-classify').classList.toggle('active', tab === 'classify');
   document.getElementById('taxonomyView').style.display = tab === 'taxonomy' ? '' : 'none';
   document.getElementById('logView').style.display = tab === 'log' ? '' : 'none';
   document.getElementById('navBtn-taxonomy').classList.toggle('active', tab === 'taxonomy');
@@ -552,6 +595,128 @@ function switchTab(tab) {
 }
 
 insertLoader();
+
+// ============================================================
+// Classify tab - paste an issue, get a suggested category; "Wrong?" saves
+// the right category as a new example (password-gated, same password
+// variable as the Taxonomy tab, so unlocking on either unlocks both).
+// POST /api/classify writes nothing.
+// ============================================================
+let clsTaxonomy = null;   // { categories: [...] } from GET /api/taxonomy
+let clsLast = null;       // { text, result } of the last suggestion
+
+function clsLoading(el, msg) {
+  el.innerHTML = `<div class="empty-state loader-block" role="status"><span class="loader-text">${esc(msg)}</span></div>`;
+  insertLoader();
+}
+
+function clsError(msg) {
+  document.getElementById('clsResult').innerHTML = `<div class="cls-msg error">${esc(msg)}</div>`;
+}
+
+async function clsSuggest() {
+  const text = document.getElementById('clsText').value.trim();
+  if (!text) { clsError('Enter the issue text first.'); return; }
+  const btn = document.getElementById('clsSuggestBtn');
+  btn.disabled = true;
+  clsLoading(document.getElementById('clsResult'), 'Getting a suggestion\u2026');
+  try {
+    const res = await fetch('/api/classify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+    if (res.status === 401) { window.location = loginUrl(); return; }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.detail || `Request failed (${res.status})`);
+    clsLast = { text, result: data };
+    clsRenderResult();
+  } catch (e) {
+    clsError(e.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function clsRenderResult() {
+  const r = clsLast.result;
+  document.getElementById('clsResult').innerHTML = `
+    <div class="cls-card">
+      <span class="cls-label">${esc(r.category)} &rsaquo; ${esc(r.subcategory)}</span>
+      <span class="cls-conf">${Math.round((r.confidence || 0) * 100)}% confident</span>
+      <div class="cls-reason">${esc(r.reasoning)}</div>
+      <div class="cls-row"><button class="cls-btn" onclick="clsOpenCorrect()">Wrong?</button></div>
+      <div id="clsCorrect"></div>
+    </div>`;
+}
+
+async function clsOpenCorrect() {
+  const box = document.getElementById('clsCorrect');
+  if (!clsTaxonomy) {
+    try {
+      const res = await fetch('/api/taxonomy');
+      if (res.status === 401) { window.location = loginUrl(); return; }
+      if (!res.ok) throw new Error(`Couldn't load categories (${res.status})`);
+      clsTaxonomy = await res.json();
+    } catch (e) {
+      box.innerHTML = `<div class="cls-msg error">${esc(e.message)}</div>`;
+      return;
+    }
+  }
+  const cats = clsTaxonomy.categories || [];
+  box.innerHTML = `
+    <div class="cls-row">
+      <select id="clsCat" onchange="clsFillSubs()" aria-label="Category">
+        ${cats.map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')}
+      </select>
+      <select id="clsSub" aria-label="Subcategory"></select>
+    </div>
+    <div class="cls-row">
+      <input type="password" id="clsPassword" placeholder="Taxonomy edit password" autocomplete="off" value="${esc(taxoPassword || '')}">
+      <button class="cls-btn primary" id="clsSaveBtn" onclick="clsSaveCorrection()">Save correction</button>
+    </div>
+    <div id="clsCorrectMsg"></div>`;
+  clsFillSubs();
+}
+
+function clsFillSubs() {
+  const cat = (clsTaxonomy.categories || []).find(c => c.id === document.getElementById('clsCat').value);
+  document.getElementById('clsSub').innerHTML = ((cat && cat.subcategories) || [])
+    .map(s => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('');
+}
+
+async function clsSaveCorrection() {
+  const msg = document.getElementById('clsCorrectMsg');
+  const category_id = document.getElementById('clsSub').value;
+  const password = document.getElementById('clsPassword').value;
+  if (!category_id) { msg.innerHTML = '<div class="cls-msg error">Pick a subcategory.</div>'; return; }
+  if (!password) { msg.innerHTML = '<div class="cls-msg error">Enter the password.</div>'; return; }
+  const btn = document.getElementById('clsSaveBtn');
+  btn.disabled = true;
+  clsLoading(msg, 'Saving and re-checking\u2026');
+  try {
+    const res = await fetch('/api/classify/correct', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Taxonomy-Password': password },
+      body: JSON.stringify({ text: clsLast.text, category_id }),
+    });
+    if (res.status === 401) { window.location = loginUrl(); return; }
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 403) taxoPassword = null;
+    if (!res.ok) throw new Error(data.detail || `Request failed (${res.status})`);
+    taxoPassword = password;
+    clsTaxonomy = null;  // examples changed; refetch next time
+    const rc = data.recheck;
+    msg.innerHTML = `
+      <div class="cls-msg good">${data.added ? 'Added as an example' : 'Already an example'}</div>
+      <div class="cls-msg ${rc.correct ? 'good' : 'error'}">Re-check: ${esc(rc.category)} &rsaquo; ${esc(rc.subcategory)}
+        (${Math.round((rc.confidence || 0) * 100)}%) &mdash; ${rc.correct ? 'now correct' : 'still not the chosen subcategory'}</div>`;
+  } catch (e) {
+    msg.innerHTML = `<div class="cls-msg error">${esc(e.message)}</div>`;
+  } finally {
+    btn.disabled = false;
+  }
+}
 
 // ============================================================
 // Taxonomy tab - dense, directly-editable table over app/taxonomy.json.

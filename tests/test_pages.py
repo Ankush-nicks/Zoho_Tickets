@@ -20,11 +20,12 @@ def client(isolated_db, monkeypatch):
     return c
 
 
-@pytest.mark.parametrize("path", ["/", "/log", "/taxonomy"])
+@pytest.mark.parametrize("path", ["/", "/log", "/classify", "/taxonomy"])
 def test_pages_serve_the_shell(client, path):
     res = client.get(path, follow_redirects=False)
     assert res.status_code == 200
     assert 'id="navBtn-log"' in res.text and 'id="navBtn-taxonomy"' in res.text
+    assert 'id="navBtn-classify"' in res.text
     for gone in ("navBtn-daily", "navBtn-pulse", "navBtn-stats", "navBtn-dailyissue"):
         assert gone not in res.text
 
