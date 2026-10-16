@@ -112,7 +112,8 @@ def test_preview_marks_got_worse(client, monkeypatch):
     assert [c["text"] for c in worse] == [victim]
     assert worse[0]["before_ok"] and not worse[0]["after_ok"]
     assert all(c["text"] != ISSUE for c in cases[1:])
-    assert (ISSUE, False, None) in calls and (ISSUE, True, None) in calls
+    # every row, the issue included, is checked without its own example
+    assert (ISSUE, False, ISSUE) in calls and (ISSUE, True, ISSUE) in calls
     assert (victim, False, victim) in calls and (victim, True, victim) in calls
 
 

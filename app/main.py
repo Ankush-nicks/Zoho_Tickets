@@ -410,7 +410,7 @@ def classify_preview(
     after_tax = Taxonomy.from_data(edited)
 
     # (text, expected leaf id, exclude_text)
-    specs: list[tuple[str, str, str | None]] = [(text, req.right_category_id, None)]
+    specs: list[tuple[str, str, str | None]] = [(text, req.right_category_id, text)]
     for leaf_id in (req.right_category_id, req.wrong_category_id):
         leaf = taxonomy.get(leaf_id) or {}
         picked = [e for e in leaf.get("examples", []) if norm(e) != norm(text)][:_PREVIEW_MAX_EXAMPLES]

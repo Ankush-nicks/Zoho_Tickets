@@ -811,7 +811,8 @@ async function clsPreviewDraft() {
             <td style="padding:4px 8px">${clsCell(c.expected)}</td>
             <td style="padding:4px 8px">${c.error ? esc('Error: ' + c.error) : clsCell(c.before)}</td>
             <td style="padding:4px 8px">${c.error ? '&mdash;' : clsCell(c.after)}</td>
-          </tr>`).join('')}</tbody></table></div>`;
+          </tr>`).join('')}</tbody></table></div>
+      <div class="cls-msg">Each row is checked without its own example, so it shows what the definitions do.</div>`;
   } catch (e) {
     box.innerHTML = `<div class="cls-msg error">${esc(e.message)}</div>`;
   } finally {
