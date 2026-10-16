@@ -9,7 +9,8 @@ free-text category field.
 
 Evaluated with leave-one-out few-shot retrieval: for each held-out
 correction, the few-shot examples offered to the model are every OTHER
-correction plus taxonomy.json's seed examples - never the correction being
+correction plus the live taxonomy's seed examples (loaded from the database
+via taxonomy.load_live(), not the taxonomy.json file) - never the correction being
 tested itself, or its accuracy would be trivially inflated (the model
 would just be shown its own answer as a "similar past example"). This
 mirrors app/memory.py's real retrieve_similar() (same k, same
@@ -117,6 +118,8 @@ def select_fewshot(sims: np.ndarray, pool_meta: list[dict], k: int, min_similari
 
 
 def main():
+    db.init_db()
+    taxonomy.load_live()  # the live database copy, not taxonomy.json
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--min-corrections", type=int, default=5,
                          help="Refuse to run below this many golden examples - too few to mean anything.")

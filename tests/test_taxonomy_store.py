@@ -1,4 +1,5 @@
 import copy
+import json
 import os
 
 from app import config, db
@@ -57,3 +58,30 @@ def test_from_data_is_independent():
     other.groups[0]["subcategories"][0]["description"] = "changed"
     other.groups[0]["name"] = "changed"
     assert taxonomy.as_dict() == snapshot
+
+
+def test_load_live_replacing_db_keeps_a_previous_row(caplog):
+    import logging
+    doc = _file_doc()
+    file_version = doc["version"]
+    doc["version"] = file_version - 1
+    db.put_taxonomy_doc(doc)
+    with caplog.at_level(logging.INFO, logger="uvicorn.error"):
+        assert taxonomy.load_live() == "file"
+    assert f"file v{file_version} replaced db v{file_version - 1}" in caplog.text
+    with db._conn() as conn:
+        rows = db._fetchall(conn, "SELECT key, value FROM taxonomy_store WHERE key LIKE 'previous-%'")
+    assert len(rows) == 1
+    assert json.loads(rows[0]["value"])["version"] == file_version - 1
+
+
+def test_load_live_logs_kept_and_seeded(caplog):
+    import logging
+    with caplog.at_level(logging.INFO, logger="uvicorn.error"):
+        taxonomy.load_live()
+        assert "seeded empty db" in caplog.text
+        caplog.clear()
+        taxonomy.load_live()
+    assert "db v" in caplog.text and "kept (file v" in caplog.text
+    with db._conn() as conn:
+        assert db._fetchall(conn, "SELECT key FROM taxonomy_store WHERE key LIKE 'previous-%'") == []

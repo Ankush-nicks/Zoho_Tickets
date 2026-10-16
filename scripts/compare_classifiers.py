@@ -1,6 +1,6 @@
 """
 One-off accuracy comparison: OpenRouter (app's default classify() model) vs
-Gemini on the app's own classifier pipeline (same taxonomy, same prompt,
+Gemini on the app's own classifier pipeline (same taxonomy - the live database copy via taxonomy.load_live() - same prompt,
 same few-shot retrieval - only the final classification call differs). Not
 part of the running app; run this manually whenever you want a read on
 whether switching (or dual-running) models is worth it.
@@ -80,6 +80,8 @@ def _classify_safely(fn, *args):
 
 
 def main():
+    db.init_db()
+    taxonomy.load_live()  # the live database copy, not taxonomy.json
     limit = 20
     results_file = DEFAULT_RESULTS_FILE
     args = sys.argv[1:]

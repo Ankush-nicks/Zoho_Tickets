@@ -167,3 +167,33 @@ def test_concurrent_corrections_both_kept(client, fake_classify, monkeypatch):
     assert results == [200, 200]
     examples = taxonomy.get(leaf["id"])["examples"]
     assert "first concurrent" in examples and "second concurrent" in examples
+
+
+def test_stale_taxonomy_put_is_rejected(client, fake_classify):
+    stale = taxonomy.as_dict()
+    taxonomy.save(taxonomy.as_dict())  # someone else saved: version moves on
+    live = taxonomy.as_dict()
+    stale["categories"][0]["subcategories"][0]["description"] = "stale edit"
+    res = client.put("/api/taxonomy", json=stale, headers=PW)
+    assert res.status_code == 409
+    assert "reload the Taxonomy page" in res.json()["detail"]
+    assert taxonomy.as_dict() == live
+
+
+def test_current_version_taxonomy_put_still_works(client, fake_classify):
+    data = taxonomy.as_dict()
+    v = data["version"]
+    data["categories"][0]["subcategories"][0]["description"] = "fresh edit"
+    res = client.put("/api/taxonomy", json=data, headers=PW)
+    assert res.status_code == 200 and res.json()["version"] == (v or 0) + 1
+
+
+def test_correction_then_put_with_old_version_keeps_the_example(client, fake_classify):
+    leaf = _leaf(1)
+    pre = taxonomy.as_dict()
+    client.post("/api/classify/correct", json={"text": "learned only once", "category_id": leaf["id"]}, headers=PW)
+    res = client.put("/api/taxonomy", json=pre, headers=PW)
+    assert res.status_code == 409
+    assert "learned only once" in taxonomy.get(leaf["id"])["examples"]
+    stored = {sub["id"]: sub for g in db.get_taxonomy_doc()["categories"] for sub in g.get("subcategories", [])}
+    assert "learned only once" in stored[leaf["id"]]["examples"]

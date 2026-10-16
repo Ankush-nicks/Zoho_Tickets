@@ -1,9 +1,15 @@
 import copy
 import json
+import logging
 import threading
+import time
 from typing import Any
 
 from . import config, db
+
+
+class TaxonomyVersionConflict(ValueError):
+    """save(expected_version=...) found the live copy at a different version."""
 
 
 class Taxonomy:
@@ -63,12 +69,22 @@ class Taxonomy:
         copy unless the file's version is higher (a deploy shipped a newer
         one) or the database has none - in which case the file is written to
         the database. Returns "db" or "file"."""
+        log = logging.getLogger("uvicorn.error")
         self.reload()
         file_data = self.as_dict()
+        file_v = file_data.get("version") or 0
         doc = db.get_taxonomy_doc()
-        if doc is None or (file_data.get("version") or 0) > (doc.get("version") or 0):
+        if doc is None:
+            log.info("taxonomy: file v%s seeded empty db", file_v)
             db.put_taxonomy_doc(file_data)
             return "file"
+        db_v = doc.get("version") or 0
+        if file_v > db_v:
+            log.info("taxonomy: file v%s replaced db v%s", file_v, db_v)
+            db.put_taxonomy_doc_as(f"previous-{int(time.time())}", doc)
+            db.put_taxonomy_doc(file_data)
+            return "file"
+        log.info("taxonomy: db v%s kept (file v%s)", db_v, file_v)
         self._apply(doc)
         return "db"
 
@@ -103,7 +119,7 @@ class Taxonomy:
                 out.append({"text": ex, "category_id": leaf_id, "source": "seed"})
         return out
 
-    def save(self, data: dict) -> None:
+    def save(self, data: dict, expected_version=None) -> None:
         """
         Validates and persists (to the database; bumps the version) a full taxonomy replacement (same {version,
         categories: [...]} shape reload() expects - the Taxonomy tab's editor
@@ -113,6 +129,8 @@ class Taxonomy:
         writing so classify() picks up the change without
         a restart.
         """
+        if expected_version is not None and expected_version != self.version:
+            raise TaxonomyVersionConflict("taxonomy version changed")
         if not isinstance(data.get("categories"), list) or not data["categories"]:
             raise ValueError("taxonomy must have a non-empty 'categories' list")
 

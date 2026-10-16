@@ -1,5 +1,7 @@
 """
-Refresh the vector memory's seed examples from the current taxonomy.json.
+Refresh the vector memory's seed examples from the live taxonomy (the database copy -
+this script loads it via db.init_db() + taxonomy.load_live(); taxonomy.json is
+only the starting copy).
 
 The service now does this by itself - at startup and after every save on
 the Taxonomy tab (main._sync_seed_examples) - so this is only needed to
@@ -20,7 +22,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app import config, memory  # noqa: E402
+from app import config, db, memory  # noqa: E402
 from app.taxonomy import taxonomy  # noqa: E402
 
 
@@ -28,6 +30,8 @@ def main() -> int:
     if not config.OPENAI_API_KEY:
         print("OPENAI_API_KEY is not set - needed to embed the seed examples.")
         return 1
+    db.init_db()
+    taxonomy.load_live()  # the live database copy, not the file
     before = Counter(m.get("source") for m in memory._collection.get(include=["metadatas"])["metadatas"])
     print(f"Chroma store: {config.CHROMA_PATH}")
     print(f"Before: {dict(before)}")

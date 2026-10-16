@@ -47,10 +47,13 @@ def presubmit_line(result: ClassificationResult | None, instructor_leaf_id: str 
             f"{override_sentence(result, instructor_leaf_id, threshold)}")
 
 
-def on_add_line(adopted: bool, final_leaf_id: str | None) -> str:
+def on_add_line(adopted: bool, final_leaf_id: str | None, sent_text: str | None = None) -> str:
+    """`sent_text` is what Zoho was actually given when that isn't a taxonomy
+    leaf id (the instructor's own pick echoed back verbatim)."""
+    pick = sent_text or pick_text(final_leaf_id)
     if adopted:
-        return f"Ticket created in Zoho with the suggested subcategory {pick_text(final_leaf_id)}."
-    return f"Ticket created in Zoho; its subcategory is {pick_text(final_leaf_id)}."
+        return f"Ticket created in Zoho with the suggested subcategory {pick}."
+    return f"Ticket created in Zoho; its subcategory is {pick}."
 
 
 def edit_line(old_status: str | None, new_status: str | None) -> str:

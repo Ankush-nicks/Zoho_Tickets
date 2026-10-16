@@ -21,7 +21,7 @@ from pydantic import BaseModel
 from starlette.middleware.sessions import SessionMiddleware
 
 from . import auth, config, db, memory, classifier, definition_drafter, zoho_csv, routing_log, ticket_events
-from .taxonomy import Taxonomy, taxonomy
+from .taxonomy import Taxonomy, TaxonomyVersionConflict, taxonomy
 from .auth import require_login
 from .models import (
     LoginRequest,
@@ -77,7 +77,7 @@ def require_webhook_secret(x_webhook_secret: str | None = Header(default=None, a
 async def startup():
     db.init_db()
     taxonomy.load_live()
-    # Bring the vector memory's taxonomy examples in line with taxonomy.json
+    # Bring the vector memory's taxonomy examples in line with the live taxonomy
     # (a deploy may have changed them) - see _sync_seed_examples.
     asyncio.create_task(asyncio.to_thread(_sync_seed_examples, "startup"))
     asyncio.create_task(_settle_pending_csv_imports_at_startup())
@@ -187,7 +187,8 @@ def update_taxonomy(
     editor works off one in-browser copy and saves the whole thing back
     rather than patching individual fields. Rejects structurally invalid
     data (missing ids/names, duplicate ids) with a 400 before writing
-    anything; a valid payload is written to taxonomy.json and hot-reloaded,
+    anything; a valid payload is written to the database (the live taxonomy; taxonomy.json
+    is only the starting copy) and hot-reloaded,
     so classify() sees it immediately, no restart needed.
 
     Requires the taxonomy-edit password on every call (X-Taxonomy-Password
@@ -198,10 +199,13 @@ def update_taxonomy(
     _require_taxonomy_password(x_taxonomy_password)
     try:
         with _taxonomy_edit_lock:
-            taxonomy.save(payload)
+            taxonomy.save(payload, expected_version=payload.get("version"))
+    except TaxonomyVersionConflict:
+        raise HTTPException(409, "The taxonomy changed since you opened it - reload the Taxonomy page "
+                                 "to get the latest copy (your unsaved edits will be lost).")
     except ValueError as e:
         raise HTTPException(400, str(e))
-    # The classifier reads definitions straight from taxonomy.json, but its
+    # The classifier reads definitions from the live taxonomy, but its
     # few-shot examples come from the vector memory - refresh those too.
     return {"version": taxonomy.version, "categories": taxonomy.groups,
             "examples_sync": _start_seed_sync("taxonomy save")}
@@ -221,7 +225,7 @@ _taxonomy_edit_lock = threading.Lock()
 def _sync_seed_examples(reason: str) -> bool:
     """
     Makes the vector memory's seed examples (the taxonomy's examples, which
-    the classifier retrieves as few-shot context) match taxonomy.json:
+    the classifier retrieves as few-shot context) match the live taxonomy (in the database):
     replaces them via memory.reseed() - every learned correction stays -
     and skips the embeddings call when they already match. Never raises.
     Returns True when memory matches the taxonomy afterwards, False when it
@@ -1043,7 +1047,16 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
         _event(ticket_id, "on_add", lambda: ticket_events.on_add_line(False, category_id), started=started)
     except Exception as e:
         logger.error(f"Zoho webhook classify() failed for new ticket {ticket_id}: {e}")
-        _event(ticket_id, "on_add", lambda: ticket_events.on_add_line(False, hint.leaf_id if hint else None))
+        # The line says what Zoho actually gets: the echoed instructor pick,
+        # else the fallback leaf - not just the instructor's resolved leaf.
+        echo = _reporter_pick_echo(payload)
+        if echo:
+            sent_text = f"{echo['category_of_the_issue']} › {echo['sub_category_of_the_issue']}"
+            sent_leaf_id = None
+        else:
+            sent_text = None
+            sent_leaf_id = _resolve_leaf_for_zoho(None)[0].get("id")
+        _event(ticket_id, "on_add", lambda: ticket_events.on_add_line(False, sent_leaf_id, sent_text))
         _event(ticket_id, "error", "Classification failed", error=str(e)[:1000], started=started)
         classify_failed_reason = f"classify_error:{str(e)[:300]}"
         # Still route by the instructor's own subcategory when it resolves,
@@ -1059,7 +1072,6 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
             ),
             fallback_reason=classify_failed_reason,
         )
-        echo = _reporter_pick_echo(payload)
         if echo:
             return {"ok": True, **echo, "needs_review": True}
         category_id = None
@@ -1069,7 +1081,9 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
         # classify() itself succeeded but the id it returned doesn't resolve
         # - an extremely narrow race against a concurrent taxonomy edit (see
         # _resolve_leaf_for_zoho's docstring).
-        db.update_ticket(ticket_id, fallback_reason=f"orphaned_category_id:{category_id}")
+        orphan_reason = f"orphaned_category_id:{category_id}"
+        db.update_ticket(ticket_id, fallback_reason=orphan_reason)
+        _event(ticket_id, "error", "Sent the fallback category", error=orphan_reason)
 
     return {
         "ok": True,
@@ -1277,7 +1291,7 @@ def _resolve_taxonomy_leaf_by_name(name: str | None) -> str | None:
     if len(exact) == 1:
         return exact[0]
     if exact:
-        return None  # duplicate names in taxonomy.json - ambiguous, don't guess
+        return None  # duplicate names in the taxonomy - ambiguous, don't guess
     loose = [
         leaf_id for leaf_id in taxonomy.category_ids
         if _labels_loosely_match(taxonomy.get(leaf_id)["name"], name)

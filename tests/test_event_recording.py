@@ -76,3 +76,37 @@ def test_auto_classify_records_event(isolated_db, monkeypatch):
     tid = isolated_db.create_ticket("old ticket text", zoho_ticket_id="Z-6", raw_payload={})
     assert _classify_pending_batch(10, "k")["classified"] == 1
     assert [e["kind"] for e in isolated_db.list_events(tid)] == ["auto_classify"]
+
+
+def _fallback_leaf():
+    return ticket_events.taxonomy.get(config.ZOHO_FALLBACK_CATEGORY_ID)
+
+
+def test_on_add_failure_line_names_the_fallback_when_no_subcategory(isolated_db, monkeypatch):
+    _model_says(monkeypatch, LEAF, 0.9)
+    monkeypatch.setattr(classifier, "classify", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom")))
+    body = _post({"zoho_ticket_id": "Z-7", "issue_in_detail": "no pick at all", "ticket_raised_by": "a@x.in"}).json()
+    fb = _fallback_leaf()
+    assert body["sub_category_of_the_issue"] == fb["name"]
+    t = isolated_db.get_ticket_by_zoho_id("Z-7")
+    [line] = [e["summary"] for e in isolated_db.list_events(t["id"]) if e["kind"] == "on_add"]
+    assert fb["name"] in line and "nothing" not in line
+
+
+def test_on_add_failure_line_names_the_echoed_pick(isolated_db, monkeypatch):
+    _model_says(monkeypatch, LEAF, 0.9)
+    monkeypatch.setattr(classifier, "classify", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom")))
+    _post({"zoho_ticket_id": "Z-8", "issue_in_detail": "echo me", "ticket_raised_by": "a@x.in",
+           "category_of_the_issue": "Zoho Cat", "sub_category_of_the_issue": "Zoho Sub"})
+    t = isolated_db.get_ticket_by_zoho_id("Z-8")
+    [line] = [e["summary"] for e in isolated_db.list_events(t["id"]) if e["kind"] == "on_add"]
+    assert "Zoho Cat" in line and "Zoho Sub" in line
+
+
+def test_on_add_orphaned_classified_id_records_error_event(isolated_db, monkeypatch):
+    _model_says(monkeypatch, "ghost-id", 0.9)
+    body = _post({"zoho_ticket_id": "Z-9", "issue_in_detail": "orphan", "ticket_raised_by": "a@x.in"}).json()
+    assert body["needs_review"] is True
+    t = isolated_db.get_ticket_by_zoho_id("Z-9")
+    errs = [e for e in isolated_db.list_events(t["id"]) if e["kind"] == "error"]
+    assert any("orphaned_category_id:ghost-id" in (e["error"] or "") for e in errs)

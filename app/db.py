@@ -578,6 +578,16 @@ def get_taxonomy_doc() -> dict | None:
     return json.loads(row["value"]) if row else None
 
 
+def put_taxonomy_doc_as(key: str, data: dict) -> None:
+    """Stores a copy of a taxonomy doc under `key` (e.g. a previous-<ts> backup)."""
+    with _conn() as conn:
+        _exec(
+            conn,
+            "INSERT OR REPLACE INTO taxonomy_store (key, value, updated_at) VALUES (?, ?, ?)",
+            (key, json.dumps(data, ensure_ascii=False), time.time()),
+        )
+
+
 def put_taxonomy_doc(data: dict) -> None:
     value = json.dumps(data, ensure_ascii=False)
     now = time.time()

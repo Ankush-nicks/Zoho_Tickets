@@ -2,7 +2,7 @@
 Dynamic context memory.
 
 Every classification call pulls the K most similar known-good examples
-(seed examples from taxonomy.json + real corrected tickets) and injects
+(seed examples from the live taxonomy + real corrected tickets) and injects
 them into the prompt as few-shot context. When an agent corrects a
 prediction, that (ticket_text -> correct_category) pair is embedded and
 added here, so the *next* similar ticket benefits from the correction
@@ -44,7 +44,7 @@ def is_empty() -> bool:
 
 
 def seed_if_empty(seed_examples: list[dict], api_key: str):
-    """Bootstrap memory from taxonomy.json's hand-written examples on first run."""
+    """Bootstrap memory from the live taxonomy's hand-written examples on first run."""
     if not is_empty() or not seed_examples:
         return
     texts = [e["text"] for e in seed_examples]
@@ -70,9 +70,9 @@ def seeds_match(seed_examples: list[dict]) -> bool:
 
 def reseed(seed_examples: list[dict], api_key: str) -> tuple[int, int]:
     """
-    Replace every seed example with the current taxonomy.json ones, leaving
+    Replace every seed example with the live taxonomy's ones, leaving
     corrections untouched. seed_if_empty() only ever runs on an empty store,
-    so edits to taxonomy.json's examples never reach retrieval otherwise -
+    so edits to the taxonomy's examples never reach retrieval otherwise -
     and wiping app/data/chroma to force a re-seed would also throw away
     every real correction. Embeds before deleting, so a failed embeddings
     call leaves the old seeds in place rather than an empty seed set.
