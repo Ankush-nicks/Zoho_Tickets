@@ -1,4 +1,6 @@
 import asyncio
+import concurrent.futures
+import copy
 import csv
 import io
 import json
@@ -18,8 +20,8 @@ from openai import RateLimitError
 from pydantic import BaseModel
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import auth, config, db, memory, classifier, zoho_csv, routing_log, ticket_events
-from .taxonomy import taxonomy
+from . import auth, config, db, memory, classifier, definition_drafter, zoho_csv, routing_log, ticket_events
+from .taxonomy import Taxonomy, taxonomy
 from .auth import require_login
 from .models import (
     LoginRequest,
@@ -336,6 +338,107 @@ def classify_correct(
     out["recheck"] = {**_label(result.category_id), "confidence": result.confidence,
                       "correct": result.category_id == req.category_id}
     return out
+
+
+class ClassifyDraftRequest(BaseModel):
+    text: str
+    wrong_category_id: str
+    right_category_id: str
+
+
+class ClassifyPreviewRequest(ClassifyDraftRequest):
+    right_line: str
+    wrong_line: str
+
+
+def _check_draft_ids(wrong_id: str, right_id: str) -> None:
+    if wrong_id == right_id:
+        raise HTTPException(400, "The wrong and right subcategories must differ.")
+    for cid in (wrong_id, right_id):
+        if not taxonomy.get(cid):
+            raise HTTPException(400, f"Unknown category_id: {cid}")
+
+
+@app.post("/api/classify/draft")
+def classify_draft(
+    req: ClassifyDraftRequest,
+    user: str = Depends(require_login),
+    x_taxonomy_password: str | None = Header(None),
+):
+    """Asks the model to draft one or two definition lines. Writes nothing."""
+    _require_taxonomy_password(x_taxonomy_password)
+    text = req.text.strip()
+    if not text:
+        raise HTTPException(400, "Enter the issue text first.")
+    _check_draft_ids(req.wrong_category_id, req.right_category_id)
+    if not config.OPENROUTER_API_KEY:
+        raise HTTPException(503, "Drafting isn't available: OPENROUTER_API_KEY is not set on the server.")
+    try:
+        return definition_drafter.draft_lines(
+            text, req.wrong_category_id, req.right_category_id, config.OPENROUTER_API_KEY)
+    except Exception as e:
+        raise HTTPException(502, f"Couldn't draft a definition change: {str(e)[:300]}")
+
+
+_PREVIEW_MAX_EXAMPLES = 5
+
+
+@app.post("/api/classify/preview")
+def classify_preview(
+    req: ClassifyPreviewRequest,
+    user: str = Depends(require_login),
+    x_taxonomy_password: str | None = Header(None),
+):
+    """Re-classifies the issue and up to 5 existing examples of each affected
+    subcategory under the live taxonomy (before) and under an unsaved edited
+    copy (after). Saves nothing, so it does not take the edit lock."""
+    _require_taxonomy_password(x_taxonomy_password)
+    text = req.text.strip()
+    if not text:
+        raise HTTPException(400, "Enter the issue text first.")
+    _check_draft_ids(req.wrong_category_id, req.right_category_id)
+    if not config.OPENROUTER_API_KEY:
+        raise HTTPException(503, "Classification isn't available: OPENROUTER_API_KEY is not set on the server.")
+
+    def norm(t: str) -> str:
+        return " ".join(t.lower().split())
+
+    data = taxonomy.as_dict()
+    edited = copy.deepcopy(data)
+    definition_drafter.apply_lines(edited, req.right_category_id, req.wrong_category_id,
+                                   req.right_line, req.wrong_line)
+    after_tax = Taxonomy.from_data(edited)
+
+    # (text, expected leaf id, exclude_text)
+    specs: list[tuple[str, str, str | None]] = [(text, req.right_category_id, None)]
+    for leaf_id in (req.right_category_id, req.wrong_category_id):
+        leaf = taxonomy.get(leaf_id) or {}
+        picked = [e for e in leaf.get("examples", []) if norm(e) != norm(text)][:_PREVIEW_MAX_EXAMPLES]
+        specs.extend((e, leaf_id, e) for e in picked)
+
+    key = config.OPENROUTER_API_KEY
+
+    def run(spec):
+        ex_text, expected, exclude = spec
+        case = {"text": ex_text, "expected": _label(expected), "before": None, "after": None,
+                "before_ok": False, "after_ok": False, "got_worse": False}
+        try:
+            # "before" must be the live taxonomy: tax=None, not a copy.
+            b = classifier.classify(ex_text, key, exclude_text=exclude) if exclude else \
+                classifier.classify(ex_text, key)
+            a = classifier.classify(ex_text, key, tax=after_tax, exclude_text=exclude)
+        except Exception as e:
+            case["error"] = str(e)[:300]
+            return case
+        case["before"], case["after"] = _label(b.category_id), _label(a.category_id)
+        case["before_ok"] = b.category_id == expected
+        case["after_ok"] = a.category_id == expected
+        case["got_worse"] = case["before_ok"] and not case["after_ok"]
+        return case
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
+        cases = list(pool.map(run, specs))
+    return {"cases": cases}
 
 
 @app.get("/api/taxonomy/export.csv")

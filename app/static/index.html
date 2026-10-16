@@ -676,7 +676,8 @@ async function clsOpenCorrect() {
       <input type="password" id="clsPassword" placeholder="Taxonomy edit password" autocomplete="off" value="${esc(taxoPassword || '')}">
       <button class="cls-btn primary" id="clsSaveBtn" onclick="clsSaveCorrection()">Save correction</button>
     </div>
-    <div id="clsCorrectMsg"></div>`;
+    <div id="clsCorrectMsg"></div>
+    <div id="clsDraft"></div>`;
   clsFillSubs();
 }
 
@@ -716,12 +717,114 @@ async function clsSaveCorrection() {
       : `<div class="cls-msg error">Couldn\u2019t re-check: ${esc(data.recheck_error || 'unknown error')}</div>`;
     msg.innerHTML = `
       <div class="cls-msg good">${data.added ? 'Added as an example' : 'Already an example'}</div>${warn}${check}`;
+    clsRenderDraftButton(category_id);
   } catch (e) {
     msg.innerHTML = `<div class="cls-msg error">${esc(e.message)}</div>`;
   } finally {
     btn.disabled = false;
   }
 }
+
+// ---- Definition change: draft two lines, preview their effect (Apply: next task) ----
+let clsRightId = null;   // the subcategory the owner chose in the last saved correction
+let clsPreviewOk = false;
+
+function clsRenderDraftButton(rightId) {
+  clsRightId = rightId;
+  const box = document.getElementById('clsDraft');
+  if (!clsLast || !clsLast.result || clsLast.result.category_id === rightId) { box.innerHTML = ''; return; }
+  box.innerHTML = `<div class="cls-row"><button class="cls-btn" id="clsDraftBtn" onclick="clsDraftLines()">Suggest a definition change</button></div>
+    <div id="clsDraftBody"></div>`;
+}
+
+async function clsPostJson(url, body) {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Taxonomy-Password': taxoPassword || '' },
+    body: JSON.stringify(body),
+  });
+  if (res.status === 401) { window.location = loginUrl(); return null; }
+  const data = await res.json().catch(() => ({}));
+  if (res.status === 403) taxoPassword = null;
+  if (!res.ok) throw new Error(data.detail || `Request failed (${res.status})`);
+  return data;
+}
+
+async function clsDraftLines() {
+  const body = document.getElementById('clsDraftBody');
+  const btn = document.getElementById('clsDraftBtn');
+  btn.disabled = true;
+  clsLoading(body, 'Drafting\u2026');
+  try {
+    const data = await clsPostJson('/api/classify/draft', {
+      text: clsLast.text, wrong_category_id: clsLast.result.category_id, right_category_id: clsRightId,
+    });
+    if (!data) return;
+    clsPreviewOk = false;
+    body.innerHTML = `
+      <div class="cls-card">
+        <label class="cls-msg" for="clsRightLine">Added to the correct subcategory</label>
+        <textarea id="clsRightLine" style="min-height:60px">${esc(data.right_line)}</textarea>
+        <label class="cls-msg" for="clsWrongLine">Added to the wrongly chosen subcategory</label>
+        <textarea id="clsWrongLine" style="min-height:60px">${esc(data.wrong_line)}</textarea>
+        <div class="cls-row"><button class="cls-btn primary" id="clsPreviewBtn" onclick="clsPreviewDraft()">Preview</button></div>
+        <div id="clsPreview"></div>
+        <div class="cls-row">
+          <button class="cls-btn primary" onclick="clsApplyDraft()">Apply</button>
+          <button class="cls-btn" onclick="clsSkipDraft()">Skip</button>
+        </div>
+        <div id="clsApplyMsg"></div>
+      </div>`;
+  } catch (e) {
+    body.innerHTML = `<div class="cls-msg error">${esc(e.message)}</div>`;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function clsCell(l) {
+  return l ? `${esc(l.category)} &rsaquo; ${esc(l.subcategory)}` : '&mdash;';
+}
+
+async function clsPreviewDraft() {
+  const box = document.getElementById('clsPreview');
+  const btn = document.getElementById('clsPreviewBtn');
+  btn.disabled = true;
+  clsLoading(box, 'Re-checking the issue and existing examples\u2026');
+  try {
+    const data = await clsPostJson('/api/classify/preview', {
+      text: clsLast.text, wrong_category_id: clsLast.result.category_id, right_category_id: clsRightId,
+      right_line: document.getElementById('clsRightLine').value,
+      wrong_line: document.getElementById('clsWrongLine').value,
+    });
+    if (!data) return;
+    const cases = data.cases || [];
+    const worse = cases.filter(c => c.got_worse).length;
+    clsPreviewOk = true;
+    box.innerHTML = `
+      <div class="cls-msg ${worse ? 'error' : 'good'}">${worse ? worse + ' example(s) would get worse' : 'No example gets worse'}</div>
+      <div style="overflow-x:auto"><table class="cls-table" style="width:100%;border-collapse:collapse;font-size:var(--fs-sm)">
+        <thead><tr><th align="left">Issue / example</th><th align="left">Expected</th><th align="left">Before</th><th align="left">After</th></tr></thead>
+        <tbody>${cases.map(c => `
+          <tr style="${c.got_worse ? 'background:var(--p-critical-bg, rgba(220,38,38,.12));color:var(--p-critical-text)' : ''}">
+            <td style="padding:4px 8px;max-width:340px;white-space:pre-wrap">${esc(c.text.length > 160 ? c.text.slice(0, 160) + '\u2026' : c.text)}</td>
+            <td style="padding:4px 8px">${clsCell(c.expected)}</td>
+            <td style="padding:4px 8px">${c.error ? esc('Error: ' + c.error) : clsCell(c.before)}</td>
+            <td style="padding:4px 8px">${c.error ? '&mdash;' : clsCell(c.after)}</td>
+          </tr>`).join('')}</tbody></table></div>`;
+  } catch (e) {
+    box.innerHTML = `<div class="cls-msg error">${esc(e.message)}</div>`;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function clsSkipDraft() {
+  document.getElementById('clsDraftBody').innerHTML = '';
+}
+
+// Wired up in the next task (apply the previewed lines to the live taxonomy).
+function clsApplyDraft() {}
 
 // ============================================================
 // Taxonomy tab - dense, directly-editable table over app/taxonomy.json.

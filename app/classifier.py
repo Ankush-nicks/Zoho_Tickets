@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from openai import OpenAI, RateLimitError
 
 from . import config
-from .taxonomy import taxonomy
+from .taxonomy import Taxonomy, taxonomy
 from . import memory
 from .models import ClassificationResult
 
@@ -33,8 +33,10 @@ def _build_user_message(ticket_text: str) -> str:
     return f"Ticket:\n{ticket_text}"
 
 
-def _response_schema() -> dict:
-    """JSON schema constrained to the *current* taxonomy's category ids."""
+def _response_schema(tax: Taxonomy | None = None) -> dict:
+    """JSON schema constrained to the *current* taxonomy's category ids
+    (or `tax`'s, when given)."""
+    tax = tax or taxonomy
     return {
         "name": "ticket_classification",
         "strict": True,
@@ -43,7 +45,7 @@ def _response_schema() -> dict:
             "properties": {
                 "category_id": {
                     "type": "string",
-                    "enum": taxonomy.category_ids,
+                    "enum": tax.category_ids,
                     "description": "Best-matching taxonomy category id.",
                 },
                 "confidence": {
@@ -69,7 +71,8 @@ def _response_schema() -> dict:
     }
 
 
-def _build_system_prompt(fewshot: list[dict]) -> str:
+def _build_system_prompt(fewshot: list[dict], tax: Taxonomy | None = None) -> str:
+    tax = tax or taxonomy
     fewshot_block = "\n".join(
         f'- "{ex["text"]}" -> {ex["category_id"]}' for ex in fewshot
     ) or "(no prior examples yet)"
@@ -79,7 +82,7 @@ subcategory, and each subcategory maps to a specific team and point of contact,
 so precision matters more than picking "close enough."
 
 TAXONOMY (choose exactly one category_id - a subcategory id - from this list):
-{taxonomy.as_prompt_block()}
+{tax.as_prompt_block()}
 
 SIMILAR PAST EXAMPLES (retrieved because they resemble this ticket; some come from
 corrected human labels and should be weighted heavily as ground truth):
@@ -106,6 +109,8 @@ def classify(
     api_key: str,
     embed_api_key: str | None = None,
     reporter_hint: ReporterHint | None = None,
+    tax: Taxonomy | None = None,
+    exclude_text: str | None = None,
 ) -> ClassificationResult:
     """
     Dynamic classification: retrieves the most similar known-good examples
@@ -127,9 +132,15 @@ def classify(
     reporter_hint (what the instructor picked on the Zoho form, if anything)
     never reaches the model - it classifies from the issue text alone - and
     only gates the final answer via apply_reporter_prior()'s threshold.
+
+    tax (a Taxonomy.from_data copy) replaces the live taxonomy in the prompt
+    and schema - used to preview an unsaved definition change. exclude_text
+    drops retrieved examples equal to it (collapsed, lower-cased), so an
+    existing example can be tested without retrieving itself.
     """
     embed_api_key = embed_api_key or config.OPENAI_API_KEY
-    fewshot = _retrieve_fewshot(ticket_text, embed_api_key)
+    fewshot = (_retrieve_fewshot(ticket_text, embed_api_key, exclude_text=exclude_text)
+               if exclude_text else _retrieve_fewshot(ticket_text, embed_api_key))
     user_message = _build_user_message(ticket_text)
 
     client = OpenAI(api_key=api_key, base_url=config.OPENROUTER_BASE_URL)
@@ -137,23 +148,31 @@ def classify(
         completion = client.chat.completions.create(
             model=config.OPENROUTER_CLASSIFY_MODEL,
             messages=[
-                {"role": "system", "content": _build_system_prompt(fewshot)},
+                {"role": "system", "content": _build_system_prompt(fewshot, tax)},
                 {"role": "user", "content": user_message},
             ],
-            response_format={"type": "json_schema", "json_schema": _response_schema()},
+            response_format={"type": "json_schema", "json_schema": _response_schema(tax)},
             temperature=0,
         )
     except RateLimitError:
         if not (config.CLOUDFLARE_ACCOUNT_ID and config.CLOUDFLARE_API_TOKEN):
             raise
-        return apply_reporter_prior(_classify_via_cloudflare(user_message, fewshot), reporter_hint)
+        return apply_reporter_prior(_classify_via_cloudflare(user_message, fewshot, tax), reporter_hint)
     raw = json.loads(completion.choices[0].message.content)
     return apply_reporter_prior(ClassificationResult(**raw), reporter_hint)
 
 
-def _retrieve_fewshot(ticket_text: str, embed_api_key: str) -> list[dict]:
+def _collapse(t: str) -> str:
+    return " ".join((t or "").lower().split())
+
+
+def _retrieve_fewshot(ticket_text: str, embed_api_key: str, exclude_text: str | None = None) -> list[dict]:
     memory.seed_if_empty(taxonomy.seed_examples(), embed_api_key)
-    return memory.retrieve_similar(ticket_text, embed_api_key, k=config.FEWSHOT_K)
+    found = memory.retrieve_similar(ticket_text, embed_api_key, k=config.FEWSHOT_K)
+    if exclude_text:
+        skip = _collapse(exclude_text)
+        found = [ex for ex in found if _collapse(ex["text"]) != skip]
+    return found
 
 
 def apply_reporter_prior(result: ClassificationResult, hint: ReporterHint | None) -> ClassificationResult:
@@ -202,7 +221,7 @@ def apply_reporter_prior(result: ClassificationResult, hint: ReporterHint | None
     )
 
 
-def _cloudflare_response_schema() -> dict:
+def _cloudflare_response_schema(tax: Taxonomy | None = None) -> dict:
     """Same shape as _response_schema(), in the plain-JSON-Schema dialect
     Workers AI's response_format accepts (union-typed nullable field works
     here, unlike Gemini's dialect - no translation needed beyond dropping
@@ -210,7 +229,7 @@ def _cloudflare_response_schema() -> dict:
     return {
         "type": "object",
         "properties": {
-            "category_id": {"type": "string", "enum": taxonomy.category_ids},
+            "category_id": {"type": "string", "enum": (tax or taxonomy).category_ids},
             "confidence": {"type": "number"},
             "reasoning": {"type": "string"},
             "needs_clarification": {"type": "boolean"},
@@ -242,7 +261,7 @@ def _extract_cloudflare_json(data: dict) -> dict:
     raise RuntimeError(f"Cloudflare Workers AI returned no parseable structured output: {data}")
 
 
-def _classify_via_cloudflare(user_message: str, fewshot: list[dict]) -> ClassificationResult:
+def _classify_via_cloudflare(user_message: str, fewshot: list[dict], tax: Taxonomy | None = None) -> ClassificationResult:
     import httpx
 
     url = f"https://api.cloudflare.com/client/v4/accounts/{config.CLOUDFLARE_ACCOUNT_ID}/ai/run/{config.CLOUDFLARE_WORKERS_AI_MODEL}"
@@ -251,10 +270,10 @@ def _classify_via_cloudflare(user_message: str, fewshot: list[dict]) -> Classifi
         headers={"Authorization": f"Bearer {config.CLOUDFLARE_API_TOKEN}"},
         json={
             "messages": [
-                {"role": "system", "content": _build_system_prompt(fewshot)},
+                {"role": "system", "content": _build_system_prompt(fewshot, tax)},
                 {"role": "user", "content": user_message},
             ],
-            "response_format": {"type": "json_schema", "json_schema": _cloudflare_response_schema()},
+            "response_format": {"type": "json_schema", "json_schema": _cloudflare_response_schema(tax)},
         },
         timeout=30,
     )
