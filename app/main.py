@@ -415,6 +415,69 @@ def get_routing_log(date_from: str | None = None, date_to: str | None = None, us
     }
 
 
+TICKET_LOG_LIMIT = 300
+TICKET_LOG_FIRST_LINE_MAX = 140
+
+
+def _ticket_log_item(t: dict, flags: dict) -> dict:
+    text = t.get("original_text") or ""
+    first = text.strip().split("\n", 1)[0].strip()
+    if len(first) > TICKET_LOG_FIRST_LINE_MAX:
+        first = first[:TICKET_LOG_FIRST_LINE_MAX] + "…"
+    f = flags.get(t["id"]) or {}
+    return {
+        "id": t["id"],
+        "zoho_ticket_id": t.get("zoho_ticket_id"),
+        "created_at": t.get("created_at"),
+        "first_line": first,
+        "final": ticket_events.pick_text(t.get("category_id")),
+        "has_error": bool(f.get("errors")),
+        "has_timeline": bool(f.get("events")),
+        "submitted": t.get("status") != "draft",
+    }
+
+
+@app.get("/api/ticket-log")
+def get_ticket_log(
+    q: str = "",
+    date_from: str | None = None,
+    date_to: str | None = None,
+    errors_only: bool = False,
+    unsubmitted: bool = False,
+    user: str = Depends(require_login),
+):
+    """The Log page's list: newest first, capped at 300; per-ticket timelines come from /api/ticket-log/{id}."""
+    if unsubmitted:
+        tickets = db.list_drafts()
+    else:
+        tickets = [t for t in db.list_all_tickets() if not _is_upload_history(t)]
+    tickets = _filter_tickets_by_date_range(tickets, date_from, date_to)
+    needle = q.strip().lower()
+    if needle:
+        tickets = [t for t in tickets if needle in (t.get("zoho_ticket_id") or "").lower()]
+    flags = db.event_flags()
+    if errors_only:
+        tickets = [t for t in tickets if (flags.get(t["id"]) or {}).get("errors")]
+    tickets.sort(key=lambda t: t["created_at"], reverse=True)
+    return {
+        "tickets": [_ticket_log_item(t, flags) for t in tickets[:TICKET_LOG_LIMIT]],
+        "total": len(tickets),
+    }
+
+
+@app.get("/api/ticket-log/{ticket_id}")
+def get_ticket_log_detail(ticket_id: str, user: str = Depends(require_login)):
+    t = db.get_ticket(ticket_id)
+    if t is None:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    events = db.list_events(ticket_id)
+    item = _ticket_log_item(t, {ticket_id: {
+        "events": len(events), "errors": sum(1 for e in events if e["kind"] == "error"),
+    }})
+    item["issue_text"] = t.get("original_text") or ""
+    return {"ticket": item, "events": events}
+
+
 def _resolve_leaf_for_zoho(category_id: str | None) -> tuple[dict, bool]:
     """
     Resolves category_id to its taxonomy leaf for the webhook's

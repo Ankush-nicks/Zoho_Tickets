@@ -195,13 +195,6 @@
   #logView .range-summary{ margin-left:auto; font-size:var(--fs-md); color:var(--p-text-muted); font-variant-numeric:tabular-nums; }
   #logView .range-summary strong{ color:var(--p-text-primary); }
 
-  #logView .tiles{ display:grid; grid-template-columns:repeat(5, 1fr); gap:12px; margin-bottom:32px; }
-  #logView .tile{ background:var(--p-surface-1); border:1px solid var(--p-border); border-radius:10px; padding:16px 16px 14px; position:relative; }
-  #logView .tile.flag{ border-color:rgba(176,52,46,.35); }
-  #logView .tile-label{ font-family:var(--mono); font-size:var(--fs-2xs); font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:var(--p-text-muted); margin:0 0 8px; }
-  #logView .tile-value{ font-size:var(--fs-title); font-weight:700; letter-spacing:-.01em; font-variant-numeric:tabular-nums; line-height:1; color:var(--p-text-primary); }
-  #logView .tile-sub{ font-size:var(--fs-sm); color:var(--p-text-secondary); margin-top:6px; }
-
   #logView section{ margin-bottom:36px; }
   #logView .section-head{ display:flex; justify-content:space-between; align-items:baseline; gap:16px; margin-bottom:4px; flex-wrap:wrap; }
   #logView h2{ font-size:var(--fs-lg); font-weight:700; margin:0; color:var(--p-text-primary); }
@@ -220,7 +213,6 @@
 
   /* Keyed on the content column's real width (set by watchContentWidth()),
      not the viewport. */
-  .app-shell.content-narrow #logView .tiles{ grid-template-columns:repeat(2, 1fr); }
   .app-shell.content-narrow #logView .range-summary{ margin-left:0; width:100%; }
 
   /* ---------- Taxonomy tab - dense, directly-editable table ---------- */
@@ -292,21 +284,31 @@
     font-family:inherit; font-size:var(--fs-md); color:var(--p-text-primary); background:var(--p-surface-2);
     border:1px solid var(--p-border); border-radius:6px; padding:5px 7px; max-width:260px;
   }
-  #logView .chip{ display:inline-block; font-size:var(--fs-xs); font-weight:700; padding:2px 9px; border-radius:999px; white-space:nowrap; }
-  #logView .chip.agreed{ background:var(--p-surface-2); color:var(--p-text-secondary); }
-  #logView .chip.kept{ background:var(--p-warning-bg, #FBEFD8); color:var(--p-warning-text); }
-  #logView .chip.overrode{ background:var(--p-accent); color:var(--p-accent-ink); }
-  #logView .chip.none{ background:var(--p-surface-2); color:var(--p-text-muted); }
-  #logView .chip.unknown{ background:transparent; color:var(--p-text-muted); border:1px dashed var(--p-border); }
-  #logView .chip.right{ background:var(--p-good-bg, #E3F1E4); color:var(--p-good-text); }
-  #logView .chip.wrong{ background:var(--p-critical-bg, #FBE4E1); color:var(--p-critical-text); }
-  #logView .chip.pending{ background:var(--p-surface-2); color:var(--p-text-muted); }
-  #logView .chip.dup{ background:var(--p-surface-2); color:var(--p-text-secondary); font-weight:600; margin-left:6px; }
-  #logView td.wrap{ white-space:normal; min-width:180px; max-width:320px; }
-  #logView .cell-sub{ display:block; color:var(--p-text-muted); font-size:var(--fs-sm); }
   #logView tr.sim-current td{ font-weight:700; }
-  #logView tr.sim-best td{ background:var(--p-good-bg, #E3F1E4); }
+  #logView tr.sim-best td{ background:var(--p-good-bg, #E3F1E4); color:var(--p-good-text); }
   #logView .log-more{ margin-top:10px; font-size:var(--fs-sm); color:var(--p-text-muted); }
+  #logView .log-filters input[type="text"]{ font:inherit; font-size:var(--fs-md); padding:5px 9px; border:1px solid var(--p-border); border-radius:8px; background:var(--p-surface-1); color:var(--p-text-primary); width:170px; }
+  #logView .tk-list{ background:var(--p-surface-1); border:1px solid var(--p-border); border-radius:12px; overflow:hidden; }
+  #logView .tk-row{ display:grid; grid-template-columns:110px 130px 1fr auto; gap:6px 14px; align-items:baseline; width:100%; text-align:left; font:inherit; font-size:var(--fs-md); color:var(--p-text-primary); background:none; border:0; border-bottom:1px solid var(--p-border); padding:11px 16px; cursor:pointer; }
+  #logView .tk-item:last-child .tk-row{ border-bottom:none; }
+  #logView .tk-row:hover{ background:var(--p-surface-2); }
+  #logView .tk-id{ font-weight:700; font-variant-numeric:tabular-nums; }
+  #logView .tk-time{ color:var(--p-text-muted); font-size:var(--fs-sm); font-variant-numeric:tabular-nums; }
+  #logView .tk-line{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #logView .tk-final{ color:var(--p-text-secondary); font-size:var(--fs-sm); text-align:right; }
+  #logView .tk-flag{ color:var(--p-critical-text); font-weight:700; font-size:var(--fs-sm); margin-right:8px; }
+  #logView .tk-note{ color:var(--p-text-muted); font-size:var(--fs-sm); font-style:italic; }
+  #logView .tk-detail{ padding:4px 16px 16px 16px; border-bottom:1px solid var(--p-border); background:var(--p-surface-2); }
+  #logView .tk-issue{ white-space:pre-wrap; word-break:break-word; font-size:var(--fs-sm); color:var(--p-text-secondary); max-height:120px; overflow:auto; margin:10px 0; padding:8px 10px; border-left:3px solid var(--p-border); }
+  #logView .ev{ display:grid; grid-template-columns:130px 110px 1fr; gap:4px 14px; padding:5px 0; font-size:var(--fs-md); }
+  #logView .ev-time{ color:var(--p-text-muted); font-size:var(--fs-sm); font-variant-numeric:tabular-nums; }
+  #logView .ev-kind{ font-family:var(--mono); font-size:var(--fs-xs); font-weight:600; text-transform:uppercase; letter-spacing:.04em; color:var(--p-text-secondary); }
+  #logView .ev-dur{ color:var(--p-text-muted); font-size:var(--fs-sm); margin-left:8px; }
+  #logView .ev.err .ev-kind, #logView .ev.err .ev-sum{ color:var(--p-critical-text); }
+  #logView .ev-error{ display:block; font-family:var(--mono); font-size:var(--fs-sm); color:var(--p-critical-text); white-space:pre-wrap; word-break:break-word; margin-top:2px; }
+  .app-shell.content-narrow #logView .tk-row{ grid-template-columns:1fr; }
+  .app-shell.content-narrow #logView .tk-final{ text-align:left; }
+  .app-shell.content-narrow #logView .ev{ grid-template-columns:1fr; }
 </style>
 </head>
 <body>
@@ -349,40 +351,27 @@
         <div class="p-header">
           <div>
             <p class="p-eyebrow">Instructors Ticketing System</p>
-            <h1>Routing log</h1>
-            <p class="p-subtitle">Every ticket: what the instructor picked, what the model picked and how sure it was, what was decided, where the ticket ended up, and whether the routing was right. A ticket counts as wrong when it was transferred to another category in Zoho.</p>
+            <h1>Ticket log</h1>
+            <p class="p-subtitle">Every ticket and what happened to it, in order. Click a ticket to see its timeline: the pre-submit suggestion, the Zoho create, edits, transfers and any errors.</p>
           </div>
-          <div class="p-header-meta" id="logMeta">&ndash;</div>
         </div>
 
         <div class="range-bar log-filters">
           <span class="range-label">Filters</span>
+          <label>Ticket ID <input type="text" id="logSearch" placeholder="e.g. 4012" autocomplete="off" oninput="logSearchSoon()"></label>
           <label>From <input type="date" id="logFrom" onchange="logBoot()"></label>
           <label>to <input type="date" id="logTo" onchange="logBoot()"></label>
-          <label>Decision
-            <select id="logDecision" onchange="logRenderTable()">
-              <option value="">All</option>
-              <option value="agreed">Agreed</option>
-              <option value="kept">Kept instructor's pick</option>
-              <option value="overrode">Overrode instructor</option>
-              <option value="none">No subcategory picked</option>
-              <option value="unknown">Not recorded (before the log)</option>
-            </select>
-          </label>
-          <label>Category <select id="logCategory" onchange="logRenderTable()"><option value="">All</option></select></label>
+          <label><input type="checkbox" id="logErrors" onchange="logBoot()"> Has errors</label>
+          <label><input type="checkbox" id="logUnsub" onchange="logBoot()"> Not submitted</label>
           <span class="range-summary" id="logCount"></span>
         </div>
 
-        <div class="empty-state loader-block" id="logLoadingState" role="status"><span class="loader-text">Loading the routing log&hellip;</span></div>
+        <div class="empty-state loader-block" id="logLoadingState" role="status"><span class="loader-text">Loading the ticket log&hellip;</span></div>
 
         <div id="logBody" style="display:none;">
           <section>
-            <div class="section-head">
-              <h2>How each decision turned out</h2>
-              <span class="section-note" id="logLearnNote"></span>
-            </div>
-            <p class="section-desc">Settled tickets only (not waiting for review), each issue counted once &mdash; duplicates left out.</p>
-            <div class="tiles" id="logDecisionTiles"></div>
+            <div class="tk-list" id="logList"></div>
+            <div class="log-more" id="logMore"></div>
           </section>
 
           <section style="margin-bottom:32px;">
@@ -397,17 +386,6 @@
                 <tbody id="logSimBody"></tbody>
               </table>
             </div>
-          </section>
-
-          <section>
-            <div class="section-head"><h2>Tickets</h2></div>
-            <div class="p-card table-scroll">
-              <table>
-                <thead><tr><th>Date</th><th>Ticket</th><th>Instructor's pick</th><th>Model's pick</th><th>Decision</th><th>Final category</th><th>Result</th></tr></thead>
-                <tbody id="logTableBody"></tbody>
-              </table>
-            </div>
-            <div class="log-more" id="logMore"></div>
           </section>
         </div>
       </div>
@@ -961,67 +939,111 @@ async function taxoBoot() {
 }
 
 // ============================================================
-// Log page (routing log) - loaded lazily on first visit. Rows and the
-// learning numbers come from /api/routing-log (app/routing_log.py); the
-// date range refetches (the numbers depend on it), decision and category
-// only filter the table.
+// Log page - loaded lazily on first visit. The list comes from
+// /api/ticket-log, a ticket's timeline from /api/ticket-log/{id} when its
+// row is opened, and the Override threshold table from the summary of
+// /api/routing-log (app/routing_log.py).
 // ============================================================
 let logLoadedOnce = false;
-let logData = null;
-const LOG_DECISION_LABEL = { agreed: 'Agreed', kept: "Kept instructor's pick", overrode: 'Overrode instructor', none: 'No subcategory picked' };
-const LOG_OUTCOME_LABEL = { right: 'Right', wrong: 'Wrong', pending: 'Pending review' };
-const LOG_TABLE_LIMIT = 300;
+let logSearchTimer = null;
+let logSeq = 0;
+const LOG_KIND_LABEL = { presubmit: 'Pre-submit', on_add: 'On Add', edit: 'Edit', transfer: 'Transfer', duplicate: 'Duplicate', auto_classify: 'Auto-classify', error: 'Error' };
+
+function logPct(v) { return v === null || v === undefined ? '&ndash;' : `${v}%`; }
+function logFmtTime(ts) {
+  return ts ? new Date(ts * 1000).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '';
+}
+function logSearchSoon() { clearTimeout(logSearchTimer); logSearchTimer = setTimeout(logBoot, 300); }
 
 async function logBoot() {
   const loadingEl = document.getElementById('logLoadingState');
   const params = new URLSearchParams();
   const from = document.getElementById('logFrom').value, to = document.getElementById('logTo').value;
+  const q = document.getElementById('logSearch').value.trim();
   if (from) params.set('date_from', from);
   if (to) params.set('date_to', to);
+  if (q) params.set('q', q);
+  if (document.getElementById('logErrors').checked) params.set('errors_only', 'true');
+  if (document.getElementById('logUnsub').checked) params.set('unsubmitted', 'true');
+  const seq = ++logSeq;
+  const routingParams = new URLSearchParams(); // the threshold table follows the dates only
+  if (from) routingParams.set('date_from', from);
+  if (to) routingParams.set('date_to', to);
   try {
-    const res = await fetch(`/api/routing-log?${params}`);
-    if (res.status === 401) { window.location = loginUrl(); return; }
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    logData = await res.json();
+    const [listRes, routingRes] = await Promise.all([
+      fetch(`/api/ticket-log?${params}`), fetch(`/api/routing-log?${routingParams}`),
+    ]);
+    if (listRes.status === 401 || routingRes.status === 401) { window.location = loginUrl(); return; }
+    if (!listRes.ok) throw new Error(`HTTP ${listRes.status}`);
+    const list = await listRes.json();
+    const routing = routingRes.ok ? await routingRes.json() : null;
+    if (seq !== logSeq) return; // a newer search is already in flight
     loadingEl.style.display = 'none';
     document.getElementById('logBody').style.display = '';
-    logRenderCategoryFilter();
-    logRenderLearning();
-    logRenderTable();
+    logRenderList(list);
+    logRenderThreshold(routing && routing.summary);
   } catch (err) {
+    if (seq !== logSeq) return;
     loadingEl.style.display = '';
-    loadingEl.textContent = `Couldn't load the routing log: ${err.message}`;
+    loadingEl.textContent = `Couldn't load the ticket log: ${err.message}`;
   }
 }
 
-function logPct(v) { return v === null || v === undefined ? '&ndash;' : `${v}%`; }
-
-function logRenderCategoryFilter() {
-  const sel = document.getElementById('logCategory');
-  const keep = sel.value;
-  const groups = {};
-  logData.rows.forEach(r => { if (r.final_group_id) groups[r.final_group_id] = r.final_group_name; });
-  sel.innerHTML = '<option value="">All</option>' + Object.entries(groups)
-    .sort((a, b) => a[1].localeCompare(b[1]))
-    .map(([id, name]) => `<option value="${esc(id)}"${id === keep ? ' selected' : ''}>${esc(name)}</option>`).join('');
+function logRenderList(list) {
+  const tickets = list.tickets;
+  document.getElementById('logCount').innerHTML = `<strong>${tickets.length}</strong> of ${list.total} ticket${list.total === 1 ? '' : 's'}`;
+  document.getElementById('logList').innerHTML = tickets.length ? tickets.map(t => `
+    <div class="tk-item" data-id="${esc(t.id)}">
+      <button type="button" class="tk-row" onclick="logToggle(this)" aria-expanded="false">
+        <span class="tk-id">${t.zoho_ticket_id ? `#${esc(t.zoho_ticket_id)}` : '<span class="tk-note">not submitted</span>'}</span>
+        <span class="tk-time">${esc(logFmtTime(t.created_at))}</span>
+        <span class="tk-line">${t.has_error ? '<span class="tk-flag">Error</span>' : ''}${esc(t.first_line) || '<span class="tk-note">(empty)</span>'}${t.has_timeline ? '' : ' <span class="tk-note">no timeline (before this was recorded)</span>'}</span>
+        <span class="tk-final">${esc(t.final)}</span>
+      </button>
+      <div class="tk-detail" style="display:none;"></div>
+    </div>`).join('') : '<div class="empty-state">No tickets match these filters.</div>';
+  document.getElementById('logMore').textContent = list.total > tickets.length
+    ? `Showing the newest ${tickets.length} of ${list.total} - search or narrow the dates to see the rest.` : '';
 }
 
-function logRenderLearning() {
-  const s = logData.summary;
-  document.getElementById('logMeta').innerHTML =
-    `<strong>${logData.drafts}</strong> abandoned pre-submit draft${logData.drafts === 1 ? '' : 's'}<br>` +
-    `<strong>${s.duplicates}</strong> duplicate ticket${s.duplicates === 1 ? '' : 's'}`;
-  document.getElementById('logLearnNote').textContent = `${s.settled} settled ticket${s.settled === 1 ? '' : 's'} with a decision`;
-  const d = s.by_decision;
-  const tile = (label, value, sub) => `<div class="tile"><div class="tile-label">${label}</div><div class="tile-value">${value}</div><div class="tile-sub">${sub}</div></div>`;
-  document.getElementById('logDecisionTiles').innerHTML = [
-    tile('Overrode &middot; model right', logPct(d.overrode.model_right_pct),
-      `${d.overrode.model_right} of ${d.overrode.n} &middot; instructor was right in ${d.overrode.instructor_right}`),
-    tile("Kept &middot; instructor right", logPct(d.kept.instructor_right_pct),
-      `${d.kept.instructor_right} of ${d.kept.n} &middot; model would have been right in ${d.kept.model_right}`),
-    tile('Agreed &middot; right', logPct(d.agreed.routed_right_pct), `${d.agreed.routed_right} of ${d.agreed.n}`),
-  ].join('');
+async function logToggle(btn) {
+  const item = btn.parentElement, detail = item.querySelector('.tk-detail');
+  const open = detail.style.display === 'none';
+  btn.setAttribute('aria-expanded', String(open));
+  detail.style.display = open ? '' : 'none';
+  if (!open || detail.dataset.loaded) return;
+  detail.innerHTML = '<div class="empty-state loader-block"><span class="loader-text">Loading the timeline&hellip;</span></div>';
+  insertLoader(detail);
+  try {
+    const res = await fetch(`/api/ticket-log/${encodeURIComponent(item.dataset.id)}`);
+    if (res.status === 401) { window.location = loginUrl(); return; }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const d = await res.json();
+    detail.innerHTML = logTimelineHtml(d);
+    detail.dataset.loaded = '1';
+  } catch (err) {
+    detail.innerHTML = `<div class="empty-state">Couldn't load the timeline: ${esc(err.message)}</div>`;
+  }
+}
 
+function logTimelineHtml(d) {
+  const text = d.ticket.issue_text || '';
+  const issue = `<div class="tk-issue">${esc(text.length > 4000 ? text.slice(0, 4000) + '…' : text)}</div>`;
+  if (!d.events.length) return issue + '<div class="tk-note">No timeline: this ticket was handled before events were recorded.</div>';
+  return issue + d.events.map(e => `
+    <div class="ev${e.kind === 'error' ? ' err' : ''}">
+      <span class="ev-time">${esc(logFmtTime(e.created_at))}</span>
+      <span class="ev-kind">${esc(LOG_KIND_LABEL[e.kind] || e.kind)}</span>
+      <span class="ev-sum">${esc(e.summary)}${e.duration_ms != null ? `<span class="ev-dur">${e.duration_ms} ms</span>` : ''}${e.error ? `<span class="ev-error">${esc(e.error)}</span>` : ''}</span>
+    </div>`).join('');
+}
+
+function logRenderThreshold(s) {
+  if (!s) {
+    document.getElementById('logThresholdNote').textContent = '';
+    document.getElementById('logSimBody').innerHTML = '<tr><td colspan="4" class="p-subtext">Could not load the threshold numbers.</td></tr>';
+    return;
+  }
   const best = s.best_threshold, cur = s.current_threshold;
   document.getElementById('logThresholdNote').textContent = s.disagreements
     ? `${s.disagreements} disagreement${s.disagreements === 1 ? '' : 's'} · current ${cur} · best ${best}`
@@ -1032,38 +1054,6 @@ function logRenderLearning() {
         return `<tr class="${cls}"><td>${x.threshold.toFixed(2)}</td><td class="num">${x.overrides}</td><td class="num">${x.right}</td><td class="num">${logPct(x.right_pct)}</td></tr>`;
       }).join('')
     : `<tr><td colspan="4" class="p-subtext">No settled tickets where the model and the instructor disagreed yet.</td></tr>`;
-}
-
-function logRenderTable() {
-  if (!logData) return;
-  const decision = document.getElementById('logDecision').value;
-  const group = document.getElementById('logCategory').value;
-  const rows = logData.rows.filter(r =>
-    (!decision || (decision === 'unknown' ? !r.decision : r.decision === decision)) &&
-    (!group || r.final_group_id === group));
-  document.getElementById('logCount').innerHTML = `<strong>${rows.length}</strong> of ${logData.rows.length} tickets`;
-  const fmtDate = ts => ts ? new Date(ts * 1000).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
-  document.getElementById('logTableBody').innerHTML = rows.length ? rows.slice(0, LOG_TABLE_LIMIT).map(r => {
-    const dup = r.duplicate_of ? `<span class="chip dup" title="Same text from the same instructor within 7 days - counted once">Duplicate${r.duplicate_of_zoho_id ? ` of #${esc(r.duplicate_of_zoho_id)}` : ''}</span>` : '';
-    const pick = r.reporter_subcategory || r.reporter_category
-      ? `${esc(r.reporter_subcategory || '(no subcategory)')}<span class="cell-sub">${esc(r.reporter_category || '')}</span>` : '<span class="p-subtext">&ndash;</span>';
-    const model = r.model_category_id
-      ? `${esc(r.model_category_name)}<span class="cell-sub">${r.model_confidence != null ? `${Math.round(r.model_confidence * 100)}% sure` : ''}</span>` : '<span class="p-subtext">&ndash;</span>';
-    const decisionChip = r.decision ? `<span class="chip ${r.decision}">${LOG_DECISION_LABEL[r.decision]}</span>` : '<span class="chip unknown" title="Classified before the routing log existed">Not recorded</span>';
-    const fin = r.final_category_id
-      ? `${esc(r.final_category_name)}<span class="cell-sub">${r.corrected ? `corrected${r.corrected_by ? ` by ${esc(r.corrected_by)}` : ''} &middot; was ${esc(r.routed_category_name || '-')}` : esc(r.final_group_name || '')}</span>` : '<span class="p-subtext">&ndash;</span>';
-    return `<tr>
-      <td>${fmtDate(r.created_at)}</td>
-      <td title="${esc(r.text)}">${r.zoho_ticket_id ? `#${esc(r.zoho_ticket_id)}` : '<span class="p-subtext">no Zoho id</span>'}${dup}</td>
-      <td class="wrap">${pick}</td>
-      <td class="wrap">${model}</td>
-      <td>${decisionChip}</td>
-      <td class="wrap">${fin}</td>
-      <td><span class="chip ${r.outcome}">${LOG_OUTCOME_LABEL[r.outcome]}</span></td>
-    </tr>`;
-  }).join('') : `<tr><td colspan="7" class="p-subtext">No tickets match these filters.</td></tr>`;
-  document.getElementById('logMore').textContent = rows.length > LOG_TABLE_LIMIT
-    ? `Showing the newest ${LOG_TABLE_LIMIT} of ${rows.length} - narrow the dates or filters to see the rest.` : '';
 }
 
 // Open the page the URL names. Last, so every tab's state above exists.
