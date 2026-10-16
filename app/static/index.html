@@ -246,6 +246,7 @@
   #taxonomyView h1{ font-size:var(--fs-3xl); font-weight:700; letter-spacing:-.01em; margin:0; color:var(--p-text-primary); }
   #taxonomyView .p-subtitle{ color:var(--p-text-secondary); font-size:var(--fs-md); margin-top:6px; max-width:72ch; }
   #taxonomyView .p-header-meta{ text-align:right; font-size:var(--fs-sm); color:var(--p-text-muted); font-variant-numeric:tabular-nums; }
+  #classifyView .empty-state{ font-size:var(--fs-md); color:var(--p-text-muted); padding:24px 0; text-align:center; }
   #taxonomyView .empty-state{ font-size:var(--fs-md); color:var(--p-text-muted); padding:24px 0; text-align:center; }
 
   #taxonomyView .taxo-toolbar{
@@ -707,10 +708,14 @@ async function clsSaveCorrection() {
     taxoPassword = password;
     clsTaxonomy = null;  // examples changed; refetch next time
     const rc = data.recheck;
+    const warn = data.memory_synced === false
+      ? '<div class="cls-msg error">Saved, but the model\u2019s memory couldn\u2019t be updated yet \u2014 it will catch up on the next save or restart.</div>' : '';
+    const check = rc
+      ? `<div class="cls-msg ${rc.correct ? 'good' : 'error'}">Re-check: ${esc(rc.category)} &rsaquo; ${esc(rc.subcategory)}
+        (${Math.round((rc.confidence || 0) * 100)}%) &mdash; ${rc.correct ? 'now correct' : 'still not the chosen subcategory'}</div>`
+      : `<div class="cls-msg error">Couldn\u2019t re-check: ${esc(data.recheck_error || 'unknown error')}</div>`;
     msg.innerHTML = `
-      <div class="cls-msg good">${data.added ? 'Added as an example' : 'Already an example'}</div>
-      <div class="cls-msg ${rc.correct ? 'good' : 'error'}">Re-check: ${esc(rc.category)} &rsaquo; ${esc(rc.subcategory)}
-        (${Math.round((rc.confidence || 0) * 100)}%) &mdash; ${rc.correct ? 'now correct' : 'still not the chosen subcategory'}</div>`;
+      <div class="cls-msg good">${data.added ? 'Added as an example' : 'Already an example'}</div>${warn}${check}`;
   } catch (e) {
     msg.innerHTML = `<div class="cls-msg error">${esc(e.message)}</div>`;
   } finally {

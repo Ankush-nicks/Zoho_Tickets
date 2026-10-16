@@ -3,6 +3,8 @@ Classify page: suggest a category for pasted text (writes nothing), and
 learn from a password-protected correction.
 """
 import hashlib
+import threading
+import time
 
 import pytest
 from fastapi.testclient import TestClient
@@ -112,3 +114,56 @@ def test_correct_rejects_unknown_category(client, fake_classify):
 
 def test_classify_long_text(client, fake_classify):
     assert client.post("/api/classify", json={"text": "a" * 45000}).status_code == 200
+
+
+def test_correct_syncs_memory(client, fake_classify):
+    leaf = _leaf(1)
+    res = client.post("/api/classify/correct", json={"text": "Memory sync probe text", "category_id": leaf["id"]}, headers=PW)
+    assert res.json()["memory_synced"] is True
+    assert memory.seeds_match(taxonomy.seed_examples())
+    assert "Memory sync probe text" in memory._collection.get(where={"source": "seed"})["documents"]
+
+
+def test_correct_reports_memory_sync_failure(client, fake_classify, monkeypatch):
+    monkeypatch.setattr(config, "OPENAI_API_KEY", "")
+    leaf = _leaf(1)
+    res = client.post("/api/classify/correct", json={"text": "no memory today", "category_id": leaf["id"]}, headers=PW)
+    assert res.status_code == 200
+    assert res.json()["added"] is True and res.json()["memory_synced"] is False
+    assert "no memory today" in taxonomy.get(leaf["id"])["examples"]
+
+
+def test_correct_recheck_failure_is_not_an_error(client, fake_classify, monkeypatch):
+    def boom(*a, **k):
+        raise RuntimeError("x" * 500)
+
+    monkeypatch.setattr(main.classifier, "classify", boom)
+    leaf = _leaf(1)
+    res = client.post("/api/classify/correct", json={"text": "recheck will fail", "category_id": leaf["id"]}, headers=PW)
+    assert res.status_code == 200
+    body = res.json()
+    assert body["added"] is True and body["recheck"] is None and len(body["recheck_error"]) == 300
+    assert "recheck will fail" in taxonomy.get(leaf["id"])["examples"]
+
+
+def test_concurrent_corrections_both_kept(client, fake_classify, monkeypatch):
+    leaf = _leaf(1)
+    real = taxonomy.as_dict
+
+    def slow():
+        d = real()
+        time.sleep(0.2)
+        return d
+
+    monkeypatch.setattr(taxonomy, "as_dict", slow)
+    results = []
+
+    def go(text):
+        results.append(client.post("/api/classify/correct", json={"text": text, "category_id": leaf["id"]}, headers=PW).status_code)
+
+    threads = [threading.Thread(target=go, args=(t,)) for t in ("first concurrent", "second concurrent")]
+    [t.start() for t in threads]
+    [t.join() for t in threads]
+    assert results == [200, 200]
+    examples = taxonomy.get(leaf["id"])["examples"]
+    assert "first concurrent" in examples and "second concurrent" in examples

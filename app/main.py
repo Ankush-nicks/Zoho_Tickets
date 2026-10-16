@@ -195,7 +195,8 @@ def update_taxonomy(
     """
     _require_taxonomy_password(x_taxonomy_password)
     try:
-        taxonomy.save(payload)
+        with _taxonomy_edit_lock:
+            taxonomy.save(payload)
     except ValueError as e:
         raise HTTPException(400, str(e))
     # The classifier reads definitions straight from taxonomy.json, but its
@@ -209,26 +210,35 @@ def update_taxonomy(
 # can never interleave their delete/add of the seed entries.
 _seed_sync_lock = threading.Lock()
 
+# Held across every read -> change -> save of the taxonomy, so two edits made
+# at once (e.g. two corrections, or a correction and the editor's save) can't
+# both start from the same snapshot and lose one another's change.
+_taxonomy_edit_lock = threading.Lock()
 
-def _sync_seed_examples(reason: str) -> None:
+
+def _sync_seed_examples(reason: str) -> bool:
     """
     Makes the vector memory's seed examples (the taxonomy's examples, which
     the classifier retrieves as few-shot context) match taxonomy.json:
     replaces them via memory.reseed() - every learned correction stays -
     and skips the embeddings call when they already match. Never raises.
+    Returns True when memory matches the taxonomy afterwards, False when it
+    couldn't be updated.
     """
     if not config.OPENAI_API_KEY:
         logger.warning("taxonomy examples not synced to memory (%s): OPENAI_API_KEY is not set", reason)
-        return
+        return False
     with _seed_sync_lock:
         try:
             seeds = taxonomy.seed_examples()
             if memory.seeds_match(seeds):
-                return
+                return True
             removed, added = memory.reseed(seeds, config.OPENAI_API_KEY)
             logger.info("taxonomy examples synced to memory (%s): removed %d, added %d", reason, removed, added)
+            return True
         except Exception as e:
             logger.error(f"syncing taxonomy examples to memory failed ({reason}): {e}")
+            return False
 
 
 def _start_seed_sync(reason: str) -> str:
@@ -305,23 +315,27 @@ def classify_correct(
     def norm(t: str) -> str:
         return " ".join(t.lower().split())
 
-    data = taxonomy.as_dict()
-    sub = next(s for g in data["categories"] for s in g.get("subcategories", []) if s["id"] == req.category_id)
-    examples = sub.setdefault("examples", [])
-    added = norm(text) not in {norm(e) for e in examples}
-    if added:
-        examples.append(" ".join(text.split()))
-        try:
-            taxonomy.save(data)
-        except ValueError as e:
-            raise HTTPException(400, str(e))
-        _sync_seed_examples("classify correction")
-    result = _classify_text(text)
-    return {
-        "added": added,
-        "recheck": {**_label(result.category_id), "confidence": result.confidence,
-                    "correct": result.category_id == req.category_id},
-    }
+    with _taxonomy_edit_lock:
+        data = taxonomy.as_dict()
+        sub = next(s for g in data["categories"] for s in g.get("subcategories", []) if s["id"] == req.category_id)
+        examples = sub.setdefault("examples", [])
+        added = norm(text) not in {norm(e) for e in examples}
+        if added:
+            examples.append(" ".join(text.split()))
+            try:
+                taxonomy.save(data)
+            except ValueError as e:
+                raise HTTPException(400, str(e))
+    memory_synced = _sync_seed_examples("classify correction")
+    out = {"added": added, "memory_synced": memory_synced}
+    try:
+        result = classifier.classify(text, config.OPENROUTER_API_KEY)
+    except Exception as e:
+        # The correction is already saved - report it, not a failure.
+        return {**out, "recheck": None, "recheck_error": str(e)[:300]}
+    out["recheck"] = {**_label(result.category_id), "confidence": result.confidence,
+                      "correct": result.category_id == req.category_id}
+    return out
 
 
 @app.get("/api/taxonomy/export.csv")
