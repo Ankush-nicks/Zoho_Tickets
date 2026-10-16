@@ -17,7 +17,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from openai import RateLimitError
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import auth, config, db, memory, classifier, zoho_csv, routing_log
+from . import auth, config, db, memory, classifier, zoho_csv, routing_log, ticket_events
 from .taxonomy import taxonomy
 from .auth import require_login
 from .models import (
@@ -548,19 +548,38 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
         hint = _reporter_hint_from(
             payload.get("category_of_the_issue"), payload.get("sub_category_of_the_issue")
         )
+        started = time.time()
+        instructor_pick = (
+            str(payload.get("sub_category_of_the_issue") or "").strip()
+            or str(payload.get("category_of_the_issue") or "").strip() or None
+        )
+        instructor_leaf = hint.leaf_id if hint else None
+        threshold = config.REPORTER_OVERRIDE_MIN_CONFIDENCE
+        failure_text = None
         try:
             _require_webhook_classify_key()
             result = classifier.classify(issue_text, config.OPENROUTER_API_KEY, reporter_hint=hint)
             category_id = result.category_id
-            _store_presubmit_draft(issue_text, payload, hint, result)
+            draft_id = _store_presubmit_draft(issue_text, payload, hint, result)
         except Exception as e:
             logger.error(f"Zoho webhook suggestion-mode classify() failed: {e}")
-            _store_presubmit_draft(issue_text, payload, hint, None, failure=str(e))
+            draft_id = _store_presubmit_draft(issue_text, payload, hint, None, failure=str(e))
+            result = None
+            failure_text = str(e)[:1000]
             echo = _reporter_pick_echo(payload)
             if echo:
+                _event(draft_id, "presubmit", lambda: ticket_events.presubmit_line(
+                    None, instructor_leaf, instructor_pick, instructor_leaf or "", False, threshold),
+                    started=started)
+                _event(draft_id, "error", "Classification failed", error=failure_text)
                 return {"ok": True, **echo, "needs_review": True}
             category_id = None
         leaf, used_fallback = _resolve_leaf_for_zoho(category_id)
+        _event(draft_id, "presubmit", lambda: ticket_events.presubmit_line(
+            result, instructor_leaf, instructor_pick, leaf["id"], used_fallback, threshold),
+            started=started)
+        if failure_text is not None:
+            _event(draft_id, "error", "Classification failed", error=failure_text)
         return {
             "ok": True,
             "category_of_the_issue": leaf["parent_name"],
@@ -574,6 +593,10 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
     existing = db.get_ticket_by_zoho_id(zoho_ticket_id)
     if existing:
         auto_correction = _detect_zoho_transfer(existing, zoho_subcategory)
+        old_status = (existing.get("raw_payload") or {}).get("ticket_status")
+        new_status = payload.get("ticket_status")
+        if old_status != new_status:
+            _event(existing["id"], "edit", lambda: ticket_events.edit_line(old_status, new_status))
 
         db.update_ticket(
             existing["id"],
@@ -590,6 +613,8 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
             # button does (see correct_ticket below), just detected from
             # the edit itself instead of a manual click.
             db.log_correction(existing["id"], existing.get("category_id"), auto_correction, corrected_by="zoho-transfer")
+            _event(existing["id"], "transfer", lambda: ticket_events.transfer_line(
+                existing.get("category_id"), auto_correction))
             try:
                 memory.add_example(
                     issue_text, auto_correction, config.OPENAI_API_KEY,
@@ -618,6 +643,7 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
                 if existing.get("category_id") else "never_classified"
             )
             db.update_ticket(existing["id"], fallback_reason=reason)
+            _event(existing["id"], "error", "Sent the fallback category", error=reason)
         return {
             "ok": True,
             "updated": True,
@@ -645,10 +671,13 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
             zoho_subcategory=zoho_subcategory,
             raw_payload=payload,
         )
-    _mark_if_duplicate(ticket_id, issue_text, payload)
+    first_zoho_id = _mark_if_duplicate(ticket_id, issue_text, payload)
+    if first_zoho_id is not None:
+        _event(ticket_id, "duplicate", lambda: ticket_events.duplicate_line(first_zoho_id or None))
 
     adopted = _adopt_presubmit_classification(ticket_id, draft, zoho_subcategory)
     if adopted:
+        _event(ticket_id, "on_add", lambda: ticket_events.on_add_line(True, adopted))
         leaf = taxonomy.get(adopted)
         return {
             "ok": True,
@@ -665,6 +694,7 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
         hint = _reporter_hint_from(zoho_category, zoho_subcategory)
         db.update_ticket(ticket_id, **_reporter_fields(zoho_category, zoho_subcategory, hint))
     classify_failed_reason = None
+    started = time.time()
     try:
         _require_webhook_classify_key()
         result = _run_classification_and_persist(
@@ -672,8 +702,11 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
             reporter_hint=hint,
         )
         category_id = result.category_id
+        _event(ticket_id, "on_add", lambda: ticket_events.on_add_line(False, category_id), started=started)
     except Exception as e:
         logger.error(f"Zoho webhook classify() failed for new ticket {ticket_id}: {e}")
+        _event(ticket_id, "on_add", lambda: ticket_events.on_add_line(False, hint.leaf_id if hint else None))
+        _event(ticket_id, "error", "Classification failed", error=str(e)[:1000], started=started)
         classify_failed_reason = f"classify_error:{str(e)[:300]}"
         # Still route by the instructor's own subcategory when it resolves,
         # so the ticket reaches that POC's queue while it waits for review.
@@ -739,8 +772,23 @@ def _decision_fields(result: ClassificationResult) -> dict:
     }
 
 
+def _event(ticket_id: str | None, kind: str, summary, error: str | None = None,
+           started: float | None = None) -> None:
+    """Add one line to a ticket's timeline. `summary` is a string or a
+    zero-argument callable that builds it, so a failing line builder is
+    caught here too. Never raises: Zoho must always get its category back."""
+    if ticket_id is None:
+        return
+    try:
+        text = summary() if callable(summary) else summary
+        duration_ms = int((time.time() - started) * 1000) if started is not None else None
+        db.add_event(ticket_id, kind, text, error=error, duration_ms=duration_ms)
+    except Exception as e:
+        logger.error(f"recording a {kind} event for ticket {ticket_id} failed: {e}")
+
+
 def _store_presubmit_draft(issue_text: str, payload: dict, hint, result: ClassificationResult | None,
-                           failure: str | None = None) -> None:
+                           failure: str | None = None) -> str | None:
     """
     Pre-submit call -> a 'draft' ticket for the On Add call to claim (see
     _adopt_presubmit_classification). A draft with no category_id records
@@ -754,9 +802,10 @@ def _store_presubmit_draft(issue_text: str, payload: dict, hint, result: Classif
     else:
         fields.update(reasoning=f"Pre-submit classification failed: {failure}"[:500])
     try:
-        db.create_draft(issue_text, payload, **fields)
+        return db.create_draft(issue_text, payload, **fields)
     except Exception as e:
         logger.error(f"storing the pre-submit draft failed: {e}")
+        return None
 
 
 def _instructor_key(payload: dict | None) -> str | None:
@@ -769,25 +818,29 @@ def _same_text_key(text: str | None) -> str:
     return " ".join(str(text or "").lower().split())
 
 
-def _mark_if_duplicate(ticket_id: str, issue_text: str, payload: dict) -> None:
+def _mark_if_duplicate(ticket_id: str, issue_text: str, payload: dict) -> str | None:
     """
     Same text from the same instructor (ticket_raised_by) within the last
     7 days -> duplicate_of points at the first such ticket, so the routing
-    log counts the issue once. Never raises - On Add must still store the
-    ticket.
+    log counts the issue once. Returns that first ticket's Zoho id ('' when
+    it has none), or None when this isn't a duplicate. Never raises - On Add
+    must still store the ticket.
     """
     who = _instructor_key(payload)
     if not who:
-        return
+        return None
     try:
         same = _same_text_key(issue_text)
         for t in db.list_tickets_since(time.time() - _DUPLICATE_WINDOW_SECONDS):
             if t["id"] != ticket_id and _instructor_key(t.get("raw_payload")) == who \
                     and _same_text_key(t.get("original_text")) == same:
-                db.update_ticket(ticket_id, duplicate_of=t.get("duplicate_of") or t["id"])
-                return
+                first_id = t.get("duplicate_of") or t["id"]
+                db.update_ticket(ticket_id, duplicate_of=first_id)
+                first = t if first_id == t["id"] else db.get_ticket(first_id)
+                return (first or {}).get("zoho_ticket_id") or ""
     except Exception as e:
         logger.error(f"duplicate check failed for ticket {ticket_id}: {e}")
+    return None
 
 
 def _adopt_presubmit_classification(ticket_id: str, draft: dict | None, zoho_subcategory: str | None) -> str | None:
@@ -1152,14 +1205,17 @@ def _classify_pending_batch(limit: int, api_key: str) -> dict:
         if not context_text:
             continue
         hint = _reporter_hint_for_ticket(t)
+        started = time.time()
         try:
             result = classifier.classify(context_text, api_key, reporter_hint=hint)
         except RateLimitError as e:
             stopped_early = True
             error = str(e)
+            _event(t["id"], "error", "Auto-classification failed", error=str(e)[:1000], started=started)
             break
         except Exception as e:
             error = str(e)
+            _event(t["id"], "error", "Auto-classification failed", error=str(e)[:1000], started=started)
             continue
 
         status = "needs_human_review" if (result.needs_clarification or result.confidence < config.CONFIDENCE_THRESHOLD) else "classified"
@@ -1174,6 +1230,8 @@ def _classify_pending_batch(limit: int, api_key: str) -> dict:
                else _reporter_fields(t.get("zoho_category"), t.get("zoho_subcategory"), hint)),
         )
         classified_count += 1
+        _event(t["id"], "auto_classify", lambda: ticket_events.auto_classify_line(
+            result, hint.leaf_id if hint else None, config.REPORTER_OVERRIDE_MIN_CONFIDENCE), started=started)
 
     remaining = len(pending_all) - classified_count
     return {"classified": classified_count, "remaining": remaining, "stopped_early": stopped_early, "error": error}
