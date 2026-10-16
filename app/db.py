@@ -86,6 +86,13 @@ CREATE TABLE IF NOT EXISTS corrections (
     FOREIGN KEY(ticket_id) REFERENCES tickets(id)
 );
 
+-- The live taxonomy: one row, key 'live', value is the taxonomy JSON.
+CREATE TABLE IF NOT EXISTS taxonomy_store (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at REAL NOT NULL
+);
+
 -- The removed Drill down page kept its groups/remarks here.
 DROP TABLE IF EXISTS shared_state;
 """
@@ -472,6 +479,27 @@ def list_corrections(date_from: str | None = None, date_to: str | None = None) -
     sql += " ORDER BY created_at ASC"
     with _conn() as conn:
         return _fetchall(conn, sql, params)
+
+
+# ---- the live taxonomy (app/taxonomy.py; taxonomy.json is only the starting copy) ----
+
+def get_taxonomy_doc() -> dict | None:
+    with _conn() as conn:
+        row = _fetchone(conn, "SELECT value FROM taxonomy_store WHERE key = 'live'")
+    return json.loads(row["value"]) if row else None
+
+
+def put_taxonomy_doc(data: dict) -> None:
+    value = json.dumps(data, ensure_ascii=False)
+    now = time.time()
+    with _conn() as conn:
+        cur = _exec(conn, "UPDATE taxonomy_store SET value = ?, updated_at = ? WHERE key = 'live'", (value, now))
+        if cur.rowcount == 0:
+            _exec(
+                conn,
+                "INSERT INTO taxonomy_store (key, value, updated_at) VALUES ('live', ?, ?)",
+                (value, now),
+            )
 
 
 _list_all_cache: dict = {"data": None, "at": 0.0}

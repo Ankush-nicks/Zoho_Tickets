@@ -1,8 +1,9 @@
+import copy
 import json
 import threading
 from typing import Any
 
-from . import config
+from . import config, db
 
 
 class Taxonomy:
@@ -23,22 +24,53 @@ class Taxonomy:
         self.reload()
 
     def reload(self) -> None:
+        with open(self._path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        self._apply(data)
+
+    def _apply(self, data: dict) -> None:
+        leaf_index: dict[str, dict] = {}
+        for group in data["categories"]:
+            for sub in group.get("subcategories", []):
+                if sub["id"] in leaf_index:
+                    raise ValueError(f"Duplicate subcategory id in taxonomy: {sub['id']}")
+                entry = dict(sub)
+                entry["parent_id"] = group["id"]
+                entry["parent_name"] = group["name"]
+                leaf_index[sub["id"]] = entry
+
         with self._lock:
-            with open(self._path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-
-            leaf_index: dict[str, dict] = {}
-            for group in data["categories"]:
-                for sub in group.get("subcategories", []):
-                    if sub["id"] in leaf_index:
-                        raise ValueError(f"Duplicate subcategory id in taxonomy.json: {sub['id']}")
-                    entry = dict(sub)
-                    entry["parent_id"] = group["id"]
-                    entry["parent_name"] = group["name"]
-                    leaf_index[sub["id"]] = entry
-
             self._data = data
             self._leaf_index = leaf_index
+
+    @classmethod
+    def from_data(cls, data: dict) -> "Taxonomy":
+        """A standalone copy built from `data` - never touches disk or the database."""
+        t = cls.__new__(cls)
+        t._path = None
+        t._lock = threading.Lock()
+        t._data = {}
+        t._leaf_index = {}
+        t._apply(copy.deepcopy(data))
+        return t
+
+    def as_dict(self) -> dict:
+        """Deep copy of {version, categories} - safe to edit, then save()."""
+        return copy.deepcopy({"version": self._data.get("version"), "categories": self._data["categories"]})
+
+    def load_live(self) -> str:
+        """Loads the starting copy (taxonomy.json), then the database's live
+        copy unless the file's version is higher (a deploy shipped a newer
+        one) or the database has none - in which case the file is written to
+        the database. Returns "db" or "file"."""
+        self.reload()
+        file_data = self.as_dict()
+        doc = db.get_taxonomy_doc()
+        if doc is None or (file_data.get("version") or 0) > (doc.get("version") or 0):
+            db.put_taxonomy_doc(file_data)
+            return "file"
+        self._apply(doc)
+        return "db"
 
     @property
     def groups(self) -> list[dict]:
@@ -73,11 +105,11 @@ class Taxonomy:
 
     def save(self, data: dict) -> None:
         """
-        Validates and persists a full taxonomy replacement (same {version,
+        Validates and persists (to the database; bumps the version) a full taxonomy replacement (same {version,
         categories: [...]} shape reload() expects - the Taxonomy tab's editor
         sends its whole working copy back on Save, not a per-field patch).
         Raises ValueError on structural problems (missing ids/names,
-        duplicate ids) before ever touching disk. Reloads immediately after
+        duplicate ids) before ever touching the database. Reloads immediately after
         writing so classify() picks up the change without
         a restart.
         """
@@ -101,10 +133,9 @@ class Taxonomy:
                     raise ValueError(f"duplicate subcategory id: {sub_id}")
                 seen_sub_ids.add(sub_id)
 
-        with self._lock:
-            with open(self._path, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=2, ensure_ascii=False)
-        self.reload()
+        data["version"] = (self.version or 0) + 1
+        db.put_taxonomy_doc(data)
+        self._apply(copy.deepcopy(data))
 
     def as_prompt_block(self) -> str:
         """Render the taxonomy as text for the classification system prompt,

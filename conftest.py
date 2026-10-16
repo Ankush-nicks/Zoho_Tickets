@@ -49,3 +49,16 @@ def _isolated_memory_and_no_background_sync(monkeypatch):
     )
     monkeypatch.setattr(memory, "_collection", collection)
     monkeypatch.setattr(main, "_start_seed_sync", lambda reason: "started")
+
+
+@pytest.fixture(autouse=True)
+def _restore_taxonomy_state():
+    """Taxonomy.save() now updates the global in memory (and the per-test
+    database), so snapshot and restore it around every test."""
+    import copy
+
+    from app.taxonomy import taxonomy
+
+    data, leaf_index = copy.deepcopy(taxonomy._data), copy.deepcopy(taxonomy._leaf_index)
+    yield
+    taxonomy._data, taxonomy._leaf_index = data, leaf_index

@@ -73,6 +73,7 @@ def require_webhook_secret(x_webhook_secret: str | None = Header(default=None, a
 @app.on_event("startup")
 async def startup():
     db.init_db()
+    taxonomy.load_live()
     # Bring the vector memory's taxonomy examples in line with taxonomy.json
     # (a deploy may have changed them) - see _sync_seed_examples.
     asyncio.create_task(asyncio.to_thread(_sync_seed_examples, "startup"))

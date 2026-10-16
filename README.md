@@ -85,6 +85,8 @@ that's what actually determines routing (`assigned_team`, `poc_primary`)
 — the classifier picks a `category_id` like `G01-S01`, and the API/UI
 resolve that back to its parent category, team, and point of contact.
 
+The live taxonomy is stored in the database; `taxonomy.json` is only the starting copy. To ship a taxonomy change through git, set its `version` higher than the live one shown on the Taxonomy page.
+
 Nothing in the code is hardcoded to this taxonomy's content — the classifier,
 the JSON schema sent to OpenRouter, and the seed examples are all generated from
 this file at startup. To update it, re-export the same 2-level shape:
