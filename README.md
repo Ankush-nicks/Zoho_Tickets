@@ -164,12 +164,18 @@ first and writes only after you confirm.
 
 ### Pages
 
-The app has two pages, **Log** (`/log`, the default) and **Taxonomy**
-(`/taxonomy`). The old Daily report, Pulse, Stats and Drill down pages were
-removed, along with the POC Chrome extension, resolution grading and the
-ticket/correction APIs behind them; old page addresses redirect to the Log.
-The Drill down page's saved groups (`shared_state` table) are dropped on
-startup.
+The app has three pages: **Log** (`/log`, the default), **Classify**
+(`/classify`) and **Taxonomy** (`/taxonomy`). The old Daily report, Pulse,
+Stats and Drill down pages were removed, along with the POC Chrome extension,
+resolution grading and the ticket/correction APIs behind them; old page
+addresses redirect to the Log. The Drill down page's saved groups
+(`shared_state` table) are dropped on startup.
+
+On the Classify page, a correction is saved as an example of the chosen
+subcategory; the model can then draft a definition change, preview its effect
+on the issue and existing examples, and you can apply it to the live taxonomy
+(stored in the database) or undo it (`taxonomy_changes` table), as long as
+nobody edited those definitions since.
 
 ## Key config (`.env`)
 

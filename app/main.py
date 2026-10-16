@@ -441,6 +441,80 @@ def classify_preview(
     return {"cases": cases}
 
 
+class ClassifyUndoRequest(BaseModel):
+    change_id: str
+
+
+@app.post("/api/classify/apply")
+def classify_apply(
+    req: ClassifyPreviewRequest,
+    user: str = Depends(require_login),
+    x_taxonomy_password: str | None = Header(None),
+):
+    """Appends the two lines to the subcategory descriptions, saves, records
+    the change (so it can be undone) and re-runs the issue."""
+    _require_taxonomy_password(x_taxonomy_password)
+    text = req.text.strip()
+    if not text:
+        raise HTTPException(400, "Enter the issue text first.")
+    _check_draft_ids(req.wrong_category_id, req.right_category_id)
+    if not config.OPENROUTER_API_KEY:
+        raise HTTPException(503, "Classification isn't available: OPENROUTER_API_KEY is not set on the server.")
+
+    with _taxonomy_edit_lock:
+        data = taxonomy.as_dict()
+        changes = definition_drafter.apply_lines(data, req.right_category_id, req.wrong_category_id,
+                                                 req.right_line, req.wrong_line)
+        changed = {k: v for k, v in changes.items() if v[0] != v[1]}
+        change_id = None
+        if changed:
+            try:
+                taxonomy.save(data)
+            except ValueError as e:
+                raise HTTPException(400, str(e))
+            change_id = db.add_taxonomy_change(changed, user)
+    out = {"change_id": change_id}
+    try:
+        result = classifier.classify(text, config.OPENROUTER_API_KEY)
+    except Exception as e:
+        # The change is already saved - report it, not a failure.
+        return {**out, "recheck": None, "recheck_error": str(e)[:300]}
+    out["recheck"] = {**_label(result.category_id), "confidence": result.confidence,
+                      "correct": result.category_id == req.right_category_id}
+    return out
+
+
+@app.post("/api/classify/undo")
+def classify_undo(
+    req: ClassifyUndoRequest,
+    user: str = Depends(require_login),
+    x_taxonomy_password: str | None = Header(None),
+):
+    """Restores the descriptions an apply changed, but only while each is
+    still exactly what that apply wrote."""
+    _require_taxonomy_password(x_taxonomy_password)
+    with _taxonomy_edit_lock:
+        row = db.get_taxonomy_change(req.change_id)
+        if not row:
+            raise HTTPException(404, "Unknown change.")
+        if row["undone_at"] is not None:
+            raise HTTPException(409, "This change was already undone.")
+        data = taxonomy.as_dict()
+        subs = {s["id"]: s for g in data["categories"] for s in g.get("subcategories", [])}
+        for sub_id, (_before, after) in row["changes"].items():
+            if sub_id not in subs or (subs[sub_id].get("description", "") or "") != after:
+                raise HTTPException(
+                    409, "This definition was changed again since - edit it on the Taxonomy page instead.")
+        for sub_id, (before, _after) in row["changes"].items():
+            subs[sub_id]["description"] = before
+        try:
+            taxonomy.save(data)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        db.mark_taxonomy_change_undone(req.change_id)
+    return {"ok": True}
+
+
 @app.get("/api/taxonomy/export.csv")
 def export_taxonomy_csv(user: str = Depends(require_login)):
     """The whole taxonomy, one row per subcategory, every field included.

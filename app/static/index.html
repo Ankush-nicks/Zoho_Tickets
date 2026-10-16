@@ -725,7 +725,7 @@ async function clsSaveCorrection() {
   }
 }
 
-// ---- Definition change: draft two lines, preview their effect (Apply: next task) ----
+// ---- Definition change: draft two lines, preview their effect then apply or undo ----
 let clsRightId = null;   // the subcategory the owner chose in the last saved correction
 let clsPreviewOk = false;
 
@@ -770,7 +770,7 @@ async function clsDraftLines() {
         <div class="cls-row"><button class="cls-btn primary" id="clsPreviewBtn" onclick="clsPreviewDraft()">Preview</button></div>
         <div id="clsPreview"></div>
         <div class="cls-row">
-          <button class="cls-btn primary" onclick="clsApplyDraft()">Apply</button>
+          <button class="cls-btn primary" id="clsApplyBtn" onclick="clsApplyDraft()">Apply</button>
           <button class="cls-btn" onclick="clsSkipDraft()">Skip</button>
         </div>
         <div id="clsApplyMsg"></div>
@@ -824,8 +824,52 @@ function clsSkipDraft() {
   document.getElementById('clsDraftBody').innerHTML = '';
 }
 
-// Wired up in the next task (apply the previewed lines to the live taxonomy).
-function clsApplyDraft() {}
+async function clsApplyDraft() {
+  const box = document.getElementById('clsApplyMsg');
+  const btn = document.getElementById('clsApplyBtn');
+  btn.disabled = true;
+  clsLoading(box, 'Applying and re-checking…');
+  try {
+    const data = await clsPostJson('/api/classify/apply', {
+      text: clsLast.text, wrong_category_id: clsLast.result.category_id, right_category_id: clsRightId,
+      right_line: document.getElementById('clsRightLine').value,
+      wrong_line: document.getElementById('clsWrongLine').value,
+    });
+    if (!data) return;
+    if (!data.change_id) {
+      box.innerHTML = '<div class="cls-msg">Nothing to apply — both lines are already in the definitions.</div>';
+      return;
+    }
+    clsTaxonomy = null;  // definitions changed; refetch next time
+    const rc = data.recheck;
+    const check = rc
+      ? `<div class="cls-msg ${rc.correct ? 'good' : 'error'}">Re-check: ${esc(rc.category)} &rsaquo; ${esc(rc.subcategory)}
+        (${Math.round((rc.confidence || 0) * 100)}%) &mdash; ${rc.correct ? 'now correct' : 'still not the chosen subcategory'}</div>`
+      : `<div class="cls-msg error">Couldn’t re-check: ${esc(data.recheck_error || 'unknown error')}</div>`;
+    box.innerHTML = `<div class="cls-msg good">Definitions updated</div>${check}
+      <div class="cls-row"><button class="cls-btn" id="clsUndoBtn" onclick="clsUndoChange(${JSON.stringify(data.change_id).replace(/"/g, '&quot;')})">Undo</button></div>
+      <div id="clsUndoMsg"></div>`;
+  } catch (e) {
+    box.innerHTML = `<div class="cls-msg error">${esc(e.message)}</div>`;
+    btn.disabled = false;
+  }
+}
+
+async function clsUndoChange(changeId) {
+  const box = document.getElementById('clsUndoMsg');
+  const btn = document.getElementById('clsUndoBtn');
+  btn.disabled = true;
+  clsLoading(box, 'Undoing…');
+  try {
+    const data = await clsPostJson('/api/classify/undo', { change_id: changeId });
+    if (!data) return;
+    clsTaxonomy = null;
+    box.innerHTML = '<div class="cls-msg good">Undone</div>';
+    btn.remove();
+  } catch (e) {
+    box.innerHTML = `<div class="cls-msg error">${esc(e.message)}</div>`;
+  }
+}
 
 // ============================================================
 // Taxonomy tab - dense, directly-editable table over app/taxonomy.json.

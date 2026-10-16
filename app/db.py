@@ -106,6 +106,16 @@ CREATE TABLE IF NOT EXISTS taxonomy_store (
     updated_at REAL NOT NULL
 );
 
+-- One row per definition change applied from the Classify page, so it can be undone.
+-- changes is JSON: {subcategory id: [before, after]}.
+CREATE TABLE IF NOT EXISTS taxonomy_changes (
+    id TEXT PRIMARY KEY,
+    changes TEXT NOT NULL,
+    created_by TEXT,
+    created_at REAL NOT NULL,
+    undone_at REAL
+);
+
 -- The removed Drill down page kept its groups/remarks here.
 DROP TABLE IF EXISTS shared_state;
 """
@@ -360,6 +370,32 @@ def list_events(ticket_id: str) -> list[dict]:
             "WHERE ticket_id = ? ORDER BY created_at ASC, rowid ASC",
             (ticket_id,),
         )
+
+
+def add_taxonomy_change(changes: dict, by: str | None) -> str:
+    """Stores {sub_id: [before, after]} and returns the new change id."""
+    change_id = new_id()
+    payload = json.dumps({k: list(v) for k, v in changes.items()})
+    with _conn() as conn:
+        _exec(
+            conn,
+            "INSERT INTO taxonomy_changes (id, changes, created_by, created_at) VALUES (?, ?, ?, ?)",
+            (change_id, payload, by, time.time()),
+        )
+    return change_id
+
+
+def get_taxonomy_change(change_id: str) -> dict | None:
+    with _conn() as conn:
+        row = _fetchone(conn, "SELECT * FROM taxonomy_changes WHERE id = ?", (change_id,))
+    if row:
+        row["changes"] = json.loads(row["changes"])
+    return row
+
+
+def mark_taxonomy_change_undone(change_id: str) -> None:
+    with _conn() as conn:
+        _exec(conn, "UPDATE taxonomy_changes SET undone_at = ? WHERE id = ?", (time.time(), change_id))
 
 
 def event_flags() -> dict[str, dict]:
