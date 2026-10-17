@@ -82,6 +82,7 @@ async def startup():
     asyncio.create_task(asyncio.to_thread(_sync_seed_examples, "startup"))
     asyncio.create_task(_settle_pending_csv_imports_at_startup())
     asyncio.create_task(_auto_classify_loop())
+    asyncio.create_task(_cleanup_loop())
 
 
 async def _settle_pending_csv_imports_at_startup():
@@ -1584,6 +1585,31 @@ def _classify_pending_batch(limit: int, api_key: str) -> dict:
 
     remaining = len(pending_all) - classified_count
     return {"classified": classified_count, "remaining": remaining, "stopped_early": stopped_early, "error": error}
+
+
+_CLEANUP_INTERVAL_SECONDS = 24 * 3600
+
+
+def _cleanup_old_tickets() -> int:
+    """Deletes tickets that arrived more than config.TICKET_RETENTION_DAYS
+    ago, with everything stored for them (db.delete_tickets_older_than).
+    Never raises - a failed run just tries again next time. Returns how many
+    tickets were removed."""
+    days = config.TICKET_RETENTION_DAYS
+    try:
+        removed = db.delete_tickets_older_than(time.time() - days * 24 * 3600)
+    except Exception as e:
+        logger.error("cleanup of tickets older than %s days failed: %s", days, e)
+        return 0
+    logger.info("cleanup: removed %d ticket(s) older than %s days", removed, days)
+    return removed
+
+
+async def _cleanup_loop():
+    """Runs the ticket clean-up once at startup, then once a day."""
+    while True:
+        await asyncio.to_thread(_cleanup_old_tickets)
+        await asyncio.sleep(_CLEANUP_INTERVAL_SECONDS)
 
 
 _AUTO_CLASSIFY_INTERVAL_SECONDS = 1800  # 30 min

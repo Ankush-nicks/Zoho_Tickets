@@ -188,6 +188,7 @@ nobody edited those definitions since.
 | `MAX_CLARIFICATION_TURNS` | `2` | Caps back-and-forth so the bot doesn't interrogate the user forever; falls back to `needs_human_review`. |
 | `FEWSHOT_K` | `5` | How many retrieved examples get injected as dynamic few-shot context per call. |
 | `REPORTER_OVERRIDE_MIN_CONFIDENCE` | `0.9` | How sure the model must be to override the subcategory the instructor picked. |
+| `TICKET_RETENTION_DAYS` | `60` | Tickets that arrived more than this many days ago are deleted with everything stored for them (timeline, clarification turns, corrections), at startup and once a day. The taxonomy and its history are never deleted. |
 
 Tune `CONFIDENCE_THRESHOLD` down if you're getting too many clarifying questions
 on tickets a human would consider obvious; tune it up if wrong-but-confident

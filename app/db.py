@@ -671,6 +671,36 @@ def list_log_tickets(upload_mark: str) -> list[dict]:
         return rows
 
 
+# Tables holding rows that belong to one ticket - deleted with it.
+_TICKET_CHILD_TABLES = ("ticket_events", "turns", "corrections")
+
+
+def delete_tickets_older_than(cutoff: float, batch_size: int = 200) -> int:
+    """
+    Deletes every ticket (drafts included) created before `cutoff` (epoch
+    seconds), with its rows in _TICKET_CHILD_TABLES. Works in batches of
+    `batch_size`, each its own transaction, so no single write is huge and
+    a failure part-way keeps what was already deleted. Never touches the
+    taxonomy tables. Returns how many tickets were deleted.
+    """
+    removed = 0
+    while True:
+        with _conn() as conn:
+            ids = [r["id"] for r in _fetchall(
+                conn, "SELECT id FROM tickets WHERE created_at < ? LIMIT ?", (cutoff, batch_size)
+            )]
+            if not ids:
+                break
+            marks = ", ".join("?" for _ in ids)
+            for table in _TICKET_CHILD_TABLES:
+                _exec(conn, f"DELETE FROM {table} WHERE ticket_id IN ({marks})", ids)
+            _exec(conn, f"DELETE FROM tickets WHERE id IN ({marks})", ids)
+        removed += len(ids)
+    if removed:
+        _invalidate_list_all_cache()
+    return removed
+
+
 def list_pending_tickets() -> list[dict]:
     """Tickets with status == 'pending' (e.g. from a --no-classify historical
     import), oldest first - a queue drained every 30 min regardless of order."""
