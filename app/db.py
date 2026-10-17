@@ -1,4 +1,5 @@
 import json
+import threading
 import uuid
 import time
 from contextlib import contextmanager
@@ -607,6 +608,7 @@ _LIST_ALL_CACHE_TTL_SECONDS = 20
 
 def _invalidate_list_all_cache():
     _list_all_cache["data"] = None
+    _log_cache["data"] = None
 
 
 def list_all_tickets() -> list[dict]:
@@ -628,6 +630,45 @@ def list_all_tickets() -> list[dict]:
     _list_all_cache["data"] = result
     _list_all_cache["at"] = now
     return result
+
+
+# The Log page's rows: only the columns its list and threshold numbers use -
+# never raw_payload/full_context, which are most of a ticket's bytes and on
+# Turso would all cross the network on every load.
+_LOG_COLUMNS = (
+    "id, zoho_ticket_id, created_at, status, category_id, decision, duplicate_of, "
+    "model_category_id, model_confidence, reporter_category, reporter_subcategory, "
+    "reporter_leaf_id, substr(original_text, 1, 300) AS original_text"
+)
+_log_cache: dict = {"data": None, "at": 0.0}
+_log_cache_lock = threading.Lock()
+
+
+def list_log_tickets(upload_mark: str) -> list[dict]:
+    """
+    Non-draft tickets for the Log page, oldest first, minus uploaded history
+    (reasoning contains `upload_mark` AND raw_payload has an added_time key -
+    the same rule as main._is_upload_history, applied in SQL). original_text
+    is cut to its first 300 characters. Cached like list_all_tickets and
+    cleared on every write; the lock makes the page's two parallel requests
+    share one read instead of both reading on a cold cache.
+    """
+    with _log_cache_lock:
+        now = time.time()
+        if _log_cache["data"] is not None and now - _log_cache["at"] < _LIST_ALL_CACHE_TTL_SECONDS:
+            return _log_cache["data"]
+        with _conn() as conn:
+            rows = _fetchall(
+                conn,
+                f"SELECT {_LOG_COLUMNS} FROM tickets WHERE status != 'draft' "
+                "AND NOT (COALESCE(reasoning, '') LIKE '%' || ? || '%' "
+                "AND raw_payload IS NOT NULL AND json_type(raw_payload, '$.added_time') IS NOT NULL) "
+                "ORDER BY created_at ASC",
+                (upload_mark,),
+            )
+        _log_cache["data"] = rows
+        _log_cache["at"] = now
+        return rows
 
 
 def list_pending_tickets() -> list[dict]:

@@ -682,10 +682,7 @@ def get_routing_log(date_from: str | None = None, date_to: str | None = None, us
     history is left out (the model never saw it); drafts already are.
     [date_from, date_to] are UTC calendar days, as /api/tickets/range.
     """
-    tickets = [
-        t for t in _filter_tickets_by_date_range(db.list_all_tickets(), date_from, date_to)
-        if not _is_upload_history(t)
-    ]
+    tickets = _filter_tickets_by_date_range(db.list_log_tickets(_UPLOAD_REASONING_MARK), date_from, date_to)
     rows = routing_log.build_rows(tickets, db.list_corrections())
     return {
         "rows": rows,
@@ -729,7 +726,7 @@ def get_ticket_log(
     if unsubmitted:
         tickets = db.list_drafts()
     else:
-        tickets = [t for t in db.list_all_tickets() if not _is_upload_history(t)]
+        tickets = db.list_log_tickets(_UPLOAD_REASONING_MARK)
     tickets = _filter_tickets_by_date_range(tickets, date_from, date_to)
     needle = q.strip().lower()
     if needle:
@@ -737,7 +734,7 @@ def get_ticket_log(
     flags = db.event_flags()
     if errors_only:
         tickets = [t for t in tickets if (flags.get(t["id"]) or {}).get("errors")]
-    tickets.sort(key=lambda t: t["created_at"], reverse=True)
+    tickets = sorted(tickets, key=lambda t: t["created_at"], reverse=True)  # never sort the cached list in place
     return {
         "tickets": [_ticket_log_item(t, flags) for t in tickets[:TICKET_LOG_LIMIT]],
         "total": len(tickets),
