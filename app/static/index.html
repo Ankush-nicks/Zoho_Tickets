@@ -383,7 +383,7 @@
           <div>
             <p class="p-eyebrow">Instructors Ticketing System</p>
             <h1>Ticket log</h1>
-            <p class="p-subtitle">Every ticket and what happened to it, in order. Click a ticket to see the category the instructor chose when it came in, the one it got at On Add, and any later edits, transfers and errors.</p>
+            <p class="p-subtitle">Every ticket and what happened to it, in order. Click a ticket to see the category the instructor chose when it came in, the one it got at On Add, and any later edits, transfers and errors. The list refreshes on its own when a new ticket is added.</p>
           </div>
         </div>
 
@@ -577,6 +577,7 @@ function switchTab(tab) {
     logLoadedOnce = true;
     logBoot();
   }
+  if (tab === 'log') logPoll();
   if (tab === 'taxonomy' && !taxoLoadedOnce) {
     taxoLoadedOnce = true;
     taxoBoot();
@@ -1308,7 +1309,14 @@ async function logBoot() {
     if (seq !== logSeq) return; // a newer search is already in flight
     loadingEl.style.display = 'none';
     document.getElementById('logBody').style.display = '';
+    const openIds = [...document.querySelectorAll('#logList .tk-item')]
+      .filter(i => i.querySelector('.tk-detail').style.display !== 'none').map(i => i.dataset.id);
     logRenderList(list);
+    // Tickets that were open stay open (with their timeline fetched again).
+    openIds.forEach(id => {
+      const item = [...document.querySelectorAll('#logList .tk-item')].find(i => i.dataset.id === id);
+      if (item) logToggle(item.querySelector('.tk-row'));
+    });
     logRenderThreshold(routing && routing.summary);
   } catch (err) {
     if (seq !== logSeq) return;
@@ -1316,6 +1324,25 @@ async function logBoot() {
     loadingEl.textContent = `Couldn't load the ticket log: ${err.message}`;
   }
 }
+
+// Auto-refresh: while the Log is on screen, ask every few seconds whether an
+// On Add call has finished since the last look (a tiny in-memory check on
+// the server, no database read) and reload the list when one has.
+const LOG_POLL_MS = 10000;
+let logStamp = null;
+async function logPoll() {
+  if (!logLoadedOnce || document.hidden || document.getElementById('logView').style.display === 'none') return;
+  try {
+    const res = await fetch('/api/ticket-log-stamp');
+    if (res.status === 401) { window.location = loginUrl(); return; }
+    if (!res.ok) return;
+    const { stamp } = await res.json();
+    if (logStamp !== null && stamp !== logStamp) logBoot();
+    logStamp = stamp;
+  } catch (_) { /* offline for a moment - try again next time */ }
+}
+setInterval(logPoll, LOG_POLL_MS);
+document.addEventListener('visibilitychange', logPoll);
 
 function logRenderList(list) {
   const tickets = list.tickets;

@@ -98,3 +98,12 @@ def test_unsubmitted_draft_has_no_on_add(client, isolated_db, monkeypatch):
     item = client.get(f"/api/ticket-log/{draft['id']}").json()["ticket"]
     assert item["came_in"]["subcategory"] == LEAF_NAME
     assert item["on_add"] is None
+
+
+def test_on_add_without_presubmit_keeps_the_instructor_pick(client, isolated_db, monkeypatch):
+    _model_says(monkeypatch, OTHER_LEAF, 0.97)
+    _post({"zoho_ticket_id": "Z-6", "issue_in_detail": "no presubmit call", "ticket_raised_by": "a@x.in",
+           "category_of_the_issue": GROUP_NAME, "sub_category_of_the_issue": LEAF_NAME})
+    came_in, on_add = _stages(client, isolated_db, "Z-6")
+    assert (came_in["category"], came_in["subcategory"]) == (GROUP_NAME, LEAF_NAME)
+    assert on_add["subcategory"] == LEAF_NAME

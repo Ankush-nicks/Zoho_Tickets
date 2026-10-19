@@ -742,6 +742,23 @@ def get_ticket_log(
     }
 
 
+# Changes whenever an On Add call finishes (and on every restart), so the
+# open Log page knows to reload. In memory only: the page polls it every few
+# seconds and the database is on a free tier.
+_log_stamp = {"value": time.time_ns()}
+_log_stamp_lock = threading.Lock()
+
+
+def _bump_log_stamp() -> None:
+    with _log_stamp_lock:
+        _log_stamp["value"] = max(_log_stamp["value"] + 1, time.time_ns())
+
+
+@app.get("/api/ticket-log-stamp")
+def get_ticket_log_stamp(user: str = Depends(require_login)):
+    return {"stamp": str(_log_stamp["value"])}
+
+
 @app.get("/api/ticket-log/{ticket_id}")
 def get_ticket_log_detail(ticket_id: str, user: str = Depends(require_login)):
     t = db.get_ticket(ticket_id)
@@ -1035,19 +1052,22 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
     if first_zoho_id is not None:
         _event(ticket_id, "duplicate", lambda: ticket_events.duplicate_line(first_zoho_id or None))
 
+    # The instructor's real pick: from the draft when there is one - by now
+    # the form's own category fields hold the pre-submit suggestion instead.
+    # With no draft the form still holds the instructor's own pick, so it is
+    # stored now, before any adoption (the Log's "Came in" stage needs it).
+    if draft:
+        hint = _reporter_hint_from(draft.get("reporter_category"), draft.get("reporter_subcategory"))
+    else:
+        hint = _reporter_hint_from(zoho_category, zoho_subcategory)
+        db.update_ticket(ticket_id, **_reporter_fields(zoho_category, zoho_subcategory, hint))
+
     adopted = _adopt_presubmit_classification(ticket_id, draft, zoho_subcategory)
     if adopted:
         _event(ticket_id, "on_add", lambda: ticket_events.on_add_line(True, adopted))
         leaf = taxonomy.get(adopted)
         return _on_add_reply(ticket_id, leaf["parent_name"], leaf["name"], needs_review=False)
 
-    # The instructor's real pick: from the draft when there is one - by now
-    # the form's own category fields hold the pre-submit suggestion instead.
-    if draft:
-        hint = _reporter_hint_from(draft.get("reporter_category"), draft.get("reporter_subcategory"))
-    else:
-        hint = _reporter_hint_from(zoho_category, zoho_subcategory)
-        db.update_ticket(ticket_id, **_reporter_fields(zoho_category, zoho_subcategory, hint))
     classify_failed_reason = None
     started = time.time()
     try:
@@ -1110,6 +1130,7 @@ def _on_add_reply(ticket_id: str, category: str, subcategory: str, needs_review:
         db.update_ticket(ticket_id, on_add_category=category, on_add_subcategory=subcategory)
     except Exception as e:
         logger.error(f"storing the On Add category for ticket {ticket_id} failed: {e}")
+    _bump_log_stamp()
     return {
         "ok": True,
         "category_of_the_issue": category,
