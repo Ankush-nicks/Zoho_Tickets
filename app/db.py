@@ -63,6 +63,8 @@ CREATE TABLE IF NOT EXISTS tickets (
                                        -- - NULL for tickets classified before the routing log existed
     , duplicate_of TEXT                -- id of an earlier ticket with the same text from the same
                                        -- instructor within 7 days - counted once in accuracy
+    , on_add_category TEXT             -- the category and subcategory Zoho was handed back when the
+    , on_add_subcategory TEXT          -- ticket was created (On Add) - the Log's second stage
 );
 
 CREATE INDEX IF NOT EXISTS idx_tickets_status_created ON tickets(status, created_at);
@@ -191,6 +193,8 @@ _ADDED_COLUMNS = {
     "model_confidence": "REAL",
     "decision": "TEXT",
     "duplicate_of": "TEXT",
+    "on_add_category": "TEXT",
+    "on_add_subcategory": "TEXT",
 }
 
 

@@ -752,7 +752,27 @@ def get_ticket_log_detail(ticket_id: str, user: str = Depends(require_login)):
         "events": len(events), "errors": sum(1 for e in events if e["kind"] == "error"),
     }})
     item["issue_text"] = t.get("original_text") or ""
+    item["came_in"] = {
+        "category": t.get("reporter_category"),
+        "subcategory": t.get("reporter_subcategory"),
+        "at": t.get("created_at"),
+    }
+    item["on_add"] = _on_add_stage(t, events)
     return {"ticket": item, "events": events}
+
+
+def _on_add_stage(t: dict, events: list[dict]) -> dict | None:
+    """The category and subcategory the ticket got at On Add. Tickets from
+    before this was stored fall back to their category; drafts have none."""
+    if t.get("status") == "draft":
+        return None
+    at = next((e["created_at"] for e in events if e["kind"] == "on_add"), t.get("created_at"))
+    if t.get("on_add_subcategory"):
+        return {"category": t.get("on_add_category"), "subcategory": t["on_add_subcategory"], "at": at}
+    leaf = taxonomy.get(t["category_id"]) if t.get("category_id") else None
+    if leaf is None:
+        return None
+    return {"category": leaf["parent_name"], "subcategory": leaf["name"], "at": at}
 
 
 def _resolve_leaf_for_zoho(category_id: str | None) -> tuple[dict, bool]:
@@ -1019,12 +1039,7 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
     if adopted:
         _event(ticket_id, "on_add", lambda: ticket_events.on_add_line(True, adopted))
         leaf = taxonomy.get(adopted)
-        return {
-            "ok": True,
-            "category_of_the_issue": leaf["parent_name"],
-            "sub_category_of_the_issue": leaf["name"],
-            "needs_review": False,
-        }
+        return _on_add_reply(ticket_id, leaf["parent_name"], leaf["name"], needs_review=False)
 
     # The instructor's real pick: from the draft when there is one - by now
     # the form's own category fields hold the pre-submit suggestion instead.
@@ -1071,7 +1086,8 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
             fallback_reason=classify_failed_reason,
         )
         if echo:
-            return {"ok": True, **echo, "needs_review": True}
+            return _on_add_reply(ticket_id, echo["category_of_the_issue"], echo["sub_category_of_the_issue"],
+                                 needs_review=True)
         category_id = None
 
     leaf, used_fallback = _resolve_leaf_for_zoho(category_id)
@@ -1083,11 +1099,22 @@ def webhook_new_zoho_ticket(payload: dict, _: None = Depends(require_webhook_sec
         db.update_ticket(ticket_id, fallback_reason=orphan_reason)
         _event(ticket_id, "error", "Sent the fallback category", error=orphan_reason)
 
+    return _on_add_reply(ticket_id, leaf["parent_name"], leaf["name"], needs_review=used_fallback)
+
+
+def _on_add_reply(ticket_id: str, category: str, subcategory: str, needs_review: bool) -> dict:
+    """What Zoho gets back on a new ticket's On Add call, also stored on the
+    ticket as the Log's On Add stage. Never raises: Zoho must always get its
+    category back."""
+    try:
+        db.update_ticket(ticket_id, on_add_category=category, on_add_subcategory=subcategory)
+    except Exception as e:
+        logger.error(f"storing the On Add category for ticket {ticket_id} failed: {e}")
     return {
         "ok": True,
-        "category_of_the_issue": leaf["parent_name"],
-        "sub_category_of_the_issue": leaf["name"],
-        "needs_review": used_fallback,
+        "category_of_the_issue": category,
+        "sub_category_of_the_issue": subcategory,
+        "needs_review": needs_review,
     }
 
 

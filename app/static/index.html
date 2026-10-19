@@ -383,7 +383,7 @@
           <div>
             <p class="p-eyebrow">Instructors Ticketing System</p>
             <h1>Ticket log</h1>
-            <p class="p-subtitle">Every ticket and what happened to it, in order. Click a ticket to see its timeline: the pre-submit suggestion, the Zoho create, edits, transfers and any errors.</p>
+            <p class="p-subtitle">Every ticket and what happened to it, in order. Click a ticket to see the category the instructor chose when it came in, the one it got at On Add, and any later edits, transfers and errors.</p>
           </div>
         </div>
 
@@ -1275,7 +1275,7 @@ async function taxoBoot(refresh) {
 let logLoadedOnce = false;
 let logSearchTimer = null;
 let logSeq = 0;
-const LOG_KIND_LABEL = { presubmit: 'Pre-submit', on_add: 'On Add', edit: 'Edit', transfer: 'Transfer', duplicate: 'Duplicate', auto_classify: 'Auto-classify', error: 'Error' };
+const LOG_KIND_LABEL = { edit: 'Edit', transfer: 'Transfer', duplicate: 'Duplicate', auto_classify: 'Auto-classify', error: 'Error' };
 
 function logPct(v) { return v === null || v === undefined ? '&ndash;' : `${v}%`; }
 function logFmtTime(ts) {
@@ -1353,11 +1353,38 @@ async function logToggle(btn) {
   }
 }
 
+function logPickHtml(p) {
+  if (!p || (!p.category && !p.subcategory)) return '';
+  return `<strong>${esc([p.category, p.subcategory].filter(Boolean).join(' › '))}</strong>`;
+}
+
+// The two stages: what the instructor chose when the request came in, and
+// what the ticket got at On Add. They replace the Pre-submit and On Add lines.
+function logStagesHtml(t) {
+  const cameIn = logPickHtml(t.came_in);
+  const onAdd = logPickHtml(t.on_add);
+  const changed = t.on_add && t.came_in && t.came_in.subcategory && t.on_add.subcategory !== t.came_in.subcategory;
+  const onAddText = onAdd
+    ? `${onAdd}${changed ? ' <span class="tk-note">changed from the instructor’s pick</span>' : ''}`
+    : `<span class="tk-note">${t.submitted ? 'Not recorded' : 'Not submitted to Zoho yet'}</span>`;
+  return `
+    <div class="ev">
+      <span class="ev-time">${esc(logFmtTime(t.came_in && t.came_in.at))}</span>
+      <span class="ev-kind">Came in</span>
+      <span class="ev-sum">${cameIn ? `Instructor chose ${cameIn}` : '<span class="tk-note">Instructor didn’t choose a category</span>'}</span>
+    </div>
+    <div class="ev">
+      <span class="ev-time">${esc(logFmtTime(t.on_add && t.on_add.at))}</span>
+      <span class="ev-kind">On Add</span>
+      <span class="ev-sum">${onAddText}</span>
+    </div>`;
+}
+
 function logTimelineHtml(d) {
   const text = d.ticket.issue_text || '';
   const issue = `<div class="tk-issue">${esc(text.length > 4000 ? text.slice(0, 4000) + '…' : text)}</div>`;
-  if (!d.events.length) return issue + '<div class="tk-note">No timeline: this ticket was handled before events were recorded.</div>';
-  return issue + d.events.map(e => `
+  const events = d.events.filter(e => e.kind !== 'presubmit' && e.kind !== 'on_add');
+  return issue + logStagesHtml(d.ticket) + events.map(e => `
     <div class="ev${e.kind === 'error' ? ' err' : ''}">
       <span class="ev-time">${esc(logFmtTime(e.created_at))}</span>
       <span class="ev-kind">${esc(LOG_KIND_LABEL[e.kind] || e.kind)}</span>
