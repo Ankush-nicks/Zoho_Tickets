@@ -276,6 +276,10 @@ def _label(leaf_id: str) -> dict:
 
 class ClassifyRequest(BaseModel):
     text: str
+    # What the instructor picked on the Zoho form, by name - weighed against
+    # the model exactly like a live ticket (see _reporter_hint_from).
+    instructor_category: str | None = None
+    instructor_subcategory: str | None = None
 
 
 class ClassifyCorrectRequest(BaseModel):
@@ -283,23 +287,32 @@ class ClassifyCorrectRequest(BaseModel):
     category_id: str
 
 
-def _classify_text(text: str):
+def _classify_text(text: str, reporter_hint: classifier.ReporterHint | None = None):
     if not config.OPENROUTER_API_KEY:
         raise HTTPException(503, "Classification isn't available: OPENROUTER_API_KEY is not set on the server.")
     try:
-        return classifier.classify(text, config.OPENROUTER_API_KEY)
+        return classifier.classify(text, config.OPENROUTER_API_KEY, reporter_hint=reporter_hint)
     except Exception as e:
         raise HTTPException(502, f"Couldn't get a suggestion: {str(e)[:300]}")
 
 
 @app.post("/api/classify")
 def classify_text(req: ClassifyRequest, user: str = Depends(require_login)):
-    """Suggests a category for the text. Writes nothing."""
+    """Suggests a category for the text, the same way a live ticket is
+    classified: with the instructor's pick (if given) weighed against the
+    model's. Writes nothing."""
     text = req.text.strip()
     if not text:
         raise HTTPException(400, "Enter the issue text first.")
-    result = _classify_text(text)
-    return {**_label(result.category_id), "confidence": result.confidence, "reasoning": result.reasoning}
+    hint = _reporter_hint_from(req.instructor_category, req.instructor_subcategory)
+    result = _classify_text(text, hint)
+    decision = _decision_fields(result)
+    return {
+        **_label(result.category_id), "confidence": result.confidence, "reasoning": result.reasoning,
+        **decision,
+        "decision_text": ticket_events.override_sentence(
+            result, hint.leaf_id if hint else None, config.REPORTER_OVERRIDE_MIN_CONFIDENCE),
+    }
 
 
 @app.post("/api/classify/correct")

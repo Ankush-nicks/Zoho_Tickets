@@ -197,3 +197,58 @@ def test_correction_then_put_with_old_version_keeps_the_example(client, fake_cla
     assert "learned only once" in taxonomy.get(leaf["id"])["examples"]
     stored = {sub["id"]: sub for g in db.get_taxonomy_doc()["categories"] for sub in g.get("subcategories", [])}
     assert "learned only once" in stored[leaf["id"]]["examples"]
+
+
+# The Classify page must run the same process as a live ticket: the model's
+# pick weighed against the instructor's Zoho pick (apply_reporter_prior).
+def _routable_leaves():
+    fallback_group = taxonomy.get(config.ZOHO_FALLBACK_CATEGORY_ID)["parent_id"]
+    return [s for g in taxonomy.groups if g["id"] != fallback_group for s in g.get("subcategories", [])]
+
+
+@pytest.fixture()
+def prior_classify(monkeypatch):
+    real_prior = main.classifier.apply_reporter_prior
+    model_leaf, instructor_leaf = _routable_leaves()[:2]
+    state = {"leaf": model_leaf["id"], "confidence": 0.7, "hints": []}
+
+    def fake(text, api_key, embed_api_key=None, reporter_hint=None):
+        state["hints"].append(reporter_hint)
+        raw = ClassificationResult(category_id=state["leaf"], confidence=state["confidence"],
+                                   reasoning="because", needs_clarification=False)
+        return real_prior(raw, reporter_hint)
+
+    monkeypatch.setattr(main.classifier, "classify", fake)
+    return state, model_leaf, instructor_leaf
+
+
+def test_suggest_keeps_instructor_pick_like_the_log(client, prior_classify):
+    state, model_leaf, instructor_leaf = prior_classify
+    res = client.post("/api/classify", json={
+        "text": "something",
+        "instructor_category": taxonomy.get(instructor_leaf["id"])["parent_name"],
+        "instructor_subcategory": instructor_leaf["name"],
+    })
+    assert res.status_code == 200
+    body = res.json()
+    assert state["hints"][-1].leaf_id == instructor_leaf["id"]
+    assert body["category_id"] == instructor_leaf["id"]
+    assert body["decision"] == "kept"
+    assert body["model_category_id"] == model_leaf["id"] and body["model_confidence"] == 0.7
+    assert "instructor's pick was kept" in body["decision_text"]
+
+
+def test_suggest_confident_model_overrides_instructor(client, prior_classify):
+    state, model_leaf, instructor_leaf = prior_classify
+    state["confidence"] = 0.95
+    body = client.post("/api/classify", json={
+        "text": "something", "instructor_subcategory": instructor_leaf["name"],
+    }).json()
+    assert body["category_id"] == model_leaf["id"] and body["decision"] == "overrode"
+
+
+def test_suggest_without_instructor_pick_is_model_only(client, prior_classify):
+    state, model_leaf, _ = prior_classify
+    body = client.post("/api/classify", json={"text": "something"}).json()
+    assert state["hints"][-1] is None
+    assert body["category_id"] == model_leaf["id"] and body["decision"] == "none"

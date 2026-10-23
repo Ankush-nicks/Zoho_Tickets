@@ -426,6 +426,14 @@
         <h1>Classify an issue</h1>
         <p class="p-subtitle">Paste an issue to see which subcategory the classifier picks. Nothing is saved unless you correct it.</p>
         <textarea id="clsText" placeholder="Describe the issue&hellip;"></textarea>
+        <div class="cls-row" title="What the instructor picked on the Zoho form - weighed against the model's pick exactly like a live ticket">
+          <select id="clsInstCat" onchange="clsFillInstSubs()" aria-label="Instructor's category">
+            <option value="">Instructor's category (optional)</option>
+          </select>
+          <select id="clsInstSub" aria-label="Instructor's subcategory">
+            <option value="">Instructor's subcategory (optional)</option>
+          </select>
+        </div>
         <div class="cls-row"><button class="cls-btn primary" id="clsSuggestBtn" onclick="clsSuggest()">Suggest</button></div>
         <div id="clsResult"></div>
       </div>
@@ -573,6 +581,7 @@ function switchTab(tab) {
   const wrap = document.querySelector('.wrap');
   wrap.classList.toggle('wrap-full', tab === 'taxonomy');
   wrap.classList.toggle('wrap-wide', tab === 'log');
+  if (tab === 'classify') clsInitInstructorPick();
   if (tab === 'log' && !logLoadedOnce) {
     logLoadedOnce = true;
     logBoot();
@@ -604,6 +613,41 @@ function clsError(msg) {
   document.getElementById('clsResult').innerHTML = `<div class="cls-msg error">${esc(msg)}</div>`;
 }
 
+async function clsLoadTaxonomy() {
+  if (!clsTaxonomy) {
+    const res = await fetch('/api/taxonomy');
+    if (res.status === 401) { window.location = loginUrl(); return null; }
+    if (!res.ok) throw new Error(`Couldn't load categories (${res.status})`);
+    clsTaxonomy = await res.json();
+  }
+  return clsTaxonomy;
+}
+
+// The instructor's Zoho pick (by name, like the webhook gets it), so a
+// suggestion here goes through the same instructor-vs-model decision as a
+// live ticket in the Log.
+let clsInstCats = [];
+
+async function clsInitInstructorPick() {
+  if (clsInstCats.length) return;
+  try {
+    const tax = await clsLoadTaxonomy();
+    if (!tax) return;
+    clsInstCats = tax.categories || [];
+  } catch (e) {
+    return;  // the pick is optional; Suggest still works without it
+  }
+  document.getElementById('clsInstCat').innerHTML = '<option value="">Instructor’s category (optional)</option>'
+    + clsInstCats.map(c => `<option value="${esc(c.name)}">${esc(c.name)}</option>`).join('');
+  clsFillInstSubs();
+}
+
+function clsFillInstSubs() {
+  const cat = clsInstCats.find(c => c.name === document.getElementById('clsInstCat').value);
+  document.getElementById('clsInstSub').innerHTML = '<option value="">Instructor’s subcategory (optional)</option>'
+    + ((cat && cat.subcategories) || []).map(s => `<option value="${esc(s.name)}">${esc(s.name)}</option>`).join('');
+}
+
 async function clsSuggest() {
   const text = document.getElementById('clsText').value.trim();
   if (!text) { clsError('Enter the issue text first.'); return; }
@@ -614,7 +658,11 @@ async function clsSuggest() {
     const res = await fetch('/api/classify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({
+        text,
+        instructor_category: document.getElementById('clsInstCat').value || null,
+        instructor_subcategory: document.getElementById('clsInstSub').value || null,
+      }),
     });
     if (res.status === 401) { window.location = loginUrl(); return; }
     const data = await res.json().catch(() => ({}));
@@ -635,6 +683,7 @@ function clsRenderResult() {
       <span class="cls-label">${esc(r.category)} &rsaquo; ${esc(r.subcategory)}</span>
       <span class="cls-conf">${Math.round((r.confidence || 0) * 100)}% confident</span>
       <div class="cls-reason">${esc(r.reasoning)}</div>
+      ${r.decision && r.decision !== 'none' ? `<div class="cls-msg">${esc(r.decision_text)}</div>` : ''}
       <div class="cls-row"><button class="cls-btn" onclick="clsOpenCorrect()">Wrong?</button></div>
       <div id="clsCorrect"></div>
     </div>`;
@@ -642,16 +691,11 @@ function clsRenderResult() {
 
 async function clsOpenCorrect() {
   const box = document.getElementById('clsCorrect');
-  if (!clsTaxonomy) {
-    try {
-      const res = await fetch('/api/taxonomy');
-      if (res.status === 401) { window.location = loginUrl(); return; }
-      if (!res.ok) throw new Error(`Couldn't load categories (${res.status})`);
-      clsTaxonomy = await res.json();
-    } catch (e) {
-      box.innerHTML = `<div class="cls-msg error">${esc(e.message)}</div>`;
-      return;
-    }
+  try {
+    if (!await clsLoadTaxonomy()) return;
+  } catch (e) {
+    box.innerHTML = `<div class="cls-msg error">${esc(e.message)}</div>`;
+    return;
   }
   const cats = clsTaxonomy.categories || [];
   box.innerHTML = `
