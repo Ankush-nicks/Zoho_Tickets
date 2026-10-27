@@ -1,5 +1,5 @@
 {
-  "version": 9,
+  "version": 12,
   "categories": [
     {
       "id": "G01",
@@ -35,7 +35,7 @@
         {
           "id": "G01-S03",
           "name": "Scorecard / Rubric Discrepancy",
-          "description": "The QA report WAS generated and the instructor disputes the score because the evaluation judged the session the wrong way. This includes: the rubric doesn't fit the session type (student practicals or presentations where students speak, invigilation where other people's speech is recorded, activity-based sessions); the PPT/material was already in Teach OS but the report says it was missing or scores coverage near zero; the report expects topics outside the session's PROD scope (e.g. a recap topic that wasn't taught yet); a recurring zero score because the uploaded audio isn't being evaluated properly; or a request to review a period of past scores affected by a now-resolved constraint (e.g. before a mic was provided). Route here even if the ticket also mentions a mis-transcription, as long as the main complaint is coverage, rubric fit or the overall score. NOT this: report never generated or failed -> Instructor Scorecard Issues; the main complaint is the AI inventing or mishearing specific statements at timestamps -> AI / Automated Evaluation Accuracy Error; the session itself was disrupted (late start, cut short, no students, mid-session outage) -> Any Issue Leading to Session Disruption; the content is wrong, missing or too long for the slot -> Content & Curriculum. NOT this either: the instructor rebuts individual report remarks by explaining the context (students' curiosity questions, a revision session, no doubts to ask) -> QA Evaluation Prompt Update Request.",
+          "description": "The QA report WAS generated and the instructor disputes the score because the evaluation judged the session the wrong way. This includes: the rubric doesn't fit the session type (student practicals or presentations where students speak, invigilation where other people's speech is recorded, activity-based sessions); the PPT/material was already in Teach OS but the report says it was missing or scores coverage near zero; the report expects topics outside the session's PROD scope (e.g. a recap topic that wasn't taught yet); or a request to review a period of past scores affected by a now-resolved constraint (e.g. before a mic was provided). Route here even if the ticket also mentions a mis-transcription, as long as the main complaint is coverage, rubric fit or the overall score. NOT this: report never generated, failed, is stuck or shows 0.0 with no report -> Instructor Platform (Teach OS) > AI / Automated Evaluation Accuracy Error; the main complaint is the AI inventing or mishearing specific statements at timestamps -> AI / Automated Evaluation Accuracy Error; the session itself was disrupted (late start, cut short, no students, mid-session outage) -> Any Issue Leading to Session Disruption; the content is wrong, missing or too long for the slot -> Content & Curriculum. NOT this either: the instructor rebuts individual report remarks by explaining the context (students' curiosity questions, a revision session, no doubts to ask) -> QA Evaluation Prompt Update Request.",
           "assigned_team": "IAS/SET",
           "poc_primary": "ranjith.kumar@nxtwave.co.in",
           "examples": [
@@ -182,7 +182,7 @@
         {
           "id": "G03-S02",
           "name": "Teach OS Performance / Speed Issue",
-          "description": "Teach OS itself is loading very slowly, freezing, hanging or crashing while being used. Recording or upload failures go to Recording Issue; missing or failed QA reports go to Instructor Scorecard Issues.",
+          "description": "Teach OS itself is loading very slowly, freezing, hanging or crashing while being used. Recording or upload failures go to Recording Issue; missing or failed QA reports go to AI / Automated Evaluation Accuracy Error.",
           "assigned_team": "Product Team",
           "poc_primary": "catherine.joannamathews@nxtwave.co.in, gauthami.chandil@nxtwave.co.in, ankon.nandi@nxtwave.co.in",
           "examples": [
@@ -193,22 +193,15 @@
         {
           "id": "G03-S03",
           "name": "Instructor Scorecard Issues",
-          "description": "The QA report itself never got created: the status shows Failed, 'failed to evaluate', 0.0 with no View Report option, or it is stuck or missing, even though the recording was submitted. A platform failure, not a dispute about the score.",
+          "description": "The instructor's overall scorecard in Teach OS - the combined ratings across sessions - isn't loading, isn't updating, or shows totals that don't match the individual session reports, while those session reports themselves exist. NOT this: a session's QA / evaluation report failed, never generated, is stuck or shows 0.0 with no report -> AI / Automated Evaluation Accuracy Error; disputing one report's score -> QA Report / Instructor Evaluation > Scorecard / Rubric Discrepancy.",
           "assigned_team": "Product Team",
           "poc_primary": "catherine.joannamathews@nxtwave.co.in, gauthami.chandil@nxtwave.co.in, ankon.nandi@nxtwave.co.in",
-          "examples": [
-            "report failed to generate even though it was successfully uploaded.",
-            "QA Report Failed",
-            "Qa report did not generated, got the status a s failed for HTML/CSS session.",
-            "My recording has been submitted, and the student comments are visible. The QA rating is showuing 0.0 and instead of the “View Report” option, it is showing “Failed.”",
-            "my recording is not uploading it was showing like failed to evaluate",
-            "report is no generated yet & it is failed & unable to reupload the audio as it is already taken."
-          ]
+          "examples": []
         },
         {
           "id": "G03-S04",
           "name": "Recording Issue (Platform / Software)",
-          "description": "A specific session's recording is missing, stuck, not uploaded, not detected, or contaminated (e.g. another instructor's voice in the mic), and the ask is about the recording itself: recover it, re-process it, accept a re-upload or mobile recording. Route here whatever the cause, including a power cut (even one during the session) or device problem - the only exception is the internet / network. NOT this: the instructor says the session itself was disrupted or cut short and wants the QA impact considered -> Any Issue Leading to Session Disruption; the instructor is asking for the equipment to be provided or fixed -> Facilities & Equipment. If the instructor says the internet / network caused the recording or upload to fail, even when they ask to recover or accept the recording -> Facilities & Equipment > Campus Network / Wi-Fi Issue.",
+          "description": "A specific session's recording is missing, stuck, not uploaded, not detected, or contaminated (e.g. another instructor's voice in the mic), and the ask is about the recording itself: recover it, re-process it, accept a re-upload or mobile recording. Route here whatever the cause, including a power cut (even one during the session) or device problem - the only exception is the internet / network. NOT this: the recording or audio was uploaded successfully but the status shows Failed or the QA / evaluation report did not generate -> AI / Automated Evaluation Accuracy Error; the instructor says the session itself was disrupted or cut short and wants the QA impact considered -> Any Issue Leading to Session Disruption; the instructor is asking for the equipment to be provided or fixed -> Facilities & Equipment. If the instructor says the internet / network caused the recording or upload to fail, even when they ask to recover or accept the recording -> Facilities & Equipment > Campus Network / Wi-Fi Issue.",
           "assigned_team": "Capability Manager (first) -> Central Team / Product (escalation)",
           "poc_primary": "Respective Capability Manager; escalate to catherine.joannamathews@nxtwave.co.in, gauthami.chandil@nxtwave.co.in, ankon.nandi@nxtwave.co.in",
           "examples": [
@@ -224,7 +217,7 @@
         {
           "id": "G03-S05",
           "name": "AI / Automated Evaluation Accuracy Error",
-          "description": "Anything about an AI assessment also routes here: an AI assessment that's missing or not available for a topic, can't be started or submitted, doesn't load, or gives a wrong result. Otherwise, the main complaint is that the AI report states something that didn't happen: it mis-transcribed specific words (e.g. heard 'LCM' when the instructor said 'HCF'), attributed statements, phone calls, topics or language switches that never occurred, or cites timestamps that don't match what was happening. The instructor usually quotes the report's claim and the timestamp and asks for a manual review. NOT this: coverage or rubric scored low, the rubric doesn't fit the session type, or the uploaded audio isn't being evaluated -> Scorecard / Rubric Discrepancy; the session was disrupted and the AI penalised how it was handled -> Any Issue Leading to Session Disruption; the report never generated -> Instructor Scorecard Issues. If the quoted words were really said (by the instructor or the students) and the instructor explains the context the evaluation should allow for -> QA Report / Instructor Evaluation > QA Evaluation Prompt Update Request.",
+          "description": "A session's QA / evaluation report failed or never came out and needs to be regenerated: the status shows Failed, 'Evaluation Report failed to generate and is not available' or 'failed to evaluate', the score is 0.0 or 0/10 with no View Report option, the report is stuck (e.g. at 60%), not generated yet, or the session reports / QA rating aren't visible - even though the recording or audio was submitted successfully. This covers lectures, practice sessions, demo sessions and AI assessments alike, one-off or recurring. Anything about an AI assessment also routes here: an AI assessment that's missing or not available for a topic, can't be started or submitted, doesn't load, or gives a wrong result. Otherwise, the main complaint is that the AI report states something that didn't happen: it mis-transcribed specific words (e.g. heard 'LCM' when the instructor said 'HCF'), attributed statements, phone calls, topics or language switches that never occurred, or cites timestamps that don't match what was happening. The instructor usually quotes the report's claim and the timestamp and asks for a manual review. NOT this: the recording itself is missing, not uploaded or not detected and the ask is to recover it or accept a re-upload -> Recording Issue; the report was generated and coverage or rubric scored low, or the rubric doesn't fit the session type -> Scorecard / Rubric Discrepancy; the report opens but a section or the overall score is 0 or low with no explanation, remarks or action items -> QA Report / Instructor Evaluation > Feedback Too Generic or Vague; the session was disrupted and the AI penalised how it was handled -> Any Issue Leading to Session Disruption. If the quoted words were really said (by the instructor or the students) and the instructor explains the context the evaluation should allow for -> QA Report / Instructor Evaluation > QA Evaluation Prompt Update Request.",
           "assigned_team": "Product Team",
           "poc_primary": "catherine.joannamathews@nxtwave.co.in, gauthami.chandil@nxtwave.co.in, ankon.nandi@nxtwave.co.in",
           "examples": [
@@ -234,7 +227,20 @@
             "You should read problem statements aloud exactly as written. At ((23:58)) you said “statement one is LCM of X and Y is four” when the slide says “HCF of X & Y is 4”. This can confuse students who are cross-referencing the slide....",
             "I would like to request a review of the QA report generated for my recent session, as I believe the report contains significant inaccuracies that have negatively impacted my score. The report states that I discussed Aadhaar...",
             "Subject: Formal Request for Manual Audit: Correction of System Errors in QA Report for Session To: Academic Quality Assurance Team Trainer Name: Mounika Chiluka Session Topic: Integrating Ollama with AI Coding Agents Dear Quality...",
-            "There is no AI assessment available for the MCQ practice of Company specific Numbers from Quantitative Aptitude topic so due to this I am unable to take the Assessment."
+            "There is no AI assessment available for the MCQ practice of Company specific Numbers from Quantitative Aptitude topic so due to this I am unable to take the Assessment.",
+            "report failed to generate even though it was successfully uploaded.",
+            "QA Report Failed",
+            "Qa report did not generated, got the status a s failed for HTML/CSS session.",
+            "My recording has been submitted, and the student comments are visible. The QA rating is showuing 0.0 and instead of the “View Report” option, it is showing “Failed.”",
+            "my recording is not uploading it was showing like failed to evaluate",
+            "report is no generated yet & it is failed & unable to reupload the audio as it is already taken.",
+            "Recording submitted but it is showing like this...Evaluation Report failed to generate and is not available.",
+            "AI Assesment QA report is showing Failed in the session reports and score is 0/10.please verify why it is failed.",
+            "QA report not generated completely and showing like 60% done all files are chunked  like that.",
+            "I have uploaded the recording and duly completed the session without any hiccups, yet Teachos flagged the QA report.",
+            "This evaluation has been stuck here since this morning. refer to screenshot i have provided",
+            "Unable to see any session reports.",
+            "The audio for this session has been successfully uploaded, although the status still shows as failed. I am attaching a screenshot for your reference."
           ]
         }
       ]
